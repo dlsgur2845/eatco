@@ -329,4 +329,4 @@ docker volume rm eatco_postgres_data
 
 ## 라이선스
 
-Private Project
+[MIT License](LICENSE)
