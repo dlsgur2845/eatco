@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: eatco-postgres
+    restart: unless-stopped
+    user: postgres
+    expose:
+      - "5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - eatco-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: eatco-backend
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      CORS_ORIGINS: https://localhost:8443
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/app:/app/app
+    networks:
+      - eatco-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: eatco-frontend
+    restart: unless-stopped
+    ports:
+      - "8443:8443"
+      - "8080:8080"
+    depends_on:
+      - backend
+    networks:
+      - eatco-net
+
+volumes:
+  postgres_data:
+
+networks:
+  eatco-net:
+    driver: bridge
+    internal: false

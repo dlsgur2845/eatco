@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/* Material Design 3 Theme - The Editorial Pantry */
+@theme {
+  --color-primary: #006e1c;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #4caf50;
+  --color-on-primary-container: #003c0b;
+
+  --color-secondary: #8b5000;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #ff9800;
+  --color-on-secondary-container: #653900;
+
+  --color-tertiary: #bb1614;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #ff6c5c;
+  --color-on-tertiary-container: #6d0003;
+
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+
+  --color-surface: #f8faf8;
+  --color-on-surface: #191c1b;
+  --color-on-surface-variant: #3f4a3c;
+  --color-surface-container: #eceeec;
+  --color-surface-container-low: #f2f4f2;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #e6e9e7;
+
+  --color-outline: #6f7a6b;
+  --color-outline-variant: #becab9;
+
+  --font-headline: "Plus Jakarta Sans", sans-serif;
+  --font-body: "Inter", sans-serif;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+  margin: 0;
+}

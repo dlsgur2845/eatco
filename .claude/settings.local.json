@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(npm install:*)",
+      "Bash(docker compose:*)",
+      "Bash(curl -s -X POST http://localhost:8000/api/auth/register -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"test@test.com\"\",\"\"nickname\"\":\"\"테스트\"\",\"\"password\"\":\"\"123456\"\"}')",
+      "Bash(docker exec eatco-backend python -c \":*)",
+      "Bash(curl -sv -X POST http://localhost:8000/api/auth/register -H \"Content-Type: application/json\" --data-raw \"{\"\"email\"\":\"\"test@test.com\"\",\"\"nickname\"\":\"\"test\"\",\"\"password\"\":\"\"123456\"\"}\")",
+      "Bash(curl -s -X POST http://localhost:5173/api/auth/register -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"test2@test.com\"\",\"\"nickname\"\":\"\"테스트2\"\",\"\"password\"\":\"\"123456\"\"}')",
+      "Bash(curl -sv -X POST http://localhost:5173/api/auth/register -H \"Content-Type: application/json\" --data-raw \"{\"\"email\"\":\"\"test2@test.com\"\",\"\"nickname\"\":\"\"test2\"\",\"\"password\"\":\"\"123456\"\"}\")",
+      "Bash(docker network:*)",
+      "Bash(curl -sk https://localhost/)",
+      "Bash(curl -sk -X POST https://localhost/api/auth/register -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"nginx@test.com\"\",\"\"nickname\"\":\"\"nginx\"\",\"\"password\"\":\"\"123456\"\"}')",
+      "Bash(curl -s http://localhost/ -o /dev/null -w \"%{http_code} -> %{redirect_url}\")",
+      "Bash(curl -sk https://localhost/api/categories)",
+      "WebSearch",
+      "Bash(docker volume:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx vite:*)",
+      "Bash(curl -sk \"https://localhost/api/storage-guide/lookup?name=유기농%20우유%201L\")",
+      "Bash(curl -sk \"https://localhost/api/storage-guide/lookup?name=우유\")",
+      "Bash(curl -sk --get \"https://localhost/api/storage-guide/lookup\" --data-urlencode \"name=우유\")",
+      "Bash(curl -sk \"https://localhost/api/storage-guide/lookup?name=%EC%9A%B0%EC%9C%A0\")",
+      "Bash(docker exec:*)",
+      "Bash(curl -sk -X POST https://localhost:8443/api/auth/register -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"enter@test.com\"\",\"\"nickname\"\":\"\"entertest\"\",\"\"password\"\":\"\"pass1234\"\"}')",
+      "Bash(curl -sk -X POST https://localhost:8443/api/auth/login -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"enter@test.com\"\",\"\"password\"\":\"\"pass1234\"\"}')",
+      "Bash(curl -sk -X POST https://localhost:8443/api/auth/register -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"debug@test.com\"\",\"\"nickname\"\":\"\"debugger\"\",\"\"password\"\":\"\"pass1234\"\"}' -c /tmp/debug.txt)",
+      "Bash(curl -sk https://localhost:8443/api/auth/me -b /tmp/debug.txt)",
+      "Bash(curl -sk -X POST https://localhost:8443/api/auth/register -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"bcrypt@test.com\"\",\"\"nickname\"\":\"\"bctest\"\",\"\"password\"\":\"\"pass1234\"\"}')",
+      "WebFetch(domain:catalog.data.gov)",
+      "WebFetch(domain:www.fsis.usda.gov)",
+      "Bash(curl -sL \"https://www.fsis.usda.gov/shared/data/EN/foodkeeper.json\" -o C:UsersdlsguDesktopeatcobackendappdatafoodkeeper.json --connect-timeout 30 --max-time 120)",
+      "Bash(dir C:UsersdlsguDesktopeatcobackendappdatafoodkeeper.json)",
+      "Bash(curl -sL \"https://www.fsis.usda.gov/shared/data/EN/foodkeeper.json\" -o \"C:/Users/dlsgu/Desktop/eatco/backend/app/data/foodkeeper.json\" --connect-timeout 30 --max-time 120)",
+      "Bash(gh auth:*)"
+    ]
+  }
+}

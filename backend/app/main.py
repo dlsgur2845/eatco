@@ -1,0 +1,47 @@
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.config import settings
+from app.database import async_session, engine
+from app.models.ingredient import Base
+from app.routers import auth, categories, dashboard, ingredients, notification_logs, notifications, storage_guide
+from app.seed import run_seed
+from app.services.expiry_checker import check_and_create_expiry_notifications
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    async with async_session() as db:
+        await run_seed(db)
+    # 시작 시 유통기한 알림 체크
+    async with async_session() as db:
+        await check_and_create_expiry_notifications(db)
+    yield
+
+
+app = FastAPI(title="Eatco API", version="0.1.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins.split(","),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router)
+app.include_router(ingredients.router)
+app.include_router(dashboard.router)
+app.include_router(categories.router)
+app.include_router(notifications.router)
+app.include_router(notification_logs.router)
+app.include_router(storage_guide.router)
+
+
+@app.get("/api/health")
+async def health_check():
+    return {"status": "ok"}
