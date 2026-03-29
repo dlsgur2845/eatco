@@ -80,10 +80,8 @@ export default function LoginPage() {
 
         {/* Form Card */}
         <main className="w-full">
-          <section className="bg-surface-container-low rounded-3xl p-8 md:p-10 shadow-[0_10px_40px_rgba(25,28,27,0.04)] relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-1 h-full bg-primary-container" />
-
-            <form onSubmit={handleSubmit} className="flex flex-col gap-6 relative z-10">
+          <section className="bg-surface-container-low rounded-3xl p-8 md:p-10 shadow-[0_10px_40px_rgba(25,28,27,0.04)]">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
               {/* 이메일 */}
               <div className="flex flex-col gap-2">
                 <label className="font-body text-[11px] font-bold uppercase tracking-widest text-on-surface-variant pl-1">
