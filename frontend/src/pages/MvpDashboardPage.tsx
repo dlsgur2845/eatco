@@ -253,7 +253,7 @@ export default function MvpDashboardPage() {
       {/* 스냅바 undo */}
       {undoItem && (
         <div
-          className="fixed bottom-20 left-4 right-4 mx-auto max-w-md flex items-center justify-between px-4 py-3 rounded-xl shadow-lg z-50"
+          className="fixed bottom-28 left-4 right-4 mx-auto max-w-md flex items-center justify-between px-4 py-3 rounded-xl shadow-lg z-50"
           style={{ backgroundColor: 'var(--color-on-surface)', color: 'var(--color-surface)' }}
         >
           <span className="text-sm">
