@@ -205,16 +205,13 @@ async def recommend_recipes(
             unique.append(row)
 
     # 매칭률 계산
-    results = []
+    matched_results = []
+    extra_results = []
     for row in unique:
         parsed = _parse_recipe(row)
         match = _compute_match(parsed["ingredients"], fridge_items, urgent_items)
 
-        # 냉장고에 재료가 있을 때만 매칭 0인 레시피 스킵
-        if match["match_count"] == 0 and fridge_items:
-            continue
-
-        results.append(RecipeMatch(
+        recipe = RecipeMatch(
             name=parsed["name"],
             category=parsed["category"],
             cooking_method=parsed["cooking_method"],
@@ -230,11 +227,27 @@ async def recommend_recipes(
             matched_items=match["matched"],
             missing_items=match["missing"],
             urgent_used=match["urgent_used"],
-        ))
+        )
 
-    # 정렬: 긴급 재료 활용 > 매칭률
-    results.sort(key=lambda r: (len(r.urgent_used), r.match_ratio), reverse=True)
-    return results[:top_n]
+        if match["match_count"] > 0:
+            matched_results.append(recipe)
+        else:
+            extra_results.append(recipe)
+
+    # 매칭 레시피: 긴급 재료 활용 > 매칭률 순
+    matched_results.sort(key=lambda r: (len(r.urgent_used), r.match_ratio), reverse=True)
+
+    # 매칭 레시피 최대 3개 + 추가 추천 최대 2개 = 총 5개
+    final = matched_results[:3]
+    remaining = top_n + 2 - len(final)
+    if remaining > 0 and extra_results:
+        final.extend(extra_results[:remaining])
+
+    # 매칭 레시피가 없으면 fallback에서 추가
+    if not final:
+        final = _fallback_recipes(fridge_items, urgent_items, top_n + 2)
+
+    return final[:top_n + 2]
 
 
 # --- Fallback 인기 레시피 ---
@@ -259,13 +272,11 @@ def _fallback_recipes(
     top_n: int = 3,
 ) -> list[RecipeMatch]:
     """API 실패 시 하드코딩된 인기 레시피에서 추천."""
-    results = []
+    matched = []
+    extras = []
     for r in POPULAR_RECIPES:
         match = _compute_match(r["ingredients"], fridge_items, urgent_items)
-        # 냉장고에 재료가 있을 때만 매칭 0 스킵, 비어있으면 전부 보여줌
-        if match["match_count"] == 0 and fridge_items:
-            continue
-        results.append(RecipeMatch(
+        recipe = RecipeMatch(
             name=r["name"],
             category=r["category"],
             cooking_method=r["method"],
@@ -281,7 +292,15 @@ def _fallback_recipes(
             matched_items=match["matched"],
             missing_items=match["missing"],
             urgent_used=match["urgent_used"],
-        ))
+        )
+        if match["match_count"] > 0:
+            matched.append(recipe)
+        else:
+            extras.append(recipe)
 
-    results.sort(key=lambda r: (len(r.urgent_used), r.match_ratio), reverse=True)
-    return results[:top_n]
+    matched.sort(key=lambda r: (len(r.urgent_used), r.match_ratio), reverse=True)
+    final = matched[:3]
+    remaining = top_n - len(final)
+    if remaining > 0:
+        final.extend(extras[:remaining])
+    return final[:top_n]

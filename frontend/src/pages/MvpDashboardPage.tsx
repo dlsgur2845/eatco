@@ -214,16 +214,34 @@ export default function MvpDashboardPage() {
           ))}
         </div>
       ) : recipes.length > 0 ? (
-        <div className="mb-6">
-          <h3 className="text-sm font-semibold tracking-wide mb-3" style={{ color: 'var(--color-on-surface-variant)' }}>
-            오늘의 추천
-          </h3>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
-            {recipes.map((r, i) => (
-              <RecipeCard key={i} recipe={r} />
-            ))}
-          </div>
-        </div>
+        <>
+          {/* 재료 기반 추천 */}
+          {recipes.filter(r => r.match_count > 0).length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold tracking-wide mb-3" style={{ color: 'var(--color-on-surface-variant)' }}>
+                냉장고 재료로 만들 수 있어요
+              </h3>
+              <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
+                {recipes.filter(r => r.match_count > 0).map((r, i) => (
+                  <RecipeCard key={i} recipe={r} />
+                ))}
+              </div>
+            </div>
+          )}
+          {/* 추가 추천 (매칭 무관) */}
+          {recipes.filter(r => r.match_count === 0).length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold tracking-wide mb-3" style={{ color: 'var(--color-on-surface-variant)' }}>
+                이런 요리는 어때요?
+              </h3>
+              <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
+                {recipes.filter(r => r.match_count === 0).map((r, i) => (
+                  <RecipeCard key={i} recipe={r} />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       ) : null}
 
       {/* 오늘 써야 할 식재료 */}
