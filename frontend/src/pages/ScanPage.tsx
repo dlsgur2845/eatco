@@ -88,7 +88,7 @@ export default function ScanPage({ onRegistered }: Props) {
 
       {scanning ? (
         <div
-          className="w-full aspect-[3/4] rounded-2xl flex flex-col items-center justify-center gap-4"
+          className="w-full py-16 rounded-2xl flex flex-col items-center justify-center gap-4"
           style={{ backgroundColor: 'var(--color-surface-container-low)' }}
         >
           <div className="w-48 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-container-high)' }}>
@@ -106,11 +106,11 @@ export default function ScanPage({ onRegistered }: Props) {
         </div>
       ) : (
         <div
-          className="w-full aspect-[3/4] rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer"
+          className="w-full py-16 rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer"
           style={{ backgroundColor: 'var(--color-surface-container-low)' }}
           onClick={() => fileInputRef.current?.click()}
         >
-          <span className="text-5xl opacity-30">📷</span>
+          <span className="material-symbols-outlined text-5xl" style={{ color: 'var(--color-outline)', opacity: 0.4 }}>photo_camera</span>
           <span className="text-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
             여기를 눌러 영수증을 촬영하세요
           </span>
