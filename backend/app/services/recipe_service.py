@@ -192,13 +192,23 @@ async def recommend_recipes(
     top_n: int = 5,
 ) -> list[RecipeMatch]:
     """냉장고 재료 기반 레시피 추천. 긴급 재료 우선."""
-    # 검색 키워드: 긴급 재료 우선, 없으면 전체 중 상위 2개, 비어있으면 기본 검색어
-    if urgent_items:
-        search_keywords = urgent_items[:3]
-    elif fridge_items:
-        search_keywords = fridge_items[:4]
+    # 검색 키워드: 핵심 단어만 추출 (예: "국내산 냉동 삼겹살" → "삼겹살")
+    # 수식어를 제거하고 마지막 단어(핵심 재료)를 사용
+    skip_words = {"국내산", "수입산", "냉동", "생", "한우", "미국산", "호주산", "저지방", "무지방", "유기농", "1단계", "2단계"}
+
+    def extract_keyword(name: str) -> str:
+        words = name.split()
+        # 뒤에서부터 수식어가 아닌 첫 단어 선택
+        for w in reversed(words):
+            if w not in skip_words and len(w) >= 2:
+                return w
+        return name
+
+    source_items = urgent_items if urgent_items else fridge_items
+    if source_items:
+        search_keywords = list(dict.fromkeys(extract_keyword(item) for item in source_items))[:5]
     else:
-        search_keywords = ["김치찌개", "계란", "볶음밥"]  # 기본 인기 레시피
+        search_keywords = ["김치찌개", "계란", "볶음밥"]
 
     all_recipes = []
     for kw in search_keywords:
