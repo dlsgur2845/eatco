@@ -31,3 +31,4 @@ postgres_data/
 # Logs
 *.log
 .gstack/
+test.png
