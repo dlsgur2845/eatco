@@ -4,9 +4,9 @@ import api from '../../api/client'
 
 const navItems = [
   { to: '/', icon: 'dashboard', label: '대시보드' },
-  { to: '/inventory', icon: 'kitchen', label: '식재료' },
+  { to: '/scan', icon: 'document_scanner', label: '스캔' },
+  { to: '/fridge', icon: 'kitchen', label: '냉장고' },
   { to: '/notifications', icon: 'notifications', label: '알림', badge: true },
-  { to: '/family', icon: 'group', label: '가족 관리' },
   { to: '/settings', icon: 'settings', label: '설정' },
 ]
 

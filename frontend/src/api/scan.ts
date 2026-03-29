@@ -21,6 +21,7 @@ export interface DashboardItem {
   storage_method: string
   expiry_date: string
   registered_at: string
+  registered_by: string | null
   days_left: number
 }
 

@@ -217,7 +217,8 @@ function ItemRow({
   onDelete: (item: DashboardItem) => void
 }) {
   const storageLabel = item.storage_method === 'refrigerated' ? '냉장' : item.storage_method === 'frozen' ? '냉동' : '실온'
-  const regDate = item.registered_at ? new Date(item.registered_at).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) + '일 등록' : ''
+  const regDate = item.registered_at ? new Date(item.registered_at).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) + '일' : ''
+  const byWho = item.registered_by ? ` · ${item.registered_by}` : ''
 
   return (
     <div className="flex items-center gap-3 py-3 group" style={{ borderBottom: '1px solid var(--color-surface-container)' }}>
@@ -228,7 +229,7 @@ function ItemRow({
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate" style={{ color: 'var(--color-on-surface)' }}>{item.name}</p>
         <p className="text-xs mt-0.5" style={{ color: 'var(--color-on-surface-variant)' }}>
-          {regDate} · {storageLabel}
+          {regDate}{byWho} · {storageLabel}
         </p>
       </div>
 

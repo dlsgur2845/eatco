@@ -29,5 +29,6 @@ class Ingredient(Base):
     registered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     family_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("families.id"))
+    registered_by: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     category = relationship("Category", back_populates="ingredients")

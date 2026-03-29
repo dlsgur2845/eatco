@@ -11,6 +11,7 @@ interface Props {
 
 export default function ScanPage({ onRegistered }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
   const [scanning, setScanning] = useState(false)
   const [progressStep, setProgressStep] = useState(0)
   const [items, setItems] = useState<ScannedItem[]>([])
@@ -125,11 +126,21 @@ export default function ScanPage({ onRegistered }: Props) {
         </div>
       )}
 
+      {/* 카메라 촬영용 (모바일) */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp"
         capture="environment"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
+      {/* 갤러리 업로드용 (카메라 없는 기기) */}
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
         className="hidden"
         onChange={handleFileChange}
       />
@@ -141,6 +152,15 @@ export default function ScanPage({ onRegistered }: Props) {
         disabled={scanning}
       >
         영수증 촬영하기
+      </button>
+
+      <button
+        className="w-full mt-3 py-3 rounded-full text-sm font-medium disabled:opacity-50"
+        style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface)' }}
+        onClick={() => galleryInputRef.current?.click()}
+        disabled={scanning}
+      >
+        사진 업로드하기
       </button>
 
       <p className="mt-3 text-xs" style={{ color: 'var(--color-outline)' }}>

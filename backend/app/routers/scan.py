@@ -53,6 +53,7 @@ class IngredientResponse(BaseModel):
     storage_method: str
     expiry_date: date
     registered_at: str
+    registered_by: str | None
     days_left: int
 
     model_config = {"from_attributes": True}
@@ -109,6 +110,7 @@ async def analyze_receipt(
 @router.post("/register")
 async def register_items(
     body: RegisterRequest,
+    user: User = Depends(get_current_user),
     family_id: uuid.UUID = Depends(get_user_family_id),
     db: AsyncSession = Depends(get_db),
 ):
@@ -126,6 +128,7 @@ async def register_items(
             storage_method=storage_map.get(item.storage_method, StorageMethod.REFRIGERATED),
             expiry_date=item.expiry_date,
             family_id=family_id,
+            registered_by=user.nickname,
         )
         db.add(ingredient)
         created.append(ingredient)
@@ -155,6 +158,7 @@ async def get_items(
             storage_method=ing.storage_method.value,
             expiry_date=ing.expiry_date,
             registered_at=ing.registered_at.isoformat() if ing.registered_at else "",
+            registered_by=ing.registered_by,
             days_left=(ing.expiry_date - today).days,
         )
         for ing in ingredients
