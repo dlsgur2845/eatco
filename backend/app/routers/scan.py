@@ -17,8 +17,9 @@ from app.database import get_db
 from app.models.ingredient import Ingredient, StorageMethod
 from app.models.user import Family, User
 from app.routers.auth import get_current_user
+from app.config import settings
 from app.services.category_mapper import MappedItem, map_ocr_results
-from app.services.ocr_service import OCRError, scan_image
+from app.services.ocr_service import OCRError, scan_image, scan_image_gemini
 
 router = APIRouter(prefix="/api/scan", tags=["scan"])
 
@@ -86,6 +87,34 @@ async def analyze_receipt(
     if len(image_bytes) > MAX_IMAGE_SIZE:
         raise HTTPException(status_code=413, detail="이미지가 너무 큽니다 (최대 10MB).")
 
+    provider = settings.ocr_provider
+    today = date.today()
+
+    # Gemini 경로: 이미지 → 식재료 JSON 직접 추출
+    if provider == "gemini" and settings.gemini_api_key:
+        try:
+            gemini_items = await scan_image_gemini(image_bytes, file.content_type or "image/jpeg")
+        except OCRError as e:
+            raise HTTPException(status_code=503, detail=str(e))
+
+        from datetime import timedelta
+        items = [
+            ScannedItemResponse(
+                name=gi.name,
+                matched_keyword=gi.name,
+                storage_method=gi.storage_method,
+                shelf_life_days=gi.shelf_life_days,
+                expiry_date=today + timedelta(days=gi.shelf_life_days),
+                confidence=gi.confidence,
+                auto_matched=True,
+                quantity=gi.quantity,
+                price=gi.price,
+            )
+            for gi in gemini_items
+        ]
+        return ScanResponse(items=items, total=len(items))
+
+    # CLOVA / Mock 경로: OCR → 텍스트 → 카테고리 매핑
     try:
         ocr_lines = await scan_image(image_bytes, file.content_type or "image/jpeg")
     except OCRError as e:

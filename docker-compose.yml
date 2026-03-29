@@ -31,6 +31,14 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       CORS_ORIGINS: https://localhost:8443,http://localhost:8080
+      SECRET_KEY: ${SECRET_KEY}
+      RECIPE_API_KEY: ${RECIPE_API_KEY:-}
+      DATA_GO_KR_API_KEY: ${DATA_GO_KR_API_KEY:-}
+      OCR_PROVIDER: ${OCR_PROVIDER:-gemini}
+      OCR_MOCK_MODE: ${OCR_MOCK_MODE:-false}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      CLOVA_OCR_API_URL: ${CLOVA_OCR_API_URL:-}
+      CLOVA_OCR_SECRET_KEY: ${CLOVA_OCR_SECRET_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     clova_ocr_api_url: str = ""
     clova_ocr_secret_key: str = ""
     ocr_mock_mode: bool = True
+    gemini_api_key: str = ""
+    ocr_provider: str = "gemini"  # "gemini" | "clova" | "mock"
     recipe_api_key: str = ""
     data_go_kr_api_key: str = ""
 

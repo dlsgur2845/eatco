@@ -1,7 +1,8 @@
-"""OCR 서비스 — CLOVA OCR 호출 또는 개발용 모킹.
+"""OCR 서비스 — Gemini Flash 기반 영수증 인식 (CLOVA OCR fallback).
 
-    이미지 → CLOVA OCR API → 텍스트 라인 목록
-    개발 모드(OCR_MOCK_MODE=true)에서는 API 호출 없이 더미 데이터 반환.
+    이미지 → Gemini Flash → 식재료 목록 (JSON)
+    Gemini가 식재료/비식재료를 직접 판별하므로 category_mapper 불필요.
+    개발 모드(ocr_provider=mock)에서는 API 호출 없이 더미 데이터 반환.
 """
 
 import base64
@@ -20,16 +21,107 @@ class OCRLine:
     confidence: float = 0.0
 
 
+@dataclass
+class GeminiItem:
+    """Gemini가 직접 추출한 식재료 항목."""
+    name: str
+    quantity: str | None = None
+    price: int | None = None
+    storage_method: str = "refrigerated"
+    shelf_life_days: int = 5
+    confidence: float = 0.9
+
+
 class OCRError(Exception):
     pass
 
 
+GEMINI_PROMPT = """이 영수증 이미지에서 **식재료만** 추출해주세요.
+
+규칙:
+1. 세제, 생활용품, 위생용품, 주방용품 등 식재료가 아닌 항목은 제외
+2. 상품명에서 브랜드/용량 정보를 정리하여 핵심 이름만 추출 (예: "국내산냉동엿날삼겹살" → "냉동 삼겹살")
+3. 수량과 가격이 있으면 포함
+4. 각 식재료의 적절한 보관 방법을 판단: refrigerated(냉장), frozen(냉동), room_temp(실온)
+5. 보관 일수를 추정 (냉장 기준 일반적인 소비기한)
+
+JSON 배열로 응답하세요. 다른 텍스트 없이 JSON만 반환:
+[
+  {
+    "name": "식재료 이름",
+    "quantity": "수량 (예: 1kg, 2개, 1L) 또는 null",
+    "price": 가격(숫자) 또는 null,
+    "storage_method": "refrigerated|frozen|room_temp",
+    "shelf_life_days": 숫자
+  }
+]
+
+식재료가 없으면 빈 배열 [] 을 반환하세요."""
+
+
 async def scan_image(image_bytes: bytes, content_type: str = "image/jpeg") -> list[OCRLine]:
-    """이미지를 OCR 처리하여 텍스트 라인 목록을 반환합니다."""
-    if settings.ocr_mock_mode:
+    """이미지를 OCR 처리하여 텍스트 라인 목록을 반환합니다. (CLOVA/mock 호환)"""
+    provider = settings.ocr_provider
+
+    if provider == "mock" or settings.ocr_mock_mode:
         return _mock_scan()
 
-    return await _clova_scan(image_bytes, content_type)
+    if provider == "clova":
+        return await _clova_scan(image_bytes, content_type)
+
+    # gemini는 scan_image_gemini를 직접 호출
+    raise OCRError("Gemini는 scan_image_gemini()를 사용하세요.")
+
+
+async def scan_image_gemini(image_bytes: bytes, content_type: str = "image/jpeg") -> list[GeminiItem]:
+    """Gemini Flash로 영수증에서 식재료를 직접 추출합니다."""
+    if not settings.gemini_api_key:
+        raise OCRError("Gemini API 키가 설정되지 않았습니다. .env에 GEMINI_API_KEY를 추가하세요.")
+
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(api_key=settings.gemini_api_key)
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Part.from_bytes(data=image_bytes, mime_type=content_type),
+                GEMINI_PROMPT,
+            ],
+            config=types.GenerateContentConfig(
+                temperature=0.1,
+                response_mime_type="application/json",
+            ),
+        )
+    except Exception as e:
+        raise OCRError(f"Gemini API 오류: {str(e)}")
+
+    text = response.text.strip()
+
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        raise OCRError("Gemini 응답을 파싱할 수 없습니다.")
+
+    if not isinstance(parsed, list):
+        raise OCRError("Gemini 응답 형식이 올바르지 않습니다.")
+
+    items: list[GeminiItem] = []
+    for entry in parsed:
+        if not isinstance(entry, dict) or "name" not in entry:
+            continue
+        items.append(GeminiItem(
+            name=entry["name"],
+            quantity=entry.get("quantity"),
+            price=entry.get("price"),
+            storage_method=entry.get("storage_method", "refrigerated"),
+            shelf_life_days=entry.get("shelf_life_days", 5),
+            confidence=0.9,
+        ))
+
+    return items
 
 
 async def _clova_scan(image_bytes: bytes, content_type: str) -> list[OCRLine]:
@@ -82,7 +174,7 @@ async def _clova_scan(image_bytes: bytes, content_type: str) -> list[OCRLine]:
 
 
 def _mock_scan() -> list[OCRLine]:
-    """개발용 모킹 — CLOVA API 호출 없이 더미 데이터 반환."""
+    """개발용 모킹 — API 호출 없이 더미 데이터 반환."""
     return [
         OCRLine(text="삼겹살 600g", confidence=0.95),
         OCRLine(text="서울우유 1L", confidence=0.92),
