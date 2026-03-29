@@ -109,8 +109,8 @@ async def analyze_receipt(
                 expiry_date=today + timedelta(days=gi.shelf_life_days),
                 confidence=gi.confidence,
                 auto_matched=True,
-                quantity=gi.quantity,
-                price=gi.price,
+                quantity=str(gi.quantity) if gi.quantity is not None else None,
+                price=int(gi.price) if gi.price is not None else None,
             )
             for gi in result.items
         ]
