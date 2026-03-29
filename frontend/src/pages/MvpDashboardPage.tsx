@@ -269,7 +269,7 @@ function ItemRow({
   const priceText = item.price ? ` · ${item.price.toLocaleString()}원` : ''
 
   return (
-    <div className="flex items-center gap-3 py-3 group" style={{ borderBottom: '1px solid var(--color-surface-container)' }}>
+    <div className="flex items-center gap-3 py-3 group">
       {/* 상태 바 */}
       <div className="w-1 h-9 rounded-full flex-shrink-0" style={{ backgroundColor: daysColor(item.days_left) }} />
 
