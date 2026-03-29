@@ -19,7 +19,7 @@ export default function BottomNav() {
             `flex flex-col items-center justify-center transition-all active:scale-90 duration-200 relative ${
               isActive
                 ? 'bg-primary-container text-white rounded-full px-5 py-2 scale-110'
-                : 'text-slate-400 p-2 hover:text-primary'
+                : 'text-slate-400 p-2 min-w-[44px] min-h-[44px] hover:text-primary'
             }`
           }
         >
