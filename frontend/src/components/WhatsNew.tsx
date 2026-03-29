@@ -1,9 +1,21 @@
 import { useEffect, useState } from 'react'
 
-const CURRENT_VERSION = '1.1.0'
+const CURRENT_VERSION = '1.1.1'
 const STORAGE_KEY = 'eatco_changelog_seen'
 
 const CHANGELOG = [
+  {
+    version: '1.1.1',
+    date: '2026-03-30',
+    features: [
+      { icon: 'palette', text: '디자인 리뷰 기반 UI 개선 8건' },
+    ],
+    improvements: [
+      'AI 생성 느낌 제거 (좌측 컬러 바, 이모지)',
+      '디자인 토큰 기반 색상 체계 통일',
+      '터치 타겟/타이포그래피/레이아웃 최적화',
+    ],
+  },
   {
     version: '1.1.0',
     date: '2026-03-30',
