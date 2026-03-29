@@ -10,7 +10,8 @@ class IngredientCreate(BaseModel):
     name: str
     category_id: uuid.UUID | None = None
     storage_method: StorageMethod = StorageMethod.REFRIGERATED
-    quantity: int = 1
+    quantity: str | None = None
+    price: int | None = None
     expiry_date: date
     image_url: str | None = None
 
@@ -19,7 +20,8 @@ class IngredientUpdate(BaseModel):
     name: str | None = None
     category_id: uuid.UUID | None = None
     storage_method: StorageMethod | None = None
-    quantity: int | None = None
+    quantity: str | None = None
+    price: int | None = None
     expiry_date: date | None = None
     image_url: str | None = None
 
@@ -29,11 +31,13 @@ class IngredientResponse(BaseModel):
     name: str
     category_id: uuid.UUID | None
     storage_method: StorageMethod
-    quantity: int
+    quantity: str | None
+    price: int | None
     expiry_date: date
     registered_at: datetime
     image_url: str | None
     family_id: uuid.UUID | None
+    registered_by: str | None
 
     model_config = {"from_attributes": True}
 
