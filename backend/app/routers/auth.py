@@ -24,7 +24,7 @@ from app.schemas.user import (
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-SECRET_KEY = "eatco-secret-change-in-production"
+SECRET_KEY = settings.secret_key
 ALGORITHM = "HS256"
 COOKIE_NAME = "eatco_token"
 COOKIE_MAX_AGE = 7 * 24 * 60 * 60  # 7 days
