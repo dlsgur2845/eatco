@@ -58,8 +58,8 @@ export default function RecipeCard({ recipe }: Props) {
             <span
               className="text-xs font-semibold px-2 py-0.5 rounded-full"
               style={{
-                backgroundColor: pct >= 80 ? '#e8f5e9' : pct >= 50 ? '#fff3e0' : '#fce4e4',
-                color: pct >= 80 ? 'var(--color-primary)' : pct >= 50 ? 'var(--color-secondary-container)' : 'var(--color-tertiary-container)',
+                backgroundColor: pct >= 80 ? 'color-mix(in srgb, var(--color-primary) 10%, white)' : pct >= 50 ? 'color-mix(in srgb, var(--color-secondary-container) 15%, white)' : 'color-mix(in srgb, var(--color-tertiary-container) 10%, white)',
+                color: pct >= 80 ? 'var(--color-primary)' : pct >= 50 ? 'var(--color-secondary)' : 'var(--color-tertiary)',
               }}
             >
               {pct}%

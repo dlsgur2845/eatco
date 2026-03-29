@@ -161,7 +161,7 @@ export default function MvpDashboardPage() {
       {alerts.length > 0 && (
         <div className="space-y-2 mb-4">
           {alerts.slice(0, 2).map((a, i) => (
-            <div key={i} className="rounded-2xl px-4 py-3 flex items-center gap-3" style={{ backgroundColor: '#fce4e4' }}>
+            <div key={i} className="rounded-2xl px-4 py-3 flex items-center gap-3" style={{ backgroundColor: 'color-mix(in srgb, var(--color-tertiary-container) 10%, white)' }}>
               <span className="material-symbols-outlined text-sm" style={{ color: 'var(--color-tertiary-container)' }}>trending_up</span>
               <p className="text-xs" style={{ color: 'var(--color-on-surface)' }}>
                 <strong>{a.name}</strong>이(가) {a.change_pct}% 비싸졌어요
@@ -200,9 +200,9 @@ export default function MvpDashboardPage() {
       {/* 요약 카드 */}
       {items.length > 0 && (
         <div className="flex gap-3 mb-6">
-          <StatCard count={urgent.length} label="오늘 써야 해요" color="var(--color-tertiary-container)" bgColor="#fce4e4" />
-          <StatCard count={soon.length} label="3일 이내" color="var(--color-secondary-container)" bgColor="#fff3e0" />
-          <StatCard count={fresh.length} label="여유 있어요" color="var(--color-primary)" bgColor="#e8f5e9" />
+          <StatCard count={urgent.length} label="오늘 써야 해요" color="var(--color-tertiary-container)" bgColor="color-mix(in srgb, var(--color-tertiary-container) 10%, white)" />
+          <StatCard count={soon.length} label="3일 이내" color="var(--color-secondary-container)" bgColor="color-mix(in srgb, var(--color-secondary-container) 15%, white)" />
+          <StatCard count={fresh.length} label="여유 있어요" color="var(--color-primary)" bgColor="color-mix(in srgb, var(--color-primary) 10%, white)" />
         </div>
       )}
 
