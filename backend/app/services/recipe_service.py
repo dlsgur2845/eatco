@@ -178,8 +178,13 @@ async def recommend_recipes(
     top_n: int = 3,
 ) -> list[RecipeMatch]:
     """냉장고 재료 기반 레시피 추천. 긴급 재료 우선."""
-    # 검색 키워드: 긴급 재료 우선, 없으면 전체 중 상위 2개
-    search_keywords = urgent_items[:2] if urgent_items else fridge_items[:2]
+    # 검색 키워드: 긴급 재료 우선, 없으면 전체 중 상위 2개, 비어있으면 기본 검색어
+    if urgent_items:
+        search_keywords = urgent_items[:2]
+    elif fridge_items:
+        search_keywords = fridge_items[:2]
+    else:
+        search_keywords = ["김치찌개", "계란"]  # 기본 인기 레시피
 
     all_recipes = []
     for kw in search_keywords:
@@ -205,7 +210,8 @@ async def recommend_recipes(
         parsed = _parse_recipe(row)
         match = _compute_match(parsed["ingredients"], fridge_items, urgent_items)
 
-        if match["match_count"] == 0:
+        # 냉장고에 재료가 있을 때만 매칭 0인 레시피 스킵
+        if match["match_count"] == 0 and fridge_items:
             continue
 
         results.append(RecipeMatch(

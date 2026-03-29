@@ -74,9 +74,10 @@ async def get_monthly_expenses(
     """최근 N개월 월별 지출 요약."""
     cutoff = date.today().replace(day=1) - timedelta(days=30 * (months - 1))
 
+    month_col = func.to_char(Ingredient.registered_at, 'YYYY-MM').label('month')
     result = await db.execute(
         select(
-            func.to_char(Ingredient.registered_at, 'YYYY-MM').label('month'),
+            month_col,
             func.coalesce(func.sum(Ingredient.price), 0).label('total'),
             func.count().label('count'),
         )
@@ -85,8 +86,8 @@ async def get_monthly_expenses(
             Ingredient.price.isnot(None),
             Ingredient.registered_at >= cutoff,
         )
-        .group_by(func.to_char(Ingredient.registered_at, 'YYYY-MM'))
-        .order_by(func.to_char(Ingredient.registered_at, 'YYYY-MM'))
+        .group_by(month_col)
+        .order_by(month_col)
     )
 
     return [MonthlyExpense(month=r.month, total=r.total, count=r.count) for r in result.all()]
@@ -127,25 +128,20 @@ async def get_category_expenses(
     family_id: uuid.UUID = Depends(get_family_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """카테고리별 지출 비율."""
-    from app.models.ingredient import Base  # noqa
+    """보관방법별 지출 비율."""
     target_month = month or date.today().strftime('%Y-%m')
+    month_filter = func.to_char(Ingredient.registered_at, 'YYYY-MM')
 
     result = await db.execute(
         select(
-            func.coalesce(
-                select(func.max(func.concat('')))  # placeholder
-                .correlate(Ingredient)
-                .scalar_subquery(),
-                '기타'
-            ).label('category'),
+            Ingredient.storage_method.label('category'),
             func.coalesce(func.sum(Ingredient.price), 0).label('total'),
             func.count().label('count'),
         )
         .where(
             Ingredient.family_id == family_id,
             Ingredient.price.isnot(None),
-            func.to_char(Ingredient.registered_at, 'YYYY-MM') == target_month,
+            month_filter == target_month,
         )
         .group_by(Ingredient.storage_method)
     )
@@ -153,7 +149,7 @@ async def get_category_expenses(
     method_labels = {'REFRIGERATED': '냉장', 'FROZEN': '냉동', 'ROOM_TEMP': '실온'}
     return [
         CategoryExpense(
-            category=method_labels.get(str(r.category).upper(), r.category),
+            category=method_labels.get(str(r.category).upper(), str(r.category)),
             total=r.total,
             count=r.count,
         )
