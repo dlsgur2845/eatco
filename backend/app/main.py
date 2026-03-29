@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import async_session, engine
 from app.models.ingredient import Base
-from app.routers import auth, categories, dashboard, events, expenses, ingredients, notification_logs, notifications, recipes, scan, storage_guide
+from app.routers import auth, categories, custom_recipes, dashboard, events, expenses, ingredients, notification_logs, notifications, recipes, scan, storage_guide
 from app.seed import run_seed
 from app.services.expiry_checker import check_and_create_expiry_notifications
 
@@ -44,6 +44,7 @@ app.include_router(scan.router)
 app.include_router(events.router)
 app.include_router(recipes.router)
 app.include_router(expenses.router)
+app.include_router(custom_recipes.router)
 
 
 @app.get("/api/health")

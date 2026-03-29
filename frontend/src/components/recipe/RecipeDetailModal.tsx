@@ -40,10 +40,10 @@ export default function RecipeDetailModal({ recipe, onClose }: Props) {
           </p>
           <div className="flex items-center gap-1 mt-1">
             <span className="material-symbols-outlined" style={{ fontSize: '12px', color: 'var(--color-outline)' }}>
-              {recipe.source === 'gemini' ? 'auto_awesome' : 'public'}
+              {recipe.source === 'custom' ? 'book_2' : recipe.source === 'gemini' ? 'auto_awesome' : 'public'}
             </span>
             <span className="text-xs" style={{ color: 'var(--color-outline)' }}>
-              {recipe.source === 'gemini' ? 'AI 추천 (Gemini)' : recipe.source === 'foodsafety' ? '출처: 식품안전나라' : '기본 레시피'}
+              {recipe.source === 'custom' ? '나의 레시피' : recipe.source === 'gemini' ? 'AI 추천 (Gemini)' : recipe.source === 'foodsafety' ? '출처: 식품안전나라' : '기본 레시피'}
             </span>
           </div>
 

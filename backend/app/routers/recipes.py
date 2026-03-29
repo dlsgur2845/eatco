@@ -59,11 +59,46 @@ async def get_recommendations(
         if (ing.expiry_date - today).days <= 3
     ] if ingredients else []
 
+    # 나만의 레시피 중 재료 매칭되는 것 우선 포함
+    from app.models.custom_recipe import CustomRecipe
+    from app.services.recipe_service import _compute_match
+
+    custom_result = await db.execute(
+        select(CustomRecipe).where(CustomRecipe.family_id == family_id)
+    )
+    custom_recipes = custom_result.scalars().all()
+
     # 1. 식품안전나라 API 우선 (사진 + 검증된 레시피)
     responses: list[RecipeResponse] = []
+    seen_names: set[str] = set()
+
+    # 0. 나만의 레시피 중 재료 매칭되는 것 먼저
+    for cr in custom_recipes:
+        match = _compute_match(cr.ingredients or [], fridge_items, urgent_items)
+        if match["match_count"] > 0 or not fridge_items:
+            responses.append(RecipeResponse(
+                name=cr.name,
+                category=cr.category,
+                cooking_method=cr.cooking_method,
+                calories=cr.calories or "0",
+                image_url=cr.image_url or "",
+                ingredients=cr.ingredients or [],
+                manual_steps=cr.manual_steps or [],
+                manual_images=[],
+                tip=cr.tip or "",
+                match_count=match["match_count"],
+                total_ingredients=match["total"],
+                match_ratio=match["ratio"],
+                matched_items=match["matched"],
+                missing_items=match["missing"],
+                urgent_used=match["urgent_used"],
+                source="custom",
+            ))
+            seen_names.add(cr.name)
+
+    # 1. 식품안전나라 API
     recipes = await recommend_recipes(fridge_items, urgent_items, top_n=5)
 
-    seen_names: set[str] = set()
     for r in recipes:
         responses.append(RecipeResponse(
             name=r.name,

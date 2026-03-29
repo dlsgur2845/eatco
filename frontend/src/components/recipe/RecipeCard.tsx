@@ -7,9 +7,17 @@ interface Props {
 }
 
 const SOURCE_LABEL: Record<string, string> = {
+  custom: '나의 레시피',
   gemini: 'AI 추천',
   foodsafety: '식품안전나라',
   fallback: '기본 레시피',
+}
+
+const SOURCE_ICON: Record<string, string> = {
+  custom: 'book_2',
+  gemini: 'auto_awesome',
+  foodsafety: 'public',
+  fallback: 'public',
 }
 
 export default function RecipeCard({ recipe }: Props) {
@@ -60,7 +68,7 @@ export default function RecipeCard({ recipe }: Props) {
 
           <div className="mt-2 flex items-center gap-1">
             <span className="material-symbols-outlined" style={{ fontSize: '10px', color: 'var(--color-outline)' }}>
-              {recipe.source === 'gemini' ? 'auto_awesome' : 'public'}
+              {SOURCE_ICON[recipe.source] || 'public'}
             </span>
             <span className="text-[10px]" style={{ color: 'var(--color-outline)' }}>
               {sourceLabel}

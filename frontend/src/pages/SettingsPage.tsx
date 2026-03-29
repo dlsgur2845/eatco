@@ -107,6 +107,16 @@ export default function SettingsPage() {
             </div>
           )}
           <Link
+            to="/my-recipes"
+            className="flex items-center justify-between p-5 hover:bg-primary/5 transition-colors"
+          >
+            <div className="flex items-center gap-4">
+              <span className="material-symbols-outlined text-outline">menu_book</span>
+              <span className="font-medium">나의 레시피</span>
+            </div>
+            <span className="material-symbols-outlined text-outline text-sm">chevron_right</span>
+          </Link>
+          <Link
             to="/family"
             className="flex items-center justify-between p-5 hover:bg-primary/5 transition-colors"
           >
