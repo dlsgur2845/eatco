@@ -161,10 +161,13 @@ export default function MvpDashboardPage() {
       {alerts.length > 0 && (
         <div className="space-y-2 mb-4">
           {alerts.slice(0, 2).map((a, i) => (
-            <div key={i} className="rounded-2xl px-4 py-3 flex items-center gap-3" style={{ backgroundColor: 'var(--color-tertiary-container)', opacity: 0.15 }}>
+            <div key={i} className="rounded-2xl px-4 py-3 flex items-center gap-3" style={{ backgroundColor: '#fce4e4' }}>
               <span className="material-symbols-outlined text-sm" style={{ color: 'var(--color-tertiary-container)' }}>trending_up</span>
               <p className="text-xs" style={{ color: 'var(--color-on-surface)' }}>
-                <strong>{a.name}</strong> {a.change_pct}% 상승
+                <strong>{a.name}</strong>이(가) {a.change_pct}% 비싸졌어요
+                <span className="ml-1" style={{ color: 'var(--color-on-surface-variant)' }}>
+                  ({a.old_price.toLocaleString()}원 → {a.current_price.toLocaleString()}원)
+                </span>
               </p>
             </div>
           ))}
