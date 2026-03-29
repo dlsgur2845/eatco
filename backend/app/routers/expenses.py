@@ -93,6 +93,32 @@ async def get_monthly_expenses(
     return [MonthlyExpense(month=r.month, total=r.total, count=r.count) for r in result.all()]
 
 
+@router.get("/suggest-items", response_model=list[str])
+async def suggest_items(
+    q: str = Query("", min_length=0),
+    family_id: uuid.UUID = Depends(get_family_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """구매 이력이 있는 식재료 이름 자동완성."""
+    query = (
+        select(func.coalesce(Ingredient.normalized_name, Ingredient.name).label('item_name'))
+        .where(
+            Ingredient.family_id == family_id,
+            Ingredient.price.isnot(None),
+        )
+        .group_by(func.coalesce(Ingredient.normalized_name, Ingredient.name))
+        .order_by(func.count().desc())
+        .limit(20)
+    )
+
+    if q.strip():
+        name_col = func.coalesce(Ingredient.normalized_name, Ingredient.name)
+        query = query.where(name_col.ilike(f"%{q.strip()}%"))
+
+    result = await db.execute(query)
+    return [r.item_name for r in result.all()]
+
+
 @router.get("/by-item", response_model=list[ItemPricePoint])
 async def get_item_prices(
     name: str = Query(...),

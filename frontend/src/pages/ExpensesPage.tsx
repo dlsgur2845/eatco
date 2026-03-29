@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line,
@@ -16,10 +16,13 @@ export default function ExpensesPage() {
   const [alerts, setAlerts] = useState<InflationAlert[]>([])
   const [budget, setBudget] = useState<BudgetInfo | null>(null)
   const [searchName, setSearchName] = useState('')
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const [itemPrices, setItemPrices] = useState<ItemPricePoint[]>([])
   const [stores, setStores] = useState<StoreComparison[]>([])
   const [budgetInput, setBudgetInput] = useState('')
   const [tab, setTab] = useState<'overview' | 'item'>('overview')
+  const suggestTimer = useRef<ReturnType<typeof setTimeout>>(null)
 
   useEffect(() => {
     api.get<MonthlyExpense[]>('/expenses/monthly?months=6').then(r => setMonthly(r.data)).catch(() => {})
@@ -30,10 +33,28 @@ export default function ExpensesPage() {
     }).catch(() => {})
   }, [])
 
-  const searchItem = () => {
-    if (!searchName.trim()) return
-    api.get<ItemPricePoint[]>(`/expenses/by-item?name=${encodeURIComponent(searchName)}`).then(r => setItemPrices(r.data)).catch(() => {})
-    api.get<StoreComparison[]>(`/expenses/compare?name=${encodeURIComponent(searchName)}`).then(r => setStores(r.data)).catch(() => {})
+  const fetchSuggestions = (q: string) => {
+    if (suggestTimer.current) clearTimeout(suggestTimer.current)
+    if (!q.trim()) { setSuggestions([]); setShowSuggestions(false); return }
+    suggestTimer.current = setTimeout(() => {
+      api.get<string[]>(`/expenses/suggest-items?q=${encodeURIComponent(q)}`)
+        .then(r => { setSuggestions(r.data); setShowSuggestions(r.data.length > 0) })
+        .catch(() => { setSuggestions([]); setShowSuggestions(false) })
+    }, 200)
+  }
+
+  const selectSuggestion = (name: string) => {
+    setSearchName(name)
+    setShowSuggestions(false)
+    searchItem(name)
+  }
+
+  const searchItem = (name?: string) => {
+    const q = name || searchName
+    if (!q.trim()) return
+    setShowSuggestions(false)
+    api.get<ItemPricePoint[]>(`/expenses/by-item?name=${encodeURIComponent(q)}`).then(r => setItemPrices(r.data)).catch(() => {})
+    api.get<StoreComparison[]>(`/expenses/compare?name=${encodeURIComponent(q)}`).then(r => setStores(r.data)).catch(() => {})
   }
 
   const saveBudget = () => {
@@ -177,7 +198,7 @@ export default function ExpensesPage() {
 
       {tab === 'item' && (
         <>
-          {/* 식재료 검색 */}
+          {/* 식재료 검색 + 자동완성 */}
           <div className="relative">
             <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
               <span className="material-symbols-outlined text-outline">search</span>
@@ -185,11 +206,29 @@ export default function ExpensesPage() {
             <input
               type="text"
               value={searchName}
-              onChange={e => setSearchName(e.target.value)}
+              onChange={e => { setSearchName(e.target.value); fetchSuggestions(e.target.value) }}
               onKeyDown={e => e.key === 'Enter' && searchItem()}
+              onFocus={() => searchName && suggestions.length > 0 && setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
               className="w-full bg-surface-container-low rounded-2xl py-4 pl-14 pr-6 text-on-surface placeholder:text-outline outline-none focus:ring-2 focus:ring-primary"
               placeholder="식재료 이름 검색 (예: 양파, 우유)"
             />
+            {showSuggestions && (
+              <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-surface-container-lowest rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+                {suggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => selectSuggestion(s)}
+                    className="w-full text-left px-4 py-3 hover:bg-primary/5 transition-colors flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-sm text-outline">history</span>
+                    <span className="text-sm font-medium text-on-surface">{s}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 가격 추이 차트 */}
