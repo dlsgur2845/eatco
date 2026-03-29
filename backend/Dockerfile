@@ -9,6 +9,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY --chown=eatco:eatco . .
 
+RUN mkdir -p /app/uploads/recipes && chown -R eatco:eatco /app/uploads
+
 USER eatco
 
 EXPOSE 8000
