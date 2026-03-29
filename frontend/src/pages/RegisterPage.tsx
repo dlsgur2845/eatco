@@ -29,7 +29,7 @@ export default function RegisterPage() {
   const [form, setForm] = useState<IngredientCreate>({
     name: '',
     storage_method: 'refrigerated',
-    quantity: 1,
+    quantity: '1',
     expiry_date: '',
   })
   const [guide, setGuide] = useState<StorageGuide | null>(null)
@@ -187,11 +187,11 @@ export default function RegisterPage() {
           <div className="bg-surface-container-lowest p-5 rounded-[1.5rem] shadow-sm flex flex-col gap-2">
             <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">수량</label>
             <div className="flex items-center justify-between">
-              <button type="button" onClick={() => setForm({ ...form, quantity: Math.max(1, form.quantity - 1) })} className="text-primary">
+              <button type="button" onClick={() => setForm({ ...form, quantity: String(Math.max(1, parseInt(form.quantity || '1') - 1)) })} className="text-primary">
                 <span className="material-symbols-outlined">remove_circle_outline</span>
               </button>
               <span className="text-lg font-bold">{form.quantity}</span>
-              <button type="button" onClick={() => setForm({ ...form, quantity: form.quantity + 1 })} className="text-primary">
+              <button type="button" onClick={() => setForm({ ...form, quantity: String(parseInt(form.quantity || '0') + 1) })} className="text-primary">
                 <span className="material-symbols-outlined">add_circle_outline</span>
               </button>
             </div>

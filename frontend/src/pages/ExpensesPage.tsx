@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell,
+  LineChart, Line,
 } from 'recharts'
 import api from '../api/client'
 
@@ -10,8 +10,6 @@ interface ItemPricePoint { date: string; price: number; store_name: string | nul
 interface InflationAlert { name: string; current_price: number; old_price: number; change_pct: number }
 interface StoreComparison { store_name: string; latest_price: number; latest_date: string }
 interface BudgetInfo { monthly_budget: number | null; spent_this_month: number }
-
-const COLORS = ['#006e1c', '#4caf50', '#ff9800', '#ff6c5c', '#3f4a3c', '#8bc34a', '#e91e63', '#9c27b0']
 
 export default function ExpensesPage() {
   const [monthly, setMonthly] = useState<MonthlyExpense[]>([])
@@ -146,7 +144,7 @@ export default function ExpensesPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-surface-container)" />
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} tickFormatter={v => v.slice(5)} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={v => formatPrice(v as number)} />
-                  <Tooltip formatter={(v: number) => [`${v.toLocaleString()}원`, '지출']} />
+                  <Tooltip formatter={(v) => [`${Number(v).toLocaleString()}원`, '지출']} />
                   <Bar dataKey="total" fill="var(--color-primary-container)" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -206,7 +204,7 @@ export default function ExpensesPage() {
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={v => v.slice(5)} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v as number).toLocaleString()}`} />
                   <Tooltip
-                    formatter={(v: number) => [`${v.toLocaleString()}원`, '가격']}
+                    formatter={(v) => [`${Number(v).toLocaleString()}원`, '가격']}
                     labelFormatter={l => `${l}`}
                   />
                   <Line type="monotone" dataKey="price" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 4, fill: 'var(--color-primary)' }} />
