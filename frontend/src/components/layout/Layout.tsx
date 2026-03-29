@@ -7,7 +7,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-surface">
       <TopAppBar />
-      <main className="max-w-2xl mx-auto px-6 pt-8 pb-32">
+      <main className="max-w-4xl mx-auto px-6 pt-8 pb-32">
         <Outlet />
       </main>
       <BottomNav />
