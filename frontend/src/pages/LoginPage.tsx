@@ -66,7 +66,7 @@ export default function LoginPage() {
 
         {/* Session Expired Banner */}
         {showExpiredBanner && (
-          <div className="bg-secondary-container/10 border border-secondary-container/30 rounded-2xl p-4 flex items-start gap-3">
+          <div className="bg-secondary-container/10 rounded-2xl p-4 flex items-start gap-3">
             <span className="material-symbols-outlined text-secondary-container mt-0.5">warning</span>
             <div className="flex-1">
               <p className="font-medium text-on-surface text-sm">다른 기기에서 로그인되어 세션이 만료되었습니다.</p>
