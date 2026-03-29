@@ -154,11 +154,12 @@ async def register_items(
         "room_temp": StorageMethod.ROOM_TEMP,
     }
 
-    from app.services.normalizer import get_normalized_name
+    from app.services.normalizer import normalize_local
 
     created = []
     for item in body.items:
-        normalized = await get_normalized_name(item.name, db)
+        # 즉시 로컬 정규화 (빠름), Gemini는 나중에 백그라운드로
+        normalized = normalize_local(item.name)
         ingredient = Ingredient(
             name=item.name,
             storage_method=storage_map.get(item.storage_method, StorageMethod.REFRIGERATED),

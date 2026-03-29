@@ -213,7 +213,7 @@ export default function ResultsModal({ items: initialItems, onConfirm, onClose }
               className="w-full py-4 rounded-full text-base font-semibold text-white disabled:opacity-50"
               style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-container))' }}
               disabled={submitting}
-              onClick={async () => { setSubmitting(true); await onConfirm(items) }}
+              onClick={async () => { setSubmitting(true); try { await onConfirm(items) } finally { setSubmitting(false) } }}
             >
               {submitting ? '등록 중...' : '냉장고에 추가하기'}
             </button>
