@@ -1,0 +1,198 @@
+"""영수증/스크린샷 스캔 API.
+
+    POST /api/scan — 이미지 업로드 → OCR → 카테고리 매핑 → 식재료 등록
+    GET  /api/scan/items — 가정별 식재료 목록 (대시보드용)
+    DELETE /api/scan/items/{id} — 식재료 삭제 ("썼어요")
+"""
+
+import uuid
+from datetime import date
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from pydantic import BaseModel
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
+from app.models.ingredient import Ingredient, StorageMethod
+from app.models.user import Family
+from app.services.category_mapper import MappedItem, map_ocr_results
+from app.services.ocr_service import OCRError, scan_image
+
+router = APIRouter(prefix="/api/scan", tags=["scan"])
+
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
+ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+
+
+# --- Schemas ---
+
+class ScannedItemResponse(BaseModel):
+    name: str
+    matched_keyword: str | None
+    storage_method: str
+    shelf_life_days: int
+    expiry_date: date
+    confidence: float
+    auto_matched: bool
+
+
+class ScanResponse(BaseModel):
+    items: list[ScannedItemResponse]
+    total: int
+
+
+class RegisterRequest(BaseModel):
+    items: list[ScannedItemResponse]
+
+
+class IngredientResponse(BaseModel):
+    id: str
+    name: str
+    storage_method: str
+    expiry_date: date
+    registered_at: str
+    days_left: int
+
+    model_config = {"from_attributes": True}
+
+
+# --- Dependencies ---
+
+async def verify_family_code(
+    code: str = Query(..., description="가정 코드"),
+    db: AsyncSession = Depends(get_db),
+) -> Family:
+    result = await db.execute(select(Family).where(Family.invite_code == code))
+    family = result.scalar_one_or_none()
+    if not family:
+        raise HTTPException(status_code=403, detail="유효하지 않은 가정 코드입니다.")
+    return family
+
+
+# --- Endpoints ---
+
+@router.get("/verify")
+async def verify_code(family: Family = Depends(verify_family_code)):
+    """가정 코드가 유효한지 확인합니다."""
+    return {"valid": True, "family_name": family.name}
+
+
+@router.post("/analyze", response_model=ScanResponse)
+async def analyze_receipt(
+    file: UploadFile = File(...),
+    family: Family = Depends(verify_family_code),
+):
+    """이미지를 OCR 분석하여 식재료 목록을 반환합니다 (아직 등록하지 않음)."""
+    if file.content_type not in ALLOWED_CONTENT_TYPES:
+        raise HTTPException(status_code=422, detail="JPG, PNG, WebP 이미지만 지원합니다.")
+
+    image_bytes = await file.read()
+    if len(image_bytes) > MAX_IMAGE_SIZE:
+        raise HTTPException(status_code=413, detail="이미지가 너무 큽니다 (최대 10MB).")
+
+    try:
+        ocr_lines = await scan_image(image_bytes, file.content_type or "image/jpeg")
+    except OCRError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    if not ocr_lines:
+        return ScanResponse(items=[], total=0)
+
+    mapped = map_ocr_results(ocr_lines)
+    items = [
+        ScannedItemResponse(
+            name=m.name,
+            matched_keyword=m.matched_keyword,
+            storage_method=m.storage_method,
+            shelf_life_days=m.shelf_life_days,
+            expiry_date=m.expiry_date,
+            confidence=m.confidence,
+            auto_matched=m.auto_matched,
+        )
+        for m in mapped
+    ]
+
+    return ScanResponse(items=items, total=len(items))
+
+
+@router.post("/register")
+async def register_items(
+    body: RegisterRequest,
+    family: Family = Depends(verify_family_code),
+    db: AsyncSession = Depends(get_db),
+):
+    """분석된 식재료를 가정 냉장고에 등록합니다."""
+    storage_map = {
+        "refrigerated": StorageMethod.REFRIGERATED,
+        "frozen": StorageMethod.FROZEN,
+        "room_temp": StorageMethod.ROOM_TEMP,
+    }
+
+    created = []
+    for item in body.items:
+        ingredient = Ingredient(
+            name=item.name,
+            storage_method=storage_map.get(item.storage_method, StorageMethod.REFRIGERATED),
+            expiry_date=item.expiry_date,
+            family_id=family.id,
+        )
+        db.add(ingredient)
+        created.append(ingredient)
+
+    await db.commit()
+    return {"registered": len(created)}
+
+
+@router.get("/items", response_model=list[IngredientResponse])
+async def get_items(
+    family: Family = Depends(verify_family_code),
+    db: AsyncSession = Depends(get_db),
+):
+    """가정의 식재료 목록을 소비기한 순으로 반환합니다."""
+    result = await db.execute(
+        select(Ingredient)
+        .where(Ingredient.family_id == family.id)
+        .order_by(Ingredient.expiry_date.asc())
+    )
+    ingredients = result.scalars().all()
+    today = date.today()
+
+    return [
+        IngredientResponse(
+            id=str(ing.id),
+            name=ing.name,
+            storage_method=ing.storage_method.value,
+            expiry_date=ing.expiry_date,
+            registered_at=ing.registered_at.isoformat() if ing.registered_at else "",
+            days_left=(ing.expiry_date - today).days,
+        )
+        for ing in ingredients
+    ]
+
+
+@router.delete("/items/{item_id}")
+async def delete_item(
+    item_id: str,
+    family: Family = Depends(verify_family_code),
+    db: AsyncSession = Depends(get_db),
+):
+    """식재료를 삭제합니다 ("썼어요")."""
+    try:
+        uid = uuid.UUID(item_id)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="잘못된 ID 형식입니다.")
+
+    result = await db.execute(
+        select(Ingredient).where(
+            Ingredient.id == uid,
+            Ingredient.family_id == family.id,
+        )
+    )
+    ingredient = result.scalar_one_or_none()
+    if not ingredient:
+        raise HTTPException(status_code=404, detail="식재료를 찾을 수 없습니다.")
+
+    await db.delete(ingredient)
+    await db.commit()
+    return {"deleted": True}
