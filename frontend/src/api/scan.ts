@@ -3,6 +3,7 @@ import api from './client'
 export interface ScannedItem {
   name: string
   matched_keyword: string | null
+  normalized_name: string | null
   storage_method: string
   shelf_life_days: number
   expiry_date: string

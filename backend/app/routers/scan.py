@@ -32,6 +32,7 @@ ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 class ScannedItemResponse(BaseModel):
     name: str
     matched_keyword: str | None
+    normalized_name: str | None = None
     storage_method: str
     shelf_life_days: int
     expiry_date: date
@@ -104,6 +105,7 @@ async def analyze_receipt(
             ScannedItemResponse(
                 name=gi.name,
                 matched_keyword=gi.name,
+                normalized_name=gi.normalized_name,
                 storage_method=gi.storage_method,
                 shelf_life_days=gi.shelf_life_days,
                 expiry_date=today + timedelta(days=gi.shelf_life_days),
@@ -160,8 +162,8 @@ async def register_items(
 
     created = []
     for item in body.items:
-        # 즉시 로컬 정규화 (빠름), Gemini는 나중에 백그라운드로
-        normalized = normalize_local(item.name)
+        # Gemini가 이미 normalized_name을 제공했으면 사용, 아니면 로컬 폴백
+        normalized = item.normalized_name or normalize_local(item.name)
         ingredient = Ingredient(
             name=item.name,
             storage_method=storage_map.get(item.storage_method, StorageMethod.REFRIGERATED),

@@ -43,7 +43,13 @@
       "Bash($B click:*)",
       "Bash($B url:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash($B snapshot:*)",
+      "Bash($B js:*)",
+      "Bash(REPORT_DIR=/c/Users/dlsgu/Desktop/eatco/.gstack/design-audit)",
+      "Bash(mkdir -p \"$REPORT_DIR/screenshots\")",
+      "Bash($B screenshot:*)",
+      "Bash($B goto:*)"
     ]
   }
 }
