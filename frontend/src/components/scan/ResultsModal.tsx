@@ -131,7 +131,7 @@ export default function ResultsModal({ items: initialItems, onConfirm, onClose }
                     >
                       {item.name}
                     </p>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <input
                         className="w-20 text-xs px-2 py-0.5 rounded-md outline-none"
                         style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface)' }}
@@ -153,9 +153,24 @@ export default function ResultsModal({ items: initialItems, onConfirm, onClose }
                           setItems(prev => prev.map((it, i) => i === idx ? { ...it, price: val } : it))
                         }}
                       />
+                      <input
+                        className="w-28 text-xs px-2 py-0.5 rounded-md outline-none"
+                        style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface)' }}
+                        type="date"
+                        value={item.expiry_date}
+                        onChange={e => {
+                          const newDate = e.target.value
+                          if (!newDate) return
+                          const today = new Date()
+                          today.setHours(0, 0, 0, 0)
+                          const expiry = new Date(newDate)
+                          const diffDays = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+                          setItems(prev => prev.map((it, i) => i === idx ? { ...it, expiry_date: newDate, shelf_life_days: diffDays } : it))
+                        }}
+                      />
                     </div>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--color-on-surface-variant)' }}>
-                      {storageMethodLabel(item.storage_method)} 보관 · 예상 {item.shelf_life_days}일
+                      {storageMethodLabel(item.storage_method)} 보관 · 소비기한 {item.expiry_date}
                       {!item.auto_matched && (
                         <span style={{ color: 'var(--color-secondary-container)' }}> · ⚠️ 자동 분류 실패</span>
                       )}
@@ -191,9 +206,9 @@ export default function ResultsModal({ items: initialItems, onConfirm, onClose }
           ))}
         </div>
 
-        {/* 등록 버튼 */}
+        {/* 등록 버튼 (하단 고정) */}
         {items.length > 0 && (
-          <div className="px-5 mt-6">
+          <div className="sticky bottom-0 px-5 pt-4 pb-2" style={{ backgroundColor: 'var(--color-surface-container-lowest)' }}>
             <button
               className="w-full py-4 rounded-full text-base font-semibold text-white disabled:opacity-50"
               style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-container))' }}
