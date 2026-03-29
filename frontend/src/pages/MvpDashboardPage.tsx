@@ -230,7 +230,7 @@ export default function MvpDashboardPage() {
 function StatCard({ count, label, color, bgColor }: { count: number; label: string; color: string; bgColor: string }) {
   return (
     <div className="flex-1 py-4 rounded-2xl text-center" style={{ backgroundColor: bgColor }}>
-      <p className="text-2xl font-bold" style={{ fontFamily: 'var(--font-headline)', color }}>{count}</p>
+      <p className="text-3xl font-bold" style={{ fontFamily: 'var(--font-headline)', color }}>{count}</p>
       <p className="text-xs mt-1" style={{ color: 'var(--color-on-surface-variant)' }}>{label}</p>
     </div>
   )
