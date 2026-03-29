@@ -6,9 +6,16 @@ interface Props {
   recipe: Recipe
 }
 
+const SOURCE_LABEL: Record<string, string> = {
+  gemini: 'AI 추천',
+  foodsafety: '식품안전나라',
+  fallback: '기본 레시피',
+}
+
 export default function RecipeCard({ recipe }: Props) {
   const [showDetail, setShowDetail] = useState(false)
   const pct = Math.round(recipe.match_ratio * 100)
+  const sourceLabel = SOURCE_LABEL[recipe.source] || recipe.source
 
   return (
     <>
@@ -20,8 +27,8 @@ export default function RecipeCard({ recipe }: Props) {
         {recipe.image_url ? (
           <img src={recipe.image_url} alt={recipe.name} className="w-full h-32 object-cover" />
         ) : (
-          <div className="w-full h-32 flex items-center justify-center text-3xl" style={{ backgroundColor: 'var(--color-surface-container-low)' }}>
-            🍳
+          <div className="w-full h-32 flex items-center justify-center" style={{ backgroundColor: 'var(--color-surface-container-low)' }}>
+            <span className="material-symbols-outlined text-4xl" style={{ color: 'var(--color-outline)', opacity: 0.5 }}>restaurant</span>
           </div>
         )}
 
@@ -48,6 +55,15 @@ export default function RecipeCard({ recipe }: Props) {
               }}
             >
               {pct}%
+            </span>
+          </div>
+
+          <div className="mt-2 flex items-center gap-1">
+            <span className="material-symbols-outlined" style={{ fontSize: '10px', color: 'var(--color-outline)' }}>
+              {recipe.source === 'gemini' ? 'auto_awesome' : 'public'}
+            </span>
+            <span className="text-[10px]" style={{ color: 'var(--color-outline)' }}>
+              {sourceLabel}
             </span>
           </div>
         </div>

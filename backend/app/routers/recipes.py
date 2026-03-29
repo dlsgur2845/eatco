@@ -35,6 +35,7 @@ class RecipeResponse(BaseModel):
     matched_items: list[str]
     missing_items: list[str]
     urgent_used: list[str]
+    source: str = "gemini"  # "gemini" | "foodsafety" | "fallback"
 
 
 @router.get("/recommend", response_model=list[RecipeResponse])
@@ -83,6 +84,7 @@ async def get_recommendations(
                 matched_items=matched,
                 missing_items=missing,
                 urgent_used=[u for u in urgent_items if u in matched],
+                source="gemini",
             ))
         return responses
 
@@ -106,6 +108,7 @@ async def get_recommendations(
             matched_items=r.matched_items,
             missing_items=r.missing_items,
             urgent_used=r.urgent_used,
+            source="foodsafety" if r.image_url else "fallback",
         )
         for r in recipes
     ]

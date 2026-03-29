@@ -38,6 +38,14 @@ export default function RecipeDetailModal({ recipe, onClose }: Props) {
           <p className="text-sm mt-1" style={{ color: 'var(--color-on-surface-variant)' }}>
             {recipe.category} · {recipe.cooking_method} · {recipe.calories}kcal
           </p>
+          <div className="flex items-center gap-1 mt-1">
+            <span className="material-symbols-outlined" style={{ fontSize: '12px', color: 'var(--color-outline)' }}>
+              {recipe.source === 'gemini' ? 'auto_awesome' : 'public'}
+            </span>
+            <span className="text-xs" style={{ color: 'var(--color-outline)' }}>
+              {recipe.source === 'gemini' ? 'AI 추천 (Gemini)' : recipe.source === 'foodsafety' ? '출처: 식품안전나라' : '기본 레시피'}
+            </span>
+          </div>
 
           {/* 매칭률 */}
           <div className="mt-4 px-3 py-2 rounded-xl" style={{ backgroundColor: 'var(--color-surface-container-low)' }}>
