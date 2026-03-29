@@ -51,13 +51,14 @@ async def get_recommendations(
     )
     ingredients = result.scalars().all()
 
-    fridge_items = [ing.name for ing in ingredients] if ingredients else []
+    # normalized_name 우선, 없으면 원본 이름 사용
+    fridge_items = [ing.normalized_name or ing.name for ing in ingredients] if ingredients else []
     urgent_items = [
-        ing.name for ing in ingredients
+        ing.normalized_name or ing.name for ing in ingredients
         if (ing.expiry_date - today).days <= 3
     ] if ingredients else []
 
-    recipes = await recommend_recipes(fridge_items, urgent_items)
+    recipes = await recommend_recipes(fridge_items, urgent_items, top_n=5)
 
     return [
         RecipeResponse(

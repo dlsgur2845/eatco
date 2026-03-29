@@ -77,21 +77,35 @@ class RecipeMatch:
 
 
 def _compute_match(recipe_ingredients: list[str], fridge_items: list[str], urgent_items: list[str]) -> dict:
-    """냉장고 재료와 레시피 재료의 매칭률을 계산."""
+    """냉장고 재료와 레시피 재료의 매칭률을 계산. 부분 단어 매칭 지원."""
     matched = []
     missing = []
     urgent_used = []
+
+    # 냉장고 재료의 개별 단어 추출 (예: "냉동 삼겹살" → ["냉동", "삼겹살"])
+    fridge_words = {}
+    for fi in fridge_items:
+        words = fi.lower().split()
+        fridge_words[fi] = words
 
     for ri in recipe_ingredients:
         ri_lower = ri.lower()
         found = False
         for fi in fridge_items:
             fi_lower = fi.lower()
+            # 1. 직접 포함 매칭
             if fi_lower in ri_lower or ri_lower in fi_lower:
+                found = True
+            # 2. 단어별 매칭 (레시피 "돼지고기" vs 냉장고 단어 중 하나라도 포함)
+            if not found:
+                for word in fridge_words[fi]:
+                    if len(word) >= 2 and (word in ri_lower or ri_lower in word):
+                        found = True
+                        break
+            if found:
                 matched.append(ri)
                 if fi in urgent_items:
                     urgent_used.append(fi)
-                found = True
                 break
         if not found:
             missing.append(ri)
@@ -175,16 +189,16 @@ def _parse_recipe(row: dict) -> dict:
 async def recommend_recipes(
     fridge_items: list[str],
     urgent_items: list[str],
-    top_n: int = 3,
+    top_n: int = 5,
 ) -> list[RecipeMatch]:
     """냉장고 재료 기반 레시피 추천. 긴급 재료 우선."""
     # 검색 키워드: 긴급 재료 우선, 없으면 전체 중 상위 2개, 비어있으면 기본 검색어
     if urgent_items:
-        search_keywords = urgent_items[:2]
+        search_keywords = urgent_items[:3]
     elif fridge_items:
-        search_keywords = fridge_items[:2]
+        search_keywords = fridge_items[:4]
     else:
-        search_keywords = ["김치찌개", "계란"]  # 기본 인기 레시피
+        search_keywords = ["김치찌개", "계란", "볶음밥"]  # 기본 인기 레시피
 
     all_recipes = []
     for kw in search_keywords:
@@ -237,17 +251,24 @@ async def recommend_recipes(
     # 매칭 레시피: 긴급 재료 활용 > 매칭률 순
     matched_results.sort(key=lambda r: (len(r.urgent_used), r.match_ratio), reverse=True)
 
-    # 매칭 레시피 최대 3개 + 추가 추천 최대 2개 = 총 5개
-    final = matched_results[:3]
-    remaining = top_n + 2 - len(final)
-    if remaining > 0 and extra_results:
+    # 매칭 레시피 최대 top_n개 + 추가 추천 최대 3개
+    final = matched_results[:top_n]
+    remaining = 3
+    if extra_results:
         final.extend(extra_results[:remaining])
 
     # 매칭 레시피가 없으면 fallback에서 추가
-    if not final:
-        final = _fallback_recipes(fridge_items, urgent_items, top_n + 2)
+    if not matched_results:
+        fallback = _fallback_recipes(fridge_items, urgent_items, top_n)
+        # fallback 중 이미 final에 있는 이름 제외
+        existing_names = {r.name for r in final}
+        for fb in fallback:
+            if fb.name not in existing_names:
+                final.append(fb)
+                if len(final) >= top_n + 3:
+                    break
 
-    return final[:top_n + 2]
+    return final
 
 
 # --- Fallback 인기 레시피 ---
