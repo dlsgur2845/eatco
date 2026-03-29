@@ -167,7 +167,7 @@ export default function MvpDashboardPage() {
         </div>
       ) : recipes.length > 0 ? (
         <div className="mb-6">
-          <h3 className="text-xs font-semibold tracking-wide mb-3 uppercase" style={{ color: 'var(--color-on-surface-variant)' }}>
+          <h3 className="text-sm font-semibold tracking-wide mb-3" style={{ color: 'var(--color-on-surface-variant)' }}>
             오늘의 추천
           </h3>
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
@@ -239,7 +239,7 @@ function StatCard({ count, label, color, bgColor }: { count: number; label: stri
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mb-6">
-      <h3 className="text-xs font-semibold tracking-wide mb-2 uppercase" style={{ color: 'var(--color-on-surface-variant)' }}>
+      <h3 className="text-sm font-semibold tracking-wide mb-2" style={{ color: 'var(--color-on-surface-variant)' }}>
         {title}
       </h3>
       <div>{children}</div>
