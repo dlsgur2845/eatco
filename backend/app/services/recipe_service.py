@@ -77,7 +77,7 @@ class RecipeMatch:
 
 
 def _is_word_match(a: str, b: str) -> bool:
-    """두 식재료명이 매칭되는지 확인. 단어 경계 기반."""
+    """두 식재료명이 매칭되는지 확인. 단어 경계 + 접미사 매칭."""
     # 완전 일치
     if a == b:
         return True
@@ -95,6 +95,13 @@ def _is_word_match(a: str, b: str) -> bool:
     for bw in b_words:
         if len(bw) >= 2 and bw in a_words:
             return True
+    # 접미사 매칭: "순두부"는 "두부"를 포함, "삼겹살"은 단독이므로 "돼지고기"와 불일치
+    # 짧은 쪽(2글자 이상)이 긴 쪽의 끝부분과 일치하면 매칭
+    for aw in a_words:
+        for bw in b_words:
+            short, long = (aw, bw) if len(aw) <= len(bw) else (bw, aw)
+            if len(short) >= 2 and long.endswith(short):
+                return True
     return False
 
 
