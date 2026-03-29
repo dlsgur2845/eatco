@@ -14,6 +14,7 @@
 | POST | `/api/auth/family` | 가족 생성 |
 | POST | `/api/auth/family/join` | 초대 코드로 가족 참여 |
 | POST | `/api/auth/family/leave` | 가족 탈퇴 |
+| POST | `/api/auth/family/kick/{user_id}` | 구성원 내보내기 (마스터만) |
 | GET | `/api/auth/family/{id}` | 가족 정보 조회 |
 | PUT | `/api/auth/family/settings` | 가족 설정 변경 |
 
