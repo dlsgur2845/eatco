@@ -303,3 +303,54 @@ async def leave_family(
     await db.commit()
     await db.refresh(current_user)
     return current_user
+
+
+@router.post("/family/kick/{user_id}")
+async def kick_member(
+    user_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """가족 구성원을 내보냅니다. 마스터(첫 번째 멤버)만 가능."""
+    import uuid as _uuid
+    if not current_user.family_id:
+        raise HTTPException(status_code=400, detail="가족 그룹이 없습니다.")
+
+    result = await db.execute(
+        select(Family).where(Family.id == current_user.family_id).options(selectinload(Family.members))
+    )
+    family = result.scalar_one_or_none()
+    if not family:
+        raise HTTPException(status_code=404, detail="가족 그룹을 찾을 수 없습니다.")
+
+    # 마스터 확인 (첫 번째 멤버)
+    if not family.members or family.members[0].id != current_user.id:
+        raise HTTPException(status_code=403, detail="마스터만 구성원을 내보낼 수 있습니다.")
+
+    # 대상 유저 찾기
+    try:
+        target_uid = _uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="잘못된 사용자 ID입니다.")
+
+    target = None
+    for m in family.members:
+        if m.id == target_uid:
+            target = m
+            break
+
+    if not target:
+        raise HTTPException(status_code=404, detail="해당 구성원을 찾을 수 없습니다.")
+
+    if target.id == current_user.id:
+        raise HTTPException(status_code=400, detail="자기 자신은 내보낼 수 없습니다.")
+
+    # 내보낸 유저에게 새 1인 가족 생성
+    new_invite = await generate_unique_invite_code(db)
+    new_family = Family(name=f"{target.nickname}의 냉장고", invite_code=new_invite)
+    db.add(new_family)
+    await db.flush()
+
+    target.family_id = new_family.id
+    await db.commit()
+    return {"kicked": True, "user": target.nickname}

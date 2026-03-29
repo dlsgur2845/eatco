@@ -118,11 +118,29 @@ function FamilyManageView({
                         </p>
                       </div>
                     </div>
-                    {isAdmin && (
-                      <span className="text-[10px] text-primary font-bold tracking-widest bg-primary/5 px-2 py-1 rounded">
-                        MASTER
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {isAdmin && (
+                        <span className="text-[10px] text-primary font-bold tracking-widest bg-primary/5 px-2 py-1 rounded">
+                          MASTER
+                        </span>
+                      )}
+                      {!isAdmin && !isMe && currentUser.id === localFamily.members[0]?.id && (
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`${member.nickname}님을 가족에서 내보내시겠습니까?`)) return
+                            try {
+                              await api.post(`/auth/family/kick/${member.id}`)
+                              onRefresh()
+                            } catch {
+                              alert('내보내기에 실패했습니다.')
+                            }
+                          }}
+                          className="text-xs px-3 py-1.5 rounded-lg text-tertiary hover:bg-tertiary/10 transition-colors"
+                        >
+                          내보내기
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )
               })}
