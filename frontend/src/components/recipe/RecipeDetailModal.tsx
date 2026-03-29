@@ -9,7 +9,7 @@ export default function RecipeDetailModal({ recipe, onClose }: Props) {
   const pct = Math.round(recipe.match_ratio * 100)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
         className="absolute inset-0"
         style={{ backgroundColor: 'var(--color-on-surface)', opacity: 0.15 }}
@@ -17,7 +17,7 @@ export default function RecipeDetailModal({ recipe, onClose }: Props) {
       />
 
       <div
-        className="relative w-full max-w-md max-h-[90vh] rounded-t-3xl overflow-y-auto pb-8"
+        className="relative w-full max-w-md max-h-[90vh] rounded-3xl overflow-y-auto pb-8 mx-4"
         style={{ backgroundColor: 'var(--color-surface-container-lowest)' }}
       >
         {/* 핸들 */}

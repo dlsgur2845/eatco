@@ -41,7 +41,7 @@ export default function ResultsModal({ items: initialItems, onConfirm, onClose }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* 오버레이 */}
       <div
         className="absolute inset-0"
@@ -51,7 +51,7 @@ export default function ResultsModal({ items: initialItems, onConfirm, onClose }
 
       {/* 모달 */}
       <div
-        className="relative w-full max-w-md max-h-[85vh] rounded-t-3xl flex flex-col"
+        className="relative w-full max-w-md max-h-[85vh] rounded-3xl flex flex-col mx-4"
         style={{ backgroundColor: 'var(--color-surface-container-lowest)' }}
       >
         {/* 핸들 + 헤더 (고정) */}

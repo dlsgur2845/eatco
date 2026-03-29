@@ -119,12 +119,12 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto bg-surface rounded-t-[2rem] sm:rounded-[2rem] p-6 sm:p-8 shadow-2xl mx-4 mb-0 sm:mb-4">
+      <div className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto bg-surface rounded-[2rem] p-6 sm:p-8 shadow-2xl mx-4">
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-headline font-bold text-xl text-on-surface">식재료 등록</h3>
           <button onClick={onClose} className="p-2 hover:bg-surface-container-high rounded-full transition-colors">
