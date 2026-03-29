@@ -6,11 +6,10 @@ import ResultsModal from '../components/scan/ResultsModal'
 const PROGRESS_STEPS = ['영수증 읽는 중...', '항목 분석 중...', '유통기한 추정 중...']
 
 interface Props {
-  familyCode: string
   onRegistered: () => void
 }
 
-export default function ScanPage({ familyCode, onRegistered }: Props) {
+export default function ScanPage({ onRegistered }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [scanning, setScanning] = useState(false)
   const [progressStep, setProgressStep] = useState(0)
@@ -23,16 +22,15 @@ export default function ScanPage({ familyCode, onRegistered }: Props) {
     setScanning(true)
     setProgressStep(0)
 
-    // 프로그레스 텍스트 시뮬레이션
     const interval = setInterval(() => {
       setProgressStep(prev => Math.min(prev + 1, PROGRESS_STEPS.length - 1))
     }, 1200)
 
     try {
-      const result = await analyzeReceipt(file, familyCode)
+      const result = await analyzeReceipt(file)
       clearInterval(interval)
 
-      logEvent(familyCode, 'scan', { source: 'receipt', items_count: result.total })
+      logEvent('scan', { source: 'receipt', items_count: result.total })
 
       if (result.total === 0) {
         setError('인식된 항목이 없어요. 영수증을 다시 찍어주세요.')
@@ -55,7 +53,7 @@ export default function ScanPage({ familyCode, onRegistered }: Props) {
       setScanning(false)
       setProgressStep(0)
     }
-  }, [familyCode])
+  }, [])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -65,8 +63,8 @@ export default function ScanPage({ familyCode, onRegistered }: Props) {
 
   const handleRegister = async (finalItems: ScannedItem[]) => {
     try {
-      await registerItems(finalItems, familyCode)
-      logEvent(familyCode, 'register', { items_count: finalItems.length })
+      await registerItems(finalItems)
+      logEvent('register', { items_count: finalItems.length })
       setShowResults(false)
       setItems([])
       onRegistered()
@@ -77,7 +75,6 @@ export default function ScanPage({ familyCode, onRegistered }: Props) {
 
   return (
     <div className="flex flex-col items-center px-5 pt-8 pb-24 min-h-screen">
-      {/* 헤더 */}
       <h1
         className="text-2xl font-bold tracking-tight mb-1"
         style={{ fontFamily: 'var(--font-headline)', color: 'var(--color-on-surface)' }}
@@ -88,13 +85,11 @@ export default function ScanPage({ familyCode, onRegistered }: Props) {
         영수증을 찍으면 자동으로 등록됩니다
       </p>
 
-      {/* 카메라 영역 */}
       {scanning ? (
         <div
           className="w-full aspect-[3/4] rounded-2xl flex flex-col items-center justify-center gap-4"
           style={{ backgroundColor: 'var(--color-surface-container-low)' }}
         >
-          {/* 프로그레스 바 */}
           <div className="w-48 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-container-high)' }}>
             <div
               className="h-full rounded-full transition-all duration-1000"
@@ -121,7 +116,6 @@ export default function ScanPage({ familyCode, onRegistered }: Props) {
         </div>
       )}
 
-      {/* 에러 메시지 */}
       {error && (
         <div
           className="w-full mt-4 px-4 py-3 rounded-xl text-sm"
@@ -131,7 +125,6 @@ export default function ScanPage({ familyCode, onRegistered }: Props) {
         </div>
       )}
 
-      {/* 촬영 버튼 */}
       <input
         ref={fileInputRef}
         type="file"
@@ -154,13 +147,11 @@ export default function ScanPage({ familyCode, onRegistered }: Props) {
         이마트, 홈플러스, GS25 등 대부분의 영수증을 인식합니다
       </p>
 
-      {/* 결과 모달 */}
       {showResults && (
         <ResultsModal
           items={items}
           onConfirm={handleRegister}
           onClose={() => setShowResults(false)}
-          familyCode={familyCode}
         />
       )}
     </div>

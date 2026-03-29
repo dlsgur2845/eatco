@@ -2,11 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { logEvent } from '../api/events'
 import { deleteItem, getItems, type DashboardItem } from '../api/scan'
 
-interface Props {
-  familyCode: string
-}
-
-export default function MvpDashboardPage({ familyCode }: Props) {
+export default function MvpDashboardPage() {
   const [items, setItems] = useState<DashboardItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -15,15 +11,15 @@ export default function MvpDashboardPage({ familyCode }: Props) {
   const fetchItems = useCallback(async () => {
     try {
       setError(null)
-      const data = await getItems(familyCode)
+      const data = await getItems()
       setItems(data)
-      logEvent(familyCode, 'view_dashboard', { items_count: data.length })
+      logEvent('view_dashboard', { items_count: data.length })
     } catch {
       setError('식재료를 불러오지 못했어요.')
     } finally {
       setLoading(false)
     }
-  }, [familyCode])
+  }, [])
 
   useEffect(() => { fetchItems() }, [fetchItems])
 
@@ -31,7 +27,7 @@ export default function MvpDashboardPage({ familyCode }: Props) {
     // 이전 undo가 있으면 즉시 확정
     if (undoItem) {
       clearTimeout(undoItem.timeout)
-      deleteItem(undoItem.item.id, familyCode).catch(() => {
+      deleteItem(undoItem.item.id).catch(() => {
         setItems(prev => [...prev, undoItem.item].sort((a, b) => a.days_left - b.days_left))
       })
     }
@@ -42,8 +38,8 @@ export default function MvpDashboardPage({ familyCode }: Props) {
     // 3초 undo 스냅바
     const timeout = setTimeout(async () => {
       try {
-        await deleteItem(item.id, familyCode)
-        logEvent(familyCode, 'use_item', { item_name: item.name })
+        await deleteItem(item.id)
+        logEvent('use_item', { item_name: item.name })
       } catch {
         setItems(prev => [...prev, item].sort((a, b) => a.days_left - b.days_left))
       }

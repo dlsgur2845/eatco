@@ -4,8 +4,10 @@ import DashboardPage from './pages/DashboardPage'
 import FamilyPage from './pages/FamilyPage'
 import InventoryPage from './pages/InventoryPage'
 import LoginPage from './pages/LoginPage'
+import MvpDashboardPage from './pages/MvpDashboardPage'
 import NotificationsPage from './pages/NotificationsPage'
 import RegisterAccountPage from './pages/RegisterAccountPage'
+import ScanPage from './pages/ScanPage'
 import SettingsPage from './pages/SettingsPage'
 
 function AuthGuard() {
@@ -29,6 +31,8 @@ export default function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/scan" element={<ScanPage onRegistered={() => window.location.href = '/fridge'} />} />
+            <Route path="/fridge" element={<MvpDashboardPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/family" element={<FamilyPage />} />

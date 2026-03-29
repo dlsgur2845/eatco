@@ -15,7 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.ingredient import Ingredient, StorageMethod
-from app.models.user import Family
+from app.models.user import Family, User
+from app.routers.auth import get_current_user
 from app.services.category_mapper import MappedItem, map_ocr_results
 from app.services.ocr_service import OCRError, scan_image
 
@@ -59,29 +60,18 @@ class IngredientResponse(BaseModel):
 
 # --- Dependencies ---
 
-async def verify_family_code(
-    code: str = Query(..., description="가정 코드"),
-    db: AsyncSession = Depends(get_db),
-) -> Family:
-    result = await db.execute(select(Family).where(Family.invite_code == code))
-    family = result.scalar_one_or_none()
-    if not family:
-        raise HTTPException(status_code=403, detail="유효하지 않은 가정 코드입니다.")
-    return family
+async def get_user_family_id(user: User = Depends(get_current_user)) -> uuid.UUID:
+    if not user.family_id:
+        raise HTTPException(status_code=400, detail="가족 그룹에 먼저 가입해주세요.")
+    return user.family_id
 
 
 # --- Endpoints ---
 
-@router.get("/verify")
-async def verify_code(family: Family = Depends(verify_family_code)):
-    """가정 코드가 유효한지 확인합니다."""
-    return {"valid": True, "family_name": family.name}
-
-
 @router.post("/analyze", response_model=ScanResponse)
 async def analyze_receipt(
     file: UploadFile = File(...),
-    family: Family = Depends(verify_family_code),
+    family_id: uuid.UUID = Depends(get_user_family_id),
 ):
     """이미지를 OCR 분석하여 식재료 목록을 반환합니다 (아직 등록하지 않음)."""
     if file.content_type not in ALLOWED_CONTENT_TYPES:
@@ -119,7 +109,7 @@ async def analyze_receipt(
 @router.post("/register")
 async def register_items(
     body: RegisterRequest,
-    family: Family = Depends(verify_family_code),
+    family_id: uuid.UUID = Depends(get_user_family_id),
     db: AsyncSession = Depends(get_db),
 ):
     """분석된 식재료를 가정 냉장고에 등록합니다."""
@@ -135,7 +125,7 @@ async def register_items(
             name=item.name,
             storage_method=storage_map.get(item.storage_method, StorageMethod.REFRIGERATED),
             expiry_date=item.expiry_date,
-            family_id=family.id,
+            family_id=family_id,
         )
         db.add(ingredient)
         created.append(ingredient)
@@ -146,13 +136,13 @@ async def register_items(
 
 @router.get("/items", response_model=list[IngredientResponse])
 async def get_items(
-    family: Family = Depends(verify_family_code),
+    family_id: uuid.UUID = Depends(get_user_family_id),
     db: AsyncSession = Depends(get_db),
 ):
     """가정의 식재료 목록을 소비기한 순으로 반환합니다."""
     result = await db.execute(
         select(Ingredient)
-        .where(Ingredient.family_id == family.id)
+        .where(Ingredient.family_id == family_id)
         .order_by(Ingredient.expiry_date.asc())
     )
     ingredients = result.scalars().all()
@@ -174,7 +164,7 @@ async def get_items(
 @router.delete("/items/{item_id}")
 async def delete_item(
     item_id: str,
-    family: Family = Depends(verify_family_code),
+    family_id: uuid.UUID = Depends(get_user_family_id),
     db: AsyncSession = Depends(get_db),
 ):
     """식재료를 삭제합니다 ("썼어요")."""
@@ -186,7 +176,7 @@ async def delete_item(
     result = await db.execute(
         select(Ingredient).where(
             Ingredient.id == uid,
-            Ingredient.family_id == family.id,
+            Ingredient.family_id == family_id,
         )
     )
     ingredient = result.scalar_one_or_none()

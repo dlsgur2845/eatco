@@ -6,17 +6,16 @@ interface Props {
   items: ScannedItem[]
   onConfirm: (items: ScannedItem[]) => void
   onClose: () => void
-  familyCode: string
 }
 
-export default function ResultsModal({ items: initialItems, onConfirm, onClose, familyCode }: Props) {
+export default function ResultsModal({ items: initialItems, onConfirm, onClose }: Props) {
   const [items, setItems] = useState<ScannedItem[]>(initialItems)
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   const handleDelete = (idx: number) => {
-    logEvent(familyCode, 'edit_item', { action: 'delete_before_register', item: items[idx].name })
+    logEvent('edit_item', { action: 'delete_before_register', item: items[idx].name })
     setItems(prev => prev.filter((_, i) => i !== idx))
   }
 
@@ -27,7 +26,7 @@ export default function ResultsModal({ items: initialItems, onConfirm, onClose, 
 
   const handleEditConfirm = () => {
     if (editingIdx === null) return
-    logEvent(familyCode, 'edit_item', { action: 'rename', from: items[editingIdx].name, to: editName })
+    logEvent('edit_item', { action: 'rename', from: items[editingIdx].name, to: editName })
     setItems(prev => prev.map((item, i) => i === editingIdx ? { ...item, name: editName } : item))
     setEditingIdx(null)
   }
