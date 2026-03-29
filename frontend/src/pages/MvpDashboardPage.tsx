@@ -132,7 +132,7 @@ export default function MvpDashboardPage() {
     <div className="px-5 pt-8 pb-24 min-h-screen">
       {/* 헤더 */}
       <h1
-        className="text-xl font-bold mb-1"
+        className="text-2xl font-bold mb-1"
         style={{ fontFamily: 'var(--font-headline)', color: 'var(--color-on-surface)' }}
       >
         우리 집 냉장고
@@ -218,7 +218,7 @@ export default function MvpDashboardPage() {
           {/* 재료 기반 추천 */}
           {recipes.filter(r => r.match_count > 0).length > 0 && (
             <div className="mb-6">
-              <h3 className="text-sm font-semibold tracking-wide mb-3" style={{ color: 'var(--color-on-surface-variant)' }}>
+              <h3 className="text-base font-semibold tracking-wide mb-3" style={{ color: 'var(--color-on-surface-variant)' }}>
                 냉장고 재료로 만들 수 있어요
               </h3>
               <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
@@ -231,7 +231,7 @@ export default function MvpDashboardPage() {
           {/* 추가 추천 (매칭 무관) */}
           {recipes.filter(r => r.match_count === 0).length > 0 && (
             <div className="mb-6">
-              <h3 className="text-sm font-semibold tracking-wide mb-3" style={{ color: 'var(--color-on-surface-variant)' }}>
+              <h3 className="text-base font-semibold tracking-wide mb-3" style={{ color: 'var(--color-on-surface-variant)' }}>
                 이런 요리는 어때요?
               </h3>
               <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
