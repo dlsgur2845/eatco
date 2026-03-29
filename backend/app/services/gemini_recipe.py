@@ -79,17 +79,24 @@ async def generate_recipes(
     )
 
     try:
+        import asyncio
         from google import genai
         from google.genai import types
 
         client = genai.Client(api_key=settings.gemini_api_key)
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[prompt],
-            config=types.GenerateContentConfig(
-                temperature=0.7,
-                response_mime_type="application/json",
+
+        # 10초 타임아웃 — 느리면 fallback으로
+        response = await asyncio.wait_for(
+            asyncio.to_thread(
+                client.models.generate_content,
+                model="gemini-2.5-flash",
+                contents=[prompt],
+                config=types.GenerateContentConfig(
+                    temperature=0.7,
+                    response_mime_type="application/json",
+                ),
             ),
+            timeout=10.0,
         )
 
         text = response.text.strip()
