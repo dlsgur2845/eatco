@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import type { NotificationSetting } from '../types'
 
@@ -106,6 +106,16 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+          <Link
+            to="/family"
+            className="flex items-center justify-between p-5 hover:bg-primary/5 transition-colors"
+          >
+            <div className="flex items-center gap-4">
+              <span className="material-symbols-outlined text-outline">group</span>
+              <span className="font-medium">가족 관리</span>
+            </div>
+            <span className="material-symbols-outlined text-outline text-sm">chevron_right</span>
+          </Link>
           <div className="flex items-center justify-between p-5">
             <div className="flex items-center gap-4">
               <span className="material-symbols-outlined text-outline">info</span>
