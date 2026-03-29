@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     clova_ocr_secret_key: str = ""
     ocr_mock_mode: bool = True
     recipe_api_key: str = ""
+    data_go_kr_api_key: str = ""
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 
