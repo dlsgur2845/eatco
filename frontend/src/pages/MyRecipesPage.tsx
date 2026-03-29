@@ -290,7 +290,7 @@ export default function MyRecipesPage() {
               </div>
 
               {expandedId === r.id && (
-                <div className="mt-4 pt-4 space-y-3" style={{ borderTop: '1px solid var(--color-surface-container)' }}>
+                <div className="mt-4 pt-4 space-y-3 bg-surface-container-low rounded-2xl p-4">
                   {r.manual_steps.length > 0 && (
                     <div>
                       <p className="text-xs font-semibold text-on-surface-variant mb-2">조리 순서</p>

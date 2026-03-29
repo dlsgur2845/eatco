@@ -99,7 +99,7 @@ export default function ResultsModal({ items: initialItems, storeName, onConfirm
             <div
               key={idx}
               className="flex items-center gap-3 py-3 group"
-              style={{ borderBottom: idx < items.length - 1 ? '1px solid var(--color-surface-container)' : 'none' }}
+              style={{ marginBottom: idx < items.length - 1 ? '4px' : '0', paddingBottom: idx < items.length - 1 ? '4px' : '0', backgroundColor: idx % 2 === 0 ? 'transparent' : 'var(--color-surface-container-low)' , borderRadius: '12px' }}
             >
               {/* 상태 바 */}
               <div
