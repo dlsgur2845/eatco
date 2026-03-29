@@ -76,36 +76,46 @@ class RecipeMatch:
     urgent_used: list[str] = field(default_factory=list)
 
 
+def _is_word_match(a: str, b: str) -> bool:
+    """두 식재료명이 매칭되는지 확인. 단어 경계 기반."""
+    # 완전 일치
+    if a == b:
+        return True
+    # 한쪽이 다른 쪽의 독립 단어인지 확인 (공백으로 분리된 단어)
+    a_words = set(a.split())
+    b_words = set(b.split())
+    # 교집합이 있으면 매칭 (각 단어가 2글자 이상)
+    common = {w for w in a_words & b_words if len(w) >= 2}
+    if common:
+        return True
+    # 한쪽 전체가 다른 쪽 단어 중 하나와 일치
+    for aw in a_words:
+        if len(aw) >= 2 and aw in b_words:
+            return True
+    for bw in b_words:
+        if len(bw) >= 2 and bw in a_words:
+            return True
+    return False
+
+
 def _compute_match(recipe_ingredients: list[str], fridge_items: list[str], urgent_items: list[str]) -> dict:
-    """냉장고 재료와 레시피 재료의 매칭률을 계산. 부분 단어 매칭 지원."""
+    """냉장고 재료와 레시피 재료의 매칭률을 계산. 단어 경계 기반 매칭."""
     matched = []
     missing = []
     urgent_used = []
 
-    # 냉장고 재료의 개별 단어 추출 (예: "냉동 삼겹살" → ["냉동", "삼겹살"])
-    fridge_words = {}
-    for fi in fridge_items:
-        words = fi.lower().split()
-        fridge_words[fi] = words
-
     for ri in recipe_ingredients:
-        ri_lower = ri.lower()
+        ri_lower = ri.lower().strip()
         found = False
         for fi in fridge_items:
-            fi_lower = fi.lower()
-            # 1. 직접 포함 매칭
-            if fi_lower in ri_lower or ri_lower in fi_lower:
-                found = True
-            # 2. 단어별 매칭 (레시피 "돼지고기" vs 냉장고 단어 중 하나라도 포함)
-            if not found:
-                for word in fridge_words[fi]:
-                    if len(word) >= 2 and (word in ri_lower or ri_lower in word):
-                        found = True
-                        break
-            if found:
+            fi_lower = fi.lower().strip()
+            if _is_word_match(ri_lower, fi_lower):
                 matched.append(ri)
                 if fi in urgent_items:
                     urgent_used.append(fi)
+                found = True
+                break
+        if not found:
                 break
         if not found:
             missing.append(ri)
