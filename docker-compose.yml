@@ -30,7 +30,7 @@ services:
       - "8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      CORS_ORIGINS: https://localhost:8443
+      CORS_ORIGINS: https://localhost:8443,http://localhost:8080
     depends_on:
       postgres:
         condition: service_healthy
