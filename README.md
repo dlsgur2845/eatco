@@ -5,12 +5,14 @@
 ## 주요 기능
 
 ### 식재료 관리
-- 식재료 등록 (이름, 보관 방법, 수량, 유통기한, 카테고리)
+- 식재료 등록 (이름, 보관 방법, 수량, 가격, 매장명, 유통기한, 카테고리)
+- **영수증 스캔 등록** — Gemini Flash 기반 영수증 인식. 식재료만 자동 추출, 가격/수량/매장명까지 인식
+- **이름 정규화** — "베지밀B 검은콩" → "두유", 품질 구분(냉동/생, 한우/미국산) 유지
 - 보관 방법별 필터링 (냉장 / 냉동 / 실온)
 - 검색 기능
 - 다중 선택 후 일괄 삭제
-- **보관기한 자동 추천** — USDA FoodKeeper 기반 221종 식재료 DB (생선 30종+, 육류 25종+, 유제품 35종+, 채소/과일 100종+ 등)
-- **실시간 자동완성 검색** — 한국어 + 영어 동시 검색 지원 (예: "salmon" → 연어, "고등" → 고등어)
+- **보관기한 자동 추천** — USDA FoodKeeper 기반 221종 식재료 DB
+- **실시간 자동완성 검색** — 한국어 + 영어 동시 검색 지원
 
 ### 유통기한 알림
 - D-Day 기반 시각적 표시 (위험 / 주의 / 안전 색상 구분)
@@ -35,10 +37,20 @@
 - 브릿지 네트워크로 컨테이너 간 통신 격리
 - HTTPS (자체 서명 인증서)
 
-### 대시보드
-- 유통기한 임박 알림 배너
-- 식재료 현황 요약 카드 (3일 이내 / 7일 이내 / 안전)
-- 최근 등록된 식재료 목록
+### 냉장고 (메인 화면)
+- 유통기한 임박 식재료 분류 (오늘 써야 해요 / 3일 이내 / 여유 있어요)
+- **AI 음식 추천** — Gemini Flash로 냉장고 재료 기반 맞춤 레시피 생성 + 식품안전나라 API fallback
+- 레시피 출처 표시 (AI 추천 / 식품안전나라)
+- **인플레이션 알림** — 3개월 전 대비 30% 이상 가격 상승 식재료 알림
+- **월별 예산 프로그레스 바** — 이번 달 식재료 지출 현황
+- 부분 사용 / 다 썼어요 버튼 (undo 지원)
+
+### 가계부
+- **월별 식재료 지출** 바 차트 (최근 6개월)
+- **식재료별 가격 추이** 라인 차트 (검색 기반)
+- **매장별 가격 비교** 테이블
+- **월 예산 설정** 및 초과 경고
+- 스캔/직접등록 데이터 자동 통합
 
 ---
 
@@ -46,9 +58,11 @@
 
 | 영역 | 기술 |
 |---|---|
-| Frontend | React 19, TypeScript, Tailwind CSS v4, Vite 8, React Router 7, Axios |
+| Frontend | React 19, TypeScript, Tailwind CSS v4, Vite 8, React Router 7, Axios, Recharts |
 | Backend | FastAPI, SQLAlchemy 2.0 (async), Pydantic v2, PyJWT, bcrypt |
+| AI/OCR | Google Gemini 2.5 Flash (영수증 인식 + 레시피 생성 + 이름 정규화) |
 | Database | PostgreSQL 18 |
+| External API | 식품안전나라 레시피 API (fallback) |
 | Infra | Docker Compose, Nginx (HTTPS reverse proxy), Bridge network |
 
 ---
@@ -79,13 +93,20 @@ eatco/
 │       ├── routers/            # API 엔드포인트
 │       │   ├── auth.py         #   인증 (회원가입/로그인/가족)
 │       │   ├── ingredients.py  #   식재료 CRUD
+│       │   ├── scan.py         #   영수증 스캔 + 등록
+│       │   ├── recipes.py      #   AI 레시피 추천
+│       │   ├── expenses.py     #   가계부 (지출/추이/알림/예산)
 │       │   ├── dashboard.py    #   대시보드 요약
 │       │   ├── categories.py   #   카테고리 목록
 │       │   ├── notifications.py     # 알림 주기 설정
 │       │   ├── notification_logs.py # 알림 로그 CRUD
-│       │   └── storage_guide.py     # 보관기한 조회 + 실시간 자동완성
+│       │   └── storage_guide.py     # 보관기한 조회 + 자동완성
 │       ├── schemas/            # Pydantic 스키마
 │       └── services/           # 비즈니스 로직
+│           ├── ocr_service.py       # Gemini 영수증 인식
+│           ├── gemini_recipe.py     # Gemini 레시피 생성
+│           ├── normalizer.py        # 식재료 이름 정규화
+│           ├── recipe_service.py    # 레시피 매칭 + fallback
 │           └── expiry_checker.py    # 유통기한 알림 생성
 │
 ├── frontend/
@@ -100,8 +121,10 @@ eatco/
 │       └── pages/
 │           ├── LoginPage.tsx
 │           ├── RegisterAccountPage.tsx
-│           ├── DashboardPage.tsx
-│           ├── InventoryPage.tsx    # 식재료 목록 + 등록 + 자동완성
+│           ├── MvpDashboardPage.tsx  # 냉장고 (메인)
+│           ├── InventoryPage.tsx     # 직접 등록 + 관리
+│           ├── ScanPage.tsx          # 영수증 스캔
+│           ├── ExpensesPage.tsx      # 가계부
 │           ├── NotificationsPage.tsx
 │           ├── FamilyPage.tsx
 │           └── SettingsPage.tsx
@@ -127,15 +150,31 @@ cd eatco
 
 ### 2. 환경 변수 확인
 
-`.env` 파일이 프로젝트 루트에 있어야 합니다. 기본값:
+`.env` 파일이 프로젝트 루트에 있어야 합니다. `.env.example`을 복사해서 수정하세요:
 
+```bash
+cp .env.example .env
+```
+
+필수 설정:
 ```env
 POSTGRES_DB=eatco
 POSTGRES_USER=eatco
 POSTGRES_PASSWORD=eatco_dev_password
+SECRET_KEY=eatco-dev-only-change-in-production
+
+# Gemini API 키 (영수증 스캔 + AI 레시피 추천)
+# 발급: https://aistudio.google.com/apikey
+GEMINI_API_KEY=your_key_here
+OCR_PROVIDER=gemini
+OCR_MOCK_MODE=false
+
+# 식품안전나라 레시피 API (선택, fallback용)
+# 발급: https://www.foodsafetykorea.go.kr/api/openApiInfo.do
+RECIPE_API_KEY=
 ```
 
-> **프로덕션 배포 시** 반드시 `POSTGRES_PASSWORD`를 변경하세요.
+> **프로덕션 배포 시** 반드시 `POSTGRES_PASSWORD`와 `SECRET_KEY`를 변경하세요.
 
 ### 3. Docker Compose로 실행
 
@@ -227,11 +266,28 @@ docker volume rm eatco_postgres_data
   - 주황: D-4 ~ D-7 (주의)
   - 초록: D-8 이상 (안전)
 
-### 대시보드
+### 냉장고 (메인 화면)
 
-- 상단에 유통기한 임박 알림 배너
-- 식재료 현황 요약 (3일 이내 / 7일 이내 / 안전 개수)
-- 최근 등록된 식재료 목록
+- 상태 카드: 오늘 써야 해요 / 3일 이내 / 여유 있어요
+- **AI 음식 추천**: 냉장고 재료 기반 맞춤 레시피 + 추가 추천
+- 인플레이션 알림 배너 (가격 급등 식재료)
+- 예산 프로그레스 바
+- 식재료별 "일부 사용" / "다 썼어요" 버튼
+
+### 영수증 스캔
+
+1. 하단 네비바에서 **"스캔"** 탭 선택
+2. **"영수증 촬영하기"** 또는 **"앨범에서 선택"**
+3. Gemini AI가 영수증에서 식재료만 추출 (세제, 생활용품 등 자동 제외)
+4. 매장명, 가격, 수량도 자동 인식
+5. 결과 확인 후 **"냉장고에 추가하기"**
+
+### 가계부
+
+1. 하단 네비바에서 **"가계부"** 탭 선택
+2. **지출 요약**: 최근 6개월 월별 지출 바 차트
+3. **식재료별 추이**: 식재료 검색 → 가격 변동 라인 차트 + 매장별 비교
+4. **월 예산 설정**: 예산 입력 → 대시보드에 프로그레스 바 표시
 
 ### 알림
 
@@ -318,6 +374,31 @@ docker volume rm eatco_postgres_data
 |---|---|---|
 | GET | `/api/storage-guide/lookup?name=` | 보관기한 조회 (키워드 매칭) |
 | GET | `/api/storage-guide/suggest?q=` | 실시간 자동완성 검색 (최대 15건) |
+
+### 영수증 스캔
+| Method | Endpoint | 설명 |
+|---|---|---|
+| POST | `/api/scan/analyze` | 영수증 이미지 → 식재료 추출 (Gemini) |
+| POST | `/api/scan/register` | 분석된 식재료 등록 |
+| GET | `/api/scan/items` | 가정 식재료 목록 |
+| PATCH | `/api/scan/items/{id}` | 식재료 수정 |
+| DELETE | `/api/scan/items/{id}` | 식재료 삭제 |
+
+### 레시피 추천
+| Method | Endpoint | 설명 |
+|---|---|---|
+| GET | `/api/recipes/recommend` | AI 레시피 추천 (Gemini + 식품안전나라 fallback) |
+
+### 가계부
+| Method | Endpoint | 설명 |
+|---|---|---|
+| GET | `/api/expenses/monthly` | 월별 지출 요약 |
+| GET | `/api/expenses/by-item` | 식재료별 가격 이력 |
+| GET | `/api/expenses/by-category` | 보관방법별 지출 비율 |
+| GET | `/api/expenses/alerts` | 인플레이션 알림 |
+| GET | `/api/expenses/compare` | 매장별 가격 비교 |
+| GET | `/api/expenses/budget` | 예산 조회 |
+| POST | `/api/expenses/budget` | 예산 설정 |
 
 ### 기타
 | Method | Endpoint | 설명 |
