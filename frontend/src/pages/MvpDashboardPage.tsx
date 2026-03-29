@@ -11,7 +11,6 @@ export default function MvpDashboardPage({ familyCode }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [undoItem, setUndoItem] = useState<{ item: DashboardItem; timeout: ReturnType<typeof setTimeout> } | null>(null)
-  const [registering] = useState(false)
 
   const fetchItems = useCallback(async () => {
     try {
