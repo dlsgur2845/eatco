@@ -33,7 +33,11 @@
       "Bash(curl -sL \"https://www.fsis.usda.gov/shared/data/EN/foodkeeper.json\" -o C:UsersdlsguDesktopeatcobackendappdatafoodkeeper.json --connect-timeout 30 --max-time 120)",
       "Bash(dir C:UsersdlsguDesktopeatcobackendappdatafoodkeeper.json)",
       "Bash(curl -sL \"https://www.fsis.usda.gov/shared/data/EN/foodkeeper.json\" -o \"C:/Users/dlsgu/Desktop/eatco/backend/app/data/foodkeeper.json\" --connect-timeout 30 --max-time 120)",
-      "Bash(gh auth:*)"
+      "Bash(gh auth:*)",
+      "Bash(python -c \"from app.main import app; print\\(''Backend imports OK''\\)\")",
+      "Bash(curl -s \"http://openapi.foodsafetykorea.go.kr/api/sample/COOKRCP01/json/1/3\" -o /tmp/recipe_check.json)",
+      "Bash(python -c \":*)",
+      "Bash(curl -s \"http://openapi.foodsafetykorea.go.kr/api/sample/COOKRCP01/json/1/3\" -o recipe_check.json)"
     ]
   }
 }
