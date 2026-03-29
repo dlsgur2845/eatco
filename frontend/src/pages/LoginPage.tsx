@@ -60,7 +60,7 @@ export default function LoginPage() {
             로그인
           </h1>
           <p className="text-on-surface-variant text-lg leading-relaxed max-w-sm">
-            다시 돌아오셨군요. 냉장고의 신선함이 기다리고 있어요.
+            이메일과 비밀번호를 입력해주세요.
           </p>
         </header>
 

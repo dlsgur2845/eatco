@@ -1,6 +1,5 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import Layout from './components/layout/Layout'
-import DashboardPage from './pages/DashboardPage'
 import FamilyPage from './pages/FamilyPage'
 import InventoryPage from './pages/InventoryPage'
 import LoginPage from './pages/LoginPage'
@@ -29,10 +28,9 @@ export default function App() {
         {/* Protected routes */}
         <Route element={<AuthGuard />}>
           <Route element={<Layout />}>
-            <Route path="/" element={<DashboardPage />} />
+            <Route path="/" element={<MvpDashboardPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
-            <Route path="/scan" element={<ScanPage onRegistered={() => window.location.href = '/fridge'} />} />
-            <Route path="/fridge" element={<MvpDashboardPage />} />
+            <Route path="/scan" element={<ScanPage onRegistered={() => window.location.href = '/'} />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/family" element={<FamilyPage />} />

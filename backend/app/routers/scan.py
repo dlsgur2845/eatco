@@ -173,6 +173,49 @@ async def get_items(
     ]
 
 
+class UpdateItemRequest(BaseModel):
+    quantity: str | None = None
+    price: int | None = None
+    name: str | None = None
+    expiry_date: date | None = None
+
+
+@router.patch("/items/{item_id}")
+async def update_item(
+    item_id: str,
+    body: UpdateItemRequest,
+    family_id: uuid.UUID = Depends(get_user_family_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """식재료 정보를 수정합니다 (수량 변경 등)."""
+    try:
+        uid = uuid.UUID(item_id)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="잘못된 ID 형식입니다.")
+
+    result = await db.execute(
+        select(Ingredient).where(
+            Ingredient.id == uid,
+            Ingredient.family_id == family_id,
+        )
+    )
+    ingredient = result.scalar_one_or_none()
+    if not ingredient:
+        raise HTTPException(status_code=404, detail="식재료를 찾을 수 없습니다.")
+
+    if body.quantity is not None:
+        ingredient.quantity = body.quantity
+    if body.price is not None:
+        ingredient.price = body.price
+    if body.name is not None:
+        ingredient.name = body.name
+    if body.expiry_date is not None:
+        ingredient.expiry_date = body.expiry_date
+
+    await db.commit()
+    return {"updated": True}
+
+
 @router.delete("/items/{item_id}")
 async def delete_item(
     item_id: str,

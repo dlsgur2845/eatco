@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { logEvent } from '../api/events'
 import { getRecommendations, type Recipe } from '../api/recipes'
-import { deleteItem, getItems, type DashboardItem } from '../api/scan'
+import { deleteItem, getItems, updateItem, type DashboardItem } from '../api/scan'
 import RecipeCard from '../components/recipe/RecipeCard'
 
 export default function MvpDashboardPage() {
@@ -66,6 +66,16 @@ export default function MvpDashboardPage() {
     clearTimeout(undoItem.timeout)
     setItems(prev => [...prev, undoItem.item].sort((a, b) => a.days_left - b.days_left))
     setUndoItem(null)
+  }
+
+  const handleUpdateQty = async (item: DashboardItem, newQty: string) => {
+    try {
+      await updateItem(item.id, { quantity: newQty })
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: newQty } : i))
+      logEvent('update_quantity', { item_name: item.name, new_quantity: newQty })
+    } catch {
+      // 실패 시 무시
+    }
   }
 
   // 긴급도 분류
@@ -172,7 +182,7 @@ export default function MvpDashboardPage() {
       {urgent.length > 0 && (
         <Section title="오늘 써야 할 식재료">
           {urgent.map(item => (
-            <ItemRow key={item.id} item={item} daysColor={daysColor} daysLabel={daysLabel} onDelete={handleDelete} />
+            <ItemRow key={item.id} item={item} daysColor={daysColor} daysLabel={daysLabel} onDelete={handleDelete} onUpdate={handleUpdateQty} />
           ))}
         </Section>
       )}
@@ -181,7 +191,7 @@ export default function MvpDashboardPage() {
       {soon.length > 0 && (
         <Section title="곧 써야 할 식재료">
           {soon.map(item => (
-            <ItemRow key={item.id} item={item} daysColor={daysColor} daysLabel={daysLabel} onDelete={handleDelete} />
+            <ItemRow key={item.id} item={item} daysColor={daysColor} daysLabel={daysLabel} onDelete={handleDelete} onUpdate={handleUpdateQty} />
           ))}
         </Section>
       )}
@@ -190,7 +200,7 @@ export default function MvpDashboardPage() {
       {fresh.length > 0 && (
         <Section title="여유 있어요">
           {fresh.map(item => (
-            <ItemRow key={item.id} item={item} daysColor={daysColor} daysLabel={daysLabel} onDelete={handleDelete} />
+            <ItemRow key={item.id} item={item} daysColor={daysColor} daysLabel={daysLabel} onDelete={handleDelete} onUpdate={handleUpdateQty} />
           ))}
         </Section>
       )}
@@ -242,12 +252,16 @@ function ItemRow({
   daysColor,
   daysLabel,
   onDelete,
+  onUpdate,
 }: {
   item: DashboardItem
   daysColor: (d: number) => string
   daysLabel: (d: number) => string
   onDelete: (item: DashboardItem) => void
+  onUpdate: (item: DashboardItem, newQty: string) => void
 }) {
+  const [editing, setEditing] = useState(false)
+  const [editQty, setEditQty] = useState(item.quantity || '')
   const storageLabel = item.storage_method === 'refrigerated' ? '냉장' : item.storage_method === 'frozen' ? '냉동' : '실온'
   const regDate = item.registered_at ? new Date(item.registered_at).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) + '일' : ''
   const byWho = item.registered_by ? ` · ${item.registered_by}` : ''
@@ -274,15 +288,51 @@ function ItemRow({
         {daysLabel(item.days_left)}
       </span>
 
-      {/* 썼어요 버튼 */}
-      <button
-        className="text-xs px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-        style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface-variant)' }}
-        onClick={() => onDelete(item)}
-        aria-label={`${item.name} 사용 완료`}
-      >
-        썼어요
-      </button>
+      {/* 수량 수정 모드 */}
+      {editing ? (
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <input
+            className="w-16 text-xs px-2 py-1 rounded-md outline-none"
+            style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface)' }}
+            value={editQty}
+            onChange={e => setEditQty(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { onUpdate(item, editQty); setEditing(false) }
+              if (e.key === 'Escape') setEditing(false)
+            }}
+            autoFocus
+            placeholder="수량"
+          />
+          <button
+            className="text-xs font-semibold px-1"
+            style={{ color: 'var(--color-primary)' }}
+            onClick={() => { onUpdate(item, editQty); setEditing(false) }}
+          >
+            확인
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+          {item.quantity && (
+            <button
+              className="text-xs px-2 py-1 rounded-lg"
+              style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface-variant)' }}
+              onClick={() => setEditing(true)}
+              aria-label={`${item.name} 수량 변경`}
+            >
+              일부 사용
+            </button>
+          )}
+          <button
+            className="text-xs px-2 py-1 rounded-lg"
+            style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface-variant)' }}
+            onClick={() => onDelete(item)}
+            aria-label={`${item.name} 사용 완료`}
+          >
+            다 썼어요
+          </button>
+        </div>
+      )}
     </div>
   )
 }

@@ -48,6 +48,10 @@ export async function getItems(): Promise<DashboardItem[]> {
   return resp.data
 }
 
+export async function updateItem(itemId: string, data: { quantity?: string; name?: string }): Promise<void> {
+  await api.patch(`/scan/items/${itemId}`, data)
+}
+
 export async function deleteItem(itemId: string): Promise<void> {
   await api.delete(`/scan/items/${itemId}`)
 }
