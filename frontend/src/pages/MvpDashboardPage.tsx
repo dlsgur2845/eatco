@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { logEvent } from '../api/events'
+import { getRecommendations, type Recipe } from '../api/recipes'
 import { deleteItem, getItems, type DashboardItem } from '../api/scan'
+import RecipeCard from '../components/recipe/RecipeCard'
 
 export default function MvpDashboardPage() {
   const [items, setItems] = useState<DashboardItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [undoItem, setUndoItem] = useState<{ item: DashboardItem; timeout: ReturnType<typeof setTimeout> } | null>(null)
+  const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [recipesLoading, setRecipesLoading] = useState(true)
 
   const fetchItems = useCallback(async () => {
     try {
@@ -21,7 +25,13 @@ export default function MvpDashboardPage() {
     }
   }, [])
 
-  useEffect(() => { fetchItems() }, [fetchItems])
+  useEffect(() => {
+    fetchItems()
+    getRecommendations()
+      .then(setRecipes)
+      .catch(() => {})
+      .finally(() => setRecipesLoading(false))
+  }, [fetchItems])
 
   const handleDelete = async (item: DashboardItem) => {
     // 이전 undo가 있으면 즉시 확정
@@ -135,6 +145,26 @@ export default function MvpDashboardPage() {
           <StatCard count={fresh.length} label="여유 있어요" color="var(--color-primary)" bgColor="#e8f5e9" />
         </div>
       )}
+
+      {/* 오늘의 추천 */}
+      {recipesLoading ? (
+        <div className="flex gap-3 mb-6 overflow-x-auto">
+          {[1, 2].map(i => (
+            <div key={i} className="flex-shrink-0 w-56 h-48 rounded-2xl animate-pulse" style={{ backgroundColor: 'var(--color-surface-container-low)' }} />
+          ))}
+        </div>
+      ) : recipes.length > 0 ? (
+        <div className="mb-6">
+          <h3 className="text-xs font-semibold tracking-wide mb-3 uppercase" style={{ color: 'var(--color-on-surface-variant)' }}>
+            오늘의 추천
+          </h3>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
+            {recipes.map((r, i) => (
+              <RecipeCard key={i} recipe={r} />
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {/* 오늘 써야 할 식재료 */}
       {urgent.length > 0 && (
