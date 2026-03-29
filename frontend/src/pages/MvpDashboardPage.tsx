@@ -50,6 +50,8 @@ export default function MvpDashboardPage() {
       try {
         await deleteItem(item.id)
         logEvent('use_item', { item_name: item.name })
+        // 삭제 확정 후 추천 갱신
+        getRecommendations().then(setRecipes).catch(() => {})
       } catch {
         setItems(prev => [...prev, item].sort((a, b) => a.days_left - b.days_left))
       }
