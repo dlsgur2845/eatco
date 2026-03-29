@@ -83,7 +83,7 @@ export default function ScanPage({ onRegistered }: Props) {
         식재료 등록
       </h1>
       <p className="text-sm mb-8" style={{ color: 'var(--color-on-surface-variant)' }}>
-        영수증 사진만 찍으면 냉장고에 바로 추가돼요
+        영수증을 찍으면 자동으로 등록됩니다
       </p>
 
       {scanning ? (
@@ -151,7 +151,7 @@ export default function ScanPage({ onRegistered }: Props) {
         onClick={() => fileInputRef.current?.click()}
         disabled={scanning}
       >
-        카메라로 촬영
+        영수증 촬영하기
       </button>
 
       <button
