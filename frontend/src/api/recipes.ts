@@ -16,7 +16,7 @@ export interface Recipe {
   matched_items: string[]
   missing_items: string[]
   urgent_used: string[]
-  source: 'gemini' | 'foodsafety' | 'fallback'
+  source: 'custom' | 'gemini' | 'foodsafety' | 'fallback'
 }
 
 export async function getRecommendations(): Promise<Recipe[]> {
