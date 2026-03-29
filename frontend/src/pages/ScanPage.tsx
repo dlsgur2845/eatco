@@ -15,6 +15,7 @@ export default function ScanPage({ onRegistered }: Props) {
   const [scanning, setScanning] = useState(false)
   const [progressStep, setProgressStep] = useState(0)
   const [items, setItems] = useState<ScannedItem[]>([])
+  const [storeName, setStoreName] = useState<string | null>(null)
   const [showResults, setShowResults] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,6 +41,7 @@ export default function ScanPage({ onRegistered }: Props) {
       }
 
       setItems(result.items)
+      setStoreName(result.store_name)
       setShowResults(true)
     } catch (err: unknown) {
       clearInterval(interval)
@@ -64,8 +66,8 @@ export default function ScanPage({ onRegistered }: Props) {
 
   const handleRegister = async (finalItems: ScannedItem[]) => {
     try {
-      await registerItems(finalItems)
-      logEvent('register', { items_count: finalItems.length })
+      await registerItems(finalItems, storeName)
+      logEvent('register', { items_count: finalItems.length, store: storeName })
       setShowResults(false)
       setItems([])
       onRegistered()
@@ -170,6 +172,7 @@ export default function ScanPage({ onRegistered }: Props) {
       {showResults && (
         <ResultsModal
           items={items}
+          storeName={storeName}
           onConfirm={handleRegister}
           onClose={() => setShowResults(false)}
         />

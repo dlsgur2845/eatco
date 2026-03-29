@@ -15,6 +15,7 @@ export interface ScannedItem {
 export interface ScanResponse {
   items: ScannedItem[]
   total: number
+  store_name: string | null
 }
 
 export interface DashboardItem {
@@ -39,8 +40,8 @@ export async function analyzeReceipt(file: File): Promise<ScanResponse> {
   return resp.data
 }
 
-export async function registerItems(items: ScannedItem[]): Promise<void> {
-  await api.post('/scan/register', { items })
+export async function registerItems(items: ScannedItem[], storeName?: string | null): Promise<void> {
+  await api.post('/scan/register', { items, store_name: storeName ?? null })
 }
 
 export async function getItems(): Promise<DashboardItem[]> {

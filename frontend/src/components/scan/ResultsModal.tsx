@@ -4,11 +4,12 @@ import type { ScannedItem } from '../../api/scan'
 
 interface Props {
   items: ScannedItem[]
+  storeName?: string | null
   onConfirm: (items: ScannedItem[]) => void
   onClose: () => void
 }
 
-export default function ResultsModal({ items: initialItems, onConfirm, onClose }: Props) {
+export default function ResultsModal({ items: initialItems, storeName, onConfirm, onClose }: Props) {
   const [items, setItems] = useState<ScannedItem[]>(initialItems)
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
@@ -60,12 +61,20 @@ export default function ResultsModal({ items: initialItems, onConfirm, onClose }
             <div className="w-10 h-1 rounded-full" style={{ backgroundColor: 'var(--color-outline-variant)' }} />
           </div>
           <div className="flex items-center justify-between px-5 mb-4">
-            <h2
-              className="text-lg font-bold"
-              style={{ fontFamily: 'var(--font-headline)', color: 'var(--color-on-surface)' }}
-            >
-              인식된 식재료
-            </h2>
+            <div>
+              <h2
+                className="text-lg font-bold"
+                style={{ fontFamily: 'var(--font-headline)', color: 'var(--color-on-surface)' }}
+              >
+                인식된 식재료
+              </h2>
+              {storeName && (
+                <p className="text-xs mt-0.5" style={{ color: 'var(--color-on-surface-variant)' }}>
+                  <span className="material-symbols-outlined text-xs align-middle mr-1">store</span>
+                  {storeName}
+                </p>
+              )}
+            </div>
             <span
               className="text-xs font-semibold px-3 py-1 rounded-full"
               style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-primary)' }}

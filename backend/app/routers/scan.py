@@ -44,10 +44,12 @@ class ScannedItemResponse(BaseModel):
 class ScanResponse(BaseModel):
     items: list[ScannedItemResponse]
     total: int
+    store_name: str | None = None
 
 
 class RegisterRequest(BaseModel):
     items: list[ScannedItemResponse]
+    store_name: str | None = None
 
 
 class IngredientResponse(BaseModel):
@@ -90,10 +92,10 @@ async def analyze_receipt(
     provider = settings.ocr_provider
     today = date.today()
 
-    # Gemini 경로: 이미지 → 식재료 JSON 직접 추출
+    # Gemini 경로: 이미지 → 매장명 + 식재료 JSON 직접 추출
     if provider == "gemini" and settings.gemini_api_key:
         try:
-            gemini_items = await scan_image_gemini(image_bytes, file.content_type or "image/jpeg")
+            result = await scan_image_gemini(image_bytes, file.content_type or "image/jpeg")
         except OCRError as e:
             raise HTTPException(status_code=503, detail=str(e))
 
@@ -110,9 +112,9 @@ async def analyze_receipt(
                 quantity=gi.quantity,
                 price=gi.price,
             )
-            for gi in gemini_items
+            for gi in result.items
         ]
-        return ScanResponse(items=items, total=len(items))
+        return ScanResponse(items=items, total=len(items), store_name=result.store_name)
 
     # CLOVA / Mock 경로: OCR → 텍스트 → 카테고리 매핑
     try:
@@ -169,6 +171,7 @@ async def register_items(
             family_id=family_id,
             registered_by=user.nickname,
             normalized_name=normalized,
+            store_name=body.store_name,
         )
         db.add(ingredient)
         created.append(ingredient)
