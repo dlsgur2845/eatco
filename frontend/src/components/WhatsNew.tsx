@@ -21,6 +21,18 @@ const CHANGELOG = [
       '식재료 이름 정규화 (냉동/생 구분 유지)',
     ],
   },
+  {
+    version: '1.0.0',
+    date: '2026-03-22',
+    features: [
+      { icon: 'kitchen', text: '식재료 등록/관리 (냉장/냉동/실온)' },
+      { icon: 'timer', text: '유통기한 D-Day 추적 + 알림' },
+      { icon: 'group', text: '가족 공유 (초대 코드, 공동 편집)' },
+      { icon: 'search', text: '보관기한 자동 추천 (221종 DB)' },
+      { icon: 'edit', text: '실시간 자동완성 검색' },
+    ],
+    improvements: [],
+  },
 ]
 
 export default function WhatsNew() {
@@ -40,53 +52,71 @@ export default function WhatsNew() {
 
   if (!show) return null
 
-  const latest = CHANGELOG[0]
-
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={dismiss} />
       <div className="relative z-10 w-full max-w-md max-h-[85vh] overflow-y-auto bg-surface rounded-[2rem] mx-4 shadow-2xl">
-        {/* 헤더 */}
-        <div className="p-6 pb-0">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-container))' }}>
-              <span className="material-symbols-outlined text-white text-xl">auto_awesome</span>
-            </div>
-            <div>
-              <h2 className="font-headline font-bold text-xl text-on-surface">새로운 기능</h2>
-              <p className="text-xs text-on-surface-variant">v{latest.version} · {latest.date}</p>
-            </div>
-          </div>
-        </div>
 
-        {/* 주요 기능 */}
-        <div className="px-6 py-4 space-y-3">
-          {latest.features.map((f, i) => (
-            <div key={i} className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: 'var(--color-primary-container)', color: 'white' }}>
-                <span className="material-symbols-outlined text-sm">{f.icon}</span>
+        {CHANGELOG.map((entry, idx) => (
+          <div key={entry.version}>
+            {/* 헤더 */}
+            <div className={`p-6 pb-0 ${idx > 0 ? 'pt-2' : ''}`}>
+              <div className="flex items-center gap-3 mb-2">
+                {idx === 0 ? (
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center"
+                    style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-container))' }}>
+                    <span className="material-symbols-outlined text-white text-xl">auto_awesome</span>
+                  </div>
+                ) : (
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: 'var(--color-surface-container-high)' }}>
+                    <span className="material-symbols-outlined text-on-surface-variant text-xl">history</span>
+                  </div>
+                )}
+                <div>
+                  <h2 className={`font-headline font-bold text-on-surface ${idx === 0 ? 'text-xl' : 'text-base'}`}>
+                    {idx === 0 ? '새로운 기능' : `v${entry.version}`}
+                  </h2>
+                  <p className="text-xs text-on-surface-variant">v{entry.version} · {entry.date}</p>
+                </div>
               </div>
-              <p className="text-sm text-on-surface pt-1">{f.text}</p>
             </div>
-          ))}
-        </div>
 
-        {/* 개선사항 */}
-        {latest.improvements && (
-          <div className="px-6 pb-4">
-            <p className="text-xs font-semibold text-on-surface-variant mb-2">개선사항</p>
-            <div className="space-y-1">
-              {latest.improvements.map((imp, i) => (
-                <p key={i} className="text-xs text-on-surface-variant flex items-start gap-2">
-                  <span className="text-primary mt-0.5">·</span>
-                  {imp}
-                </p>
+            {/* 주요 기능 */}
+            <div className="px-6 py-4 space-y-3">
+              {entry.features.map((f, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    idx === 0 ? '' : 'opacity-60'
+                  }`} style={{ backgroundColor: idx === 0 ? 'var(--color-primary-container)' : 'var(--color-surface-container-high)', color: idx === 0 ? 'white' : 'var(--color-on-surface-variant)' }}>
+                    <span className="material-symbols-outlined text-sm">{f.icon}</span>
+                  </div>
+                  <p className={`text-sm pt-1 ${idx === 0 ? 'text-on-surface' : 'text-on-surface-variant'}`}>{f.text}</p>
+                </div>
               ))}
             </div>
+
+            {/* 개선사항 */}
+            {entry.improvements && entry.improvements.length > 0 && (
+              <div className="px-6 pb-4">
+                <p className="text-xs font-semibold text-on-surface-variant mb-2">개선사항</p>
+                <div className="space-y-1">
+                  {entry.improvements.map((imp, i) => (
+                    <p key={i} className="text-xs text-on-surface-variant flex items-start gap-2">
+                      <span className="text-primary mt-0.5">·</span>
+                      {imp}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 버전 구분선 */}
+            {idx < CHANGELOG.length - 1 && (
+              <div className="mx-6 my-2 h-px" style={{ backgroundColor: 'var(--color-surface-container)' }} />
+            )}
           </div>
-        )}
+        ))}
 
         {/* 확인 버튼 */}
         <div className="p-6 pt-2">
