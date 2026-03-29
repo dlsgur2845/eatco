@@ -147,7 +147,7 @@ export default function MvpDashboardPage() {
           className="rounded-2xl py-16 flex flex-col items-center gap-3"
           style={{ backgroundColor: 'var(--color-surface-container-low)' }}
         >
-          <span className="text-4xl opacity-30">🥬</span>
+          <span className="material-symbols-outlined text-4xl opacity-30" style={{ color: 'var(--color-primary)' }}>eco</span>
           <p className="text-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
             아직 등록된 식재료가 없어요
           </p>
