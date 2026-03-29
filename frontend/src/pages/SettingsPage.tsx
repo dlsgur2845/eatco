@@ -94,7 +94,7 @@ export default function SettingsPage() {
       {/* Account */}
       <section className="space-y-4 px-2">
         <h3 className="font-headline font-bold text-lg text-on-surface mb-4">계정 및 서비스 정보</h3>
-        <div className="divide-y divide-outline-variant/15 bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm">
+        <div className="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm space-y-1">
           {user && (
             <div className="flex items-center justify-between p-5">
               <div className="flex items-center gap-4">
