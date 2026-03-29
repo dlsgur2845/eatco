@@ -36,6 +36,8 @@ class ScannedItemResponse(BaseModel):
     expiry_date: date
     confidence: float
     auto_matched: bool
+    quantity: str | None = None
+    price: int | None = None
 
 
 class ScanResponse(BaseModel):
@@ -51,6 +53,8 @@ class IngredientResponse(BaseModel):
     id: str
     name: str
     storage_method: str
+    quantity: str | None
+    price: int | None
     expiry_date: date
     registered_at: str
     registered_by: str | None
@@ -126,6 +130,8 @@ async def register_items(
         ingredient = Ingredient(
             name=item.name,
             storage_method=storage_map.get(item.storage_method, StorageMethod.REFRIGERATED),
+            quantity=item.quantity,
+            price=item.price,
             expiry_date=item.expiry_date,
             family_id=family_id,
             registered_by=user.nickname,
@@ -156,6 +162,8 @@ async def get_items(
             id=str(ing.id),
             name=ing.name,
             storage_method=ing.storage_method.value,
+            quantity=ing.quantity,
+            price=ing.price,
             expiry_date=ing.expiry_date,
             registered_at=ing.registered_at.isoformat() if ing.registered_at else "",
             registered_by=ing.registered_by,

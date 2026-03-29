@@ -8,6 +8,8 @@ export interface ScannedItem {
   expiry_date: string
   confidence: number
   auto_matched: boolean
+  quantity: string | null
+  price: number | null
 }
 
 export interface ScanResponse {
@@ -19,6 +21,8 @@ export interface DashboardItem {
   id: string
   name: string
   storage_method: string
+  quantity: string | null
+  price: number | null
   expiry_date: string
   registered_at: string
   registered_by: string | null

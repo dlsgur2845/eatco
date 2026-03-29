@@ -219,6 +219,8 @@ function ItemRow({
   const storageLabel = item.storage_method === 'refrigerated' ? '냉장' : item.storage_method === 'frozen' ? '냉동' : '실온'
   const regDate = item.registered_at ? new Date(item.registered_at).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) + '일' : ''
   const byWho = item.registered_by ? ` · ${item.registered_by}` : ''
+  const qtyText = item.quantity ? ` · ${item.quantity}` : ''
+  const priceText = item.price ? ` · ${item.price.toLocaleString()}원` : ''
 
   return (
     <div className="flex items-center gap-3 py-3 group" style={{ borderBottom: '1px solid var(--color-surface-container)' }}>
@@ -227,9 +229,11 @@ function ItemRow({
 
       {/* 정보 */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate" style={{ color: 'var(--color-on-surface)' }}>{item.name}</p>
+        <p className="text-sm font-medium truncate" style={{ color: 'var(--color-on-surface)' }}>
+          {item.name}{qtyText}
+        </p>
         <p className="text-xs mt-0.5" style={{ color: 'var(--color-on-surface-variant)' }}>
-          {regDate}{byWho} · {storageLabel}
+          {regDate}{byWho}{priceText} · {storageLabel}
         </p>
       </div>
 

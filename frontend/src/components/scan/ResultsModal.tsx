@@ -131,6 +131,29 @@ export default function ResultsModal({ items: initialItems, onConfirm, onClose }
                     >
                       {item.name}
                     </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        className="w-20 text-xs px-2 py-0.5 rounded-md outline-none"
+                        style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface)' }}
+                        placeholder="수량 (예: 600g)"
+                        value={item.quantity || ''}
+                        onChange={e => {
+                          const val = e.target.value
+                          setItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: val || null } : it))
+                        }}
+                      />
+                      <input
+                        className="w-20 text-xs px-2 py-0.5 rounded-md outline-none"
+                        style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface)' }}
+                        placeholder="가격 (원)"
+                        type="number"
+                        value={item.price ?? ''}
+                        onChange={e => {
+                          const val = e.target.value ? parseInt(e.target.value) : null
+                          setItems(prev => prev.map((it, i) => i === idx ? { ...it, price: val } : it))
+                        }}
+                      />
+                    </div>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--color-on-surface-variant)' }}>
                       {storageMethodLabel(item.storage_method)} 보관 · 예상 {item.shelf_life_days}일
                       {!item.auto_matched && (
