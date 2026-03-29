@@ -42,6 +42,7 @@ docker compose up -d --build
 | [docs/SETUP.md](docs/SETUP.md) | 설치 및 실행 가이드 |
 | [docs/USAGE.md](docs/USAGE.md) | 사용법 (화면별 가이드) |
 | [docs/API.md](docs/API.md) | API 엔드포인트 목록 |
+| [CHANGELOG.md](CHANGELOG.md) | 버전별 변경 내역 |
 | [DESIGN.md](DESIGN.md) | 디자인 시스템 (The Editorial Pantry) |
 
 ## 프로젝트 구조

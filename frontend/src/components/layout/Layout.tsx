@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router-dom'
+import WhatsNew from '../WhatsNew'
 import BottomNav from './BottomNav'
 import TopAppBar from './TopAppBar'
 
@@ -10,6 +11,7 @@ export default function Layout() {
         <Outlet />
       </main>
       <BottomNav />
+      <WhatsNew />
     </div>
   )
 }
