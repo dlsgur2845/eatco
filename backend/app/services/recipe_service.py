@@ -262,7 +262,8 @@ def _fallback_recipes(
     results = []
     for r in POPULAR_RECIPES:
         match = _compute_match(r["ingredients"], fridge_items, urgent_items)
-        if match["match_count"] == 0:
+        # 냉장고에 재료가 있을 때만 매칭 0 스킵, 비어있으면 전부 보여줌
+        if match["match_count"] == 0 and fridge_items:
             continue
         results.append(RecipeMatch(
             name=r["name"],
