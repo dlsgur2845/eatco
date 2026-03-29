@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -16,6 +16,7 @@ class Family(Base):
     invite_code: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
     allow_shared_edit: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    monthly_budget: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     members = relationship("User", back_populates="family")
 

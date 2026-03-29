@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
+import api from '../api/client'
 import { logEvent } from '../api/events'
 import { getRecommendations, type Recipe } from '../api/recipes'
 import { deleteItem, getItems, updateItem, type DashboardItem } from '../api/scan'
 import RecipeCard from '../components/recipe/RecipeCard'
+
+interface InflationAlert { name: string; current_price: number; old_price: number; change_pct: number }
+interface BudgetInfo { monthly_budget: number | null; spent_this_month: number }
 
 export default function MvpDashboardPage() {
   const [items, setItems] = useState<DashboardItem[]>([])
@@ -11,6 +15,8 @@ export default function MvpDashboardPage() {
   const [undoItem, setUndoItem] = useState<{ item: DashboardItem; timeout: ReturnType<typeof setTimeout> } | null>(null)
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [recipesLoading, setRecipesLoading] = useState(true)
+  const [alerts, setAlerts] = useState<InflationAlert[]>([])
+  const [budget, setBudget] = useState<BudgetInfo | null>(null)
 
   const fetchItems = useCallback(async () => {
     try {
@@ -31,6 +37,8 @@ export default function MvpDashboardPage() {
       .then(setRecipes)
       .catch(() => {})
       .finally(() => setRecipesLoading(false))
+    api.get<InflationAlert[]>('/expenses/alerts').then(r => setAlerts(r.data)).catch(() => {})
+    api.get<BudgetInfo>('/expenses/budget').then(r => setBudget(r.data)).catch(() => {})
   }, [fetchItems])
 
   const handleDelete = async (item: DashboardItem) => {
@@ -146,6 +154,43 @@ export default function MvpDashboardPage() {
           <p className="text-xs" style={{ color: 'var(--color-outline)' }}>
             스캔 탭에서 영수증을 등록해보세요
           </p>
+        </div>
+      )}
+
+      {/* 인플레이션 알림 */}
+      {alerts.length > 0 && (
+        <div className="space-y-2 mb-4">
+          {alerts.slice(0, 2).map((a, i) => (
+            <div key={i} className="rounded-2xl px-4 py-3 flex items-center gap-3" style={{ backgroundColor: 'var(--color-tertiary-container)', opacity: 0.15 }}>
+              <span className="material-symbols-outlined text-sm" style={{ color: 'var(--color-tertiary-container)' }}>trending_up</span>
+              <p className="text-xs" style={{ color: 'var(--color-on-surface)' }}>
+                <strong>{a.name}</strong> {a.change_pct}% 상승
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 예산 프로그레스 */}
+      {budget && budget.monthly_budget && budget.monthly_budget > 0 && (
+        <div className="mb-4 px-1">
+          <div className="flex justify-between items-baseline mb-1">
+            <span className="text-xs" style={{ color: 'var(--color-on-surface-variant)' }}>이번 달 예산</span>
+            <span className="text-xs" style={{ color: 'var(--color-on-surface)' }}>
+              {budget.spent_this_month.toLocaleString()}원 / {budget.monthly_budget.toLocaleString()}원
+            </span>
+          </div>
+          <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-container)' }}>
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${Math.min(100, (budget.spent_this_month / budget.monthly_budget) * 100)}%`,
+                backgroundColor: budget.spent_this_month > budget.monthly_budget
+                  ? 'var(--color-tertiary-container)'
+                  : 'var(--color-primary)',
+              }}
+            />
+          </div>
         </div>
       )}
 

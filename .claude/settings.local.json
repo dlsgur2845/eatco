@@ -37,7 +37,13 @@
       "Bash(python -c \"from app.main import app; print\\(''Backend imports OK''\\)\")",
       "Bash(curl -s \"http://openapi.foodsafetykorea.go.kr/api/sample/COOKRCP01/json/1/3\" -o /tmp/recipe_check.json)",
       "Bash(python -c \":*)",
-      "Bash(curl -s \"http://openapi.foodsafetykorea.go.kr/api/sample/COOKRCP01/json/1/3\" -o recipe_check.json)"
+      "Bash(curl -s \"http://openapi.foodsafetykorea.go.kr/api/sample/COOKRCP01/json/1/3\" -o recipe_check.json)",
+      "Bash(B=~/.claude/skills/gstack/browse/dist/browse)",
+      "Bash($B fill:*)",
+      "Bash($B click:*)",
+      "Bash($B url:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

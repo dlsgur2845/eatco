@@ -5,11 +5,14 @@ export interface Ingredient {
   name: string
   category_id: string | null
   storage_method: StorageMethod
-  quantity: number
+  quantity: string | null
+  price: number | null
   expiry_date: string
   registered_at: string
   image_url: string | null
   family_id: string | null
+  store_name: string | null
+  normalized_name: string | null
 }
 
 export interface User {
@@ -57,7 +60,9 @@ export interface IngredientCreate {
   name: string
   category_id?: string
   storage_method: StorageMethod
-  quantity: number
+  quantity: string
   expiry_date: string
   image_url?: string
+  price?: number
+  store_name?: string
 }

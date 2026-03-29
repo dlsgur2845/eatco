@@ -7,6 +7,7 @@ import MvpDashboardPage from './pages/MvpDashboardPage'
 import NotificationsPage from './pages/NotificationsPage'
 import RegisterAccountPage from './pages/RegisterAccountPage'
 import ScanPage from './pages/ScanPage'
+import ExpensesPage from './pages/ExpensesPage'
 import SettingsPage from './pages/SettingsPage'
 
 function AuthGuard() {
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="/" element={<MvpDashboardPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/scan" element={<ScanPage onRegistered={() => window.location.href = '/'} />} />
+            <Route path="/expenses" element={<ExpensesPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/family" element={<FamilyPage />} />

@@ -14,6 +14,7 @@ class IngredientCreate(BaseModel):
     price: int | None = None
     expiry_date: date
     image_url: str | None = None
+    store_name: str | None = None
 
 
 class IngredientUpdate(BaseModel):
@@ -38,6 +39,8 @@ class IngredientResponse(BaseModel):
     image_url: str | None
     family_id: uuid.UUID | None
     registered_by: str | None
+    store_name: str | None = None
+    normalized_name: str | None = None
 
     model_config = {"from_attributes": True}
 

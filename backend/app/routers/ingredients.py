@@ -63,7 +63,9 @@ async def create_ingredient(
     db: AsyncSession = Depends(get_db),
 ):
     await check_edit_permission(current_user, db)
-    ingredient = Ingredient(**data.model_dump(), family_id=current_user.family_id)
+    from app.services.normalizer import get_normalized_name
+    normalized = await get_normalized_name(data.name, db)
+    ingredient = Ingredient(**data.model_dump(), family_id=current_user.family_id, normalized_name=normalized)
     db.add(ingredient)
     await db.commit()
     await db.refresh(ingredient)

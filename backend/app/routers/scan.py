@@ -154,8 +154,11 @@ async def register_items(
         "room_temp": StorageMethod.ROOM_TEMP,
     }
 
+    from app.services.normalizer import get_normalized_name
+
     created = []
     for item in body.items:
+        normalized = await get_normalized_name(item.name, db)
         ingredient = Ingredient(
             name=item.name,
             storage_method=storage_map.get(item.storage_method, StorageMethod.REFRIGERATED),
@@ -164,6 +167,7 @@ async def register_items(
             expiry_date=item.expiry_date,
             family_id=family_id,
             registered_by=user.nickname,
+            normalized_name=normalized,
         )
         db.add(ingredient)
         created.append(ingredient)

@@ -4,6 +4,7 @@ const navItems = [
   { to: '/', icon: 'kitchen', label: '냉장고' },
   { to: '/scan', icon: 'document_scanner', label: '스캔' },
   { to: '/inventory', icon: 'edit_note', label: '직접등록' },
+  { to: '/expenses', icon: 'account_balance_wallet', label: '가계부' },
   { to: '/settings', icon: 'settings', label: '설정' },
 ]
 

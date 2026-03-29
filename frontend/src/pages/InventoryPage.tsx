@@ -42,7 +42,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
   const [form, setForm] = useState<IngredientCreate>({
     name: '',
     storage_method: 'refrigerated',
-    quantity: 1,
+    quantity: '1',
     expiry_date: '',
   })
   const [guide, setGuide] = useState<StorageGuide | null>(null)
@@ -251,15 +251,37 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
             </div>
             <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2">
               <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">수량</label>
-              <div className="flex items-center justify-between">
-                <button type="button" onClick={() => setForm({ ...form, quantity: Math.max(1, form.quantity - 1) })} className="text-primary">
-                  <span className="material-symbols-outlined">remove_circle_outline</span>
-                </button>
-                <span className="text-lg font-bold">{form.quantity}</span>
-                <button type="button" onClick={() => setForm({ ...form, quantity: form.quantity + 1 })} className="text-primary">
-                  <span className="material-symbols-outlined">add_circle_outline</span>
-                </button>
-              </div>
+              <input
+                type="text"
+                value={form.quantity}
+                onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                className="w-full border-none p-0 text-base font-medium bg-transparent focus:ring-0 placeholder:text-surface-container-highest"
+                placeholder="예: 600g, 1L, 3개"
+              />
+            </div>
+          </div>
+
+          {/* 가격 + 매장명 */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2">
+              <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">가격 (원)</label>
+              <input
+                type="number"
+                value={form.price ?? ''}
+                onChange={(e) => setForm({ ...form, price: e.target.value ? parseInt(e.target.value) : undefined })}
+                className="w-full border-none p-0 text-base font-medium bg-transparent focus:ring-0 placeholder:text-surface-container-highest"
+                placeholder="예: 12900"
+              />
+            </div>
+            <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2">
+              <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">구매처</label>
+              <input
+                type="text"
+                value={form.store_name ?? ''}
+                onChange={(e) => setForm({ ...form, store_name: e.target.value || undefined })}
+                className="w-full border-none p-0 text-base font-medium bg-transparent focus:ring-0 placeholder:text-surface-container-highest"
+                placeholder="예: 이마트, 쿠팡"
+              />
             </div>
           </div>
 
