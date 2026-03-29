@@ -315,7 +315,7 @@ function ItemRow({
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
           {item.quantity && (
             <button
-              className="text-xs px-2 py-1 rounded-lg"
+              className="text-xs px-3 py-2.5 rounded-lg min-h-[44px]"
               style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface-variant)' }}
               onClick={() => setEditing(true)}
               aria-label={`${item.name} 수량 변경`}
@@ -324,7 +324,7 @@ function ItemRow({
             </button>
           )}
           <button
-            className="text-xs px-2 py-1 rounded-lg"
+            className="text-xs px-3 py-2.5 rounded-lg min-h-[44px]"
             style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface-variant)' }}
             onClick={() => onDelete(item)}
             aria-label={`${item.name} 사용 완료`}
