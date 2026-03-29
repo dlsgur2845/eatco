@@ -1,13 +1,18 @@
-"""나만의 레시피 CRUD API."""
+"""나만의 레시피 CRUD API + 이미지 업로드."""
 
+import os
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+
+UPLOAD_DIR = "/app/uploads/recipes"
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_IMAGE_SIZE = 30 * 1024 * 1024  # 30MB (미러리스 원본 대응)
 from app.models.custom_recipe import CustomRecipe
 from app.models.user import User
 from app.routers.auth import get_current_user
@@ -195,6 +200,64 @@ async def delete_recipe(
     if not recipe:
         raise HTTPException(status_code=404, detail="레시피를 찾을 수 없습니다.")
 
+    # 이미지 파일도 삭제
+    if recipe.image_url:
+        file_path = recipe.image_url.replace("/uploads/", "/app/uploads/", 1)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
     await db.delete(recipe)
     await db.commit()
     return {"deleted": True}
+
+
+@router.post("/{recipe_id}/image")
+async def upload_image(
+    recipe_id: str,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """레시피 이미지 업로드. UUID 파일명으로 저장."""
+    try:
+        uid = uuid.UUID(recipe_id)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="잘못된 ID입니다.")
+
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(status_code=422, detail="JPG, PNG, WebP 이미지만 지원합니다.")
+
+    result = await db.execute(
+        select(CustomRecipe).where(
+            CustomRecipe.id == uid,
+            CustomRecipe.family_id == user.family_id,
+        )
+    )
+    recipe = result.scalar_one_or_none()
+    if not recipe:
+        raise HTTPException(status_code=404, detail="레시피를 찾을 수 없습니다.")
+
+    image_bytes = await file.read()
+    if len(image_bytes) > MAX_IMAGE_SIZE:
+        raise HTTPException(status_code=413, detail="이미지가 너무 큽니다 (최대 5MB).")
+
+    # 기존 이미지 삭제
+    if recipe.image_url:
+        old_path = recipe.image_url.replace("/uploads/", "/app/uploads/", 1)
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    # UUID 파일명으로 저장
+    ext = file.filename.rsplit(".", 1)[-1] if file.filename and "." in file.filename else "jpg"
+    filename = f"{uuid.uuid4()}.{ext}"
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    file_path = os.path.join(UPLOAD_DIR, filename)
+
+    with open(file_path, "wb") as f:
+        f.write(image_bytes)
+
+    # DB 업데이트
+    recipe.image_url = f"/uploads/recipes/{filename}"
+    await db.commit()
+
+    return {"image_url": recipe.image_url}

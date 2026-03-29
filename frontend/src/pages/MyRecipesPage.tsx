@@ -1,5 +1,27 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import api from '../api/client'
+
+const MAX_IMAGE_WIDTH = 1200
+
+function resizeImage(file: File): Promise<Blob> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      let { width, height } = img
+      if (width > MAX_IMAGE_WIDTH) {
+        height = Math.round(height * (MAX_IMAGE_WIDTH / width))
+        width = MAX_IMAGE_WIDTH
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0, width, height)
+      canvas.toBlob(blob => resolve(blob!), 'image/jpeg', 0.85)
+    }
+    img.src = URL.createObjectURL(file)
+  })
+}
 
 interface CustomRecipe {
   id: string
@@ -10,6 +32,7 @@ interface CustomRecipe {
   ingredients: string[]
   manual_steps: string[]
   tip: string | null
+  image_url: string | null
   created_by: string | null
   created_at: string
 }
@@ -25,7 +48,10 @@ export default function MyRecipesPage() {
     name: '', category: '기타', cooking_method: '기타',
     calories: '', ingredients: '', manual_steps: '', tip: '',
   })
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchRecipes = () => {
     api.get<CustomRecipe[]>('/custom-recipes').then(r => setRecipes(r.data)).catch(() => {})
@@ -35,6 +61,8 @@ export default function MyRecipesPage() {
 
   const resetForm = () => {
     setForm({ name: '', category: '기타', cooking_method: '기타', calories: '', ingredients: '', manual_steps: '', tip: '' })
+    setImageFile(null)
+    setImagePreview(null)
     setEditId(null)
     setShowForm(false)
   }
@@ -49,8 +77,17 @@ export default function MyRecipesPage() {
       manual_steps: r.manual_steps.join('\n'),
       tip: r.tip || '',
     })
+    setImagePreview(r.image_url)
+    setImageFile(null)
     setEditId(r.id)
     setShowForm(true)
+  }
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,11 +102,24 @@ export default function MyRecipesPage() {
       tip: form.tip || null,
     }
 
+    let recipeId = editId
     if (editId) {
       await api.put(`/custom-recipes/${editId}`, data)
     } else {
-      await api.post('/custom-recipes', data)
+      const res = await api.post<{id: string}>('/custom-recipes', data)
+      recipeId = res.data.id
     }
+
+    // 이미지 업로드 (리사이즈 후)
+    if (imageFile && recipeId) {
+      const resized = await resizeImage(imageFile)
+      const formData = new FormData()
+      formData.append('file', resized, 'recipe.jpg')
+      await api.post(`/custom-recipes/${recipeId}/image`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+    }
+
     resetForm()
     fetchRecipes()
   }
@@ -166,6 +216,29 @@ export default function MyRecipesPage() {
                   placeholder="센 불에서 빠르게 볶아야 맛있어요" />
               </div>
 
+              {/* 이미지 업로드 */}
+              <div className="bg-surface-container-lowest p-4 rounded-xl flex flex-col gap-2">
+                <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">사진 (선택)</label>
+                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleImageSelect} />
+                {imagePreview ? (
+                  <div className="relative">
+                    <img src={imagePreview} alt="미리보기" className="w-full h-40 object-cover rounded-xl" />
+                    <button type="button"
+                      onClick={() => { setImageFile(null); setImagePreview(null) }}
+                      className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full">
+                      <span className="material-symbols-outlined text-sm">close</span>
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => fileInputRef.current?.click()}
+                    className="w-full py-8 rounded-xl flex flex-col items-center gap-2 cursor-pointer hover:bg-primary/5 transition-colors"
+                    style={{ backgroundColor: 'var(--color-surface-container-low)' }}>
+                    <span className="material-symbols-outlined text-2xl" style={{ color: 'var(--color-outline)', opacity: 0.5 }}>add_photo_alternate</span>
+                    <span className="text-xs text-on-surface-variant">클릭하여 사진 추가 (자동 리사이즈)</span>
+                  </button>
+                )}
+              </div>
+
               <button type="submit"
                 className="w-full py-4 rounded-full bg-gradient-to-r from-primary to-primary-container text-white font-headline font-bold text-lg shadow-xl active:scale-95 transition-transform">
                 {editId ? '수정하기' : '등록하기'}
@@ -185,7 +258,11 @@ export default function MyRecipesPage() {
       ) : (
         <div className="space-y-4">
           {recipes.map(r => (
-            <div key={r.id} className="bg-surface-container-lowest rounded-[2rem] p-6 transition-all hover:shadow-lg">
+            <div key={r.id} className="bg-surface-container-lowest rounded-[2rem] overflow-hidden transition-all hover:shadow-lg">
+              {r.image_url && (
+                <img src={r.image_url} alt={r.name} className="w-full h-40 object-cover" />
+              )}
+              <div className="p-6">
               <div className="flex items-start justify-between">
                 <div className="flex-1 cursor-pointer" onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}>
                   <h3 className="font-semibold text-lg text-on-surface">{r.name}</h3>
@@ -237,6 +314,7 @@ export default function MyRecipesPage() {
                   )}
                 </div>
               )}
+              </div>
             </div>
           ))}
         </div>

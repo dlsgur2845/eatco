@@ -1,7 +1,9 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import async_session, engine
@@ -45,6 +47,12 @@ app.include_router(events.router)
 app.include_router(recipes.router)
 app.include_router(expenses.router)
 app.include_router(custom_recipes.router)
+
+
+# 업로드 이미지 서빙
+UPLOAD_DIR = "/app/uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 
 @app.get("/api/health")
