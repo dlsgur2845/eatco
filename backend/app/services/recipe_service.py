@@ -123,8 +123,6 @@ def _compute_match(recipe_ingredients: list[str], fridge_items: list[str], urgen
                 found = True
                 break
         if not found:
-                break
-        if not found:
             missing.append(ri)
 
     total = len(recipe_ingredients) if recipe_ingredients else 1
