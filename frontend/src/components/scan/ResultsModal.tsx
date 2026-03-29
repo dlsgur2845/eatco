@@ -79,7 +79,7 @@ export default function ResultsModal({ items: initialItems, onConfirm, onClose }
         {items.length === 0 && (
           <div className="px-5 py-12 text-center">
             <p className="text-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
-              인식된 항목이 없어요
+              찾은 식재료가 없어요
             </p>
           </div>
         )}
@@ -200,10 +200,10 @@ export default function ResultsModal({ items: initialItems, onConfirm, onClose }
               disabled={submitting}
               onClick={async () => { setSubmitting(true); await onConfirm(items) }}
             >
-              {submitting ? '등록 중...' : '전부 등록하기'}
+              {submitting ? '등록 중...' : '냉장고에 추가하기'}
             </button>
             <p className="text-center text-xs mt-2" style={{ color: 'var(--color-outline)' }}>
-              잘못 인식된 항목은 탭해서 수정할 수 있어요
+              이름을 눌러서 수정할 수 있어요
             </p>
           </div>
         )}

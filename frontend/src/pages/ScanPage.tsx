@@ -3,7 +3,7 @@ import { logEvent } from '../api/events'
 import { analyzeReceipt, registerItems, type ScannedItem } from '../api/scan'
 import ResultsModal from '../components/scan/ResultsModal'
 
-const PROGRESS_STEPS = ['영수증 읽는 중...', '항목 분석 중...', '유통기한 추정 중...']
+const PROGRESS_STEPS = ['영수증을 읽고 있어요...', '식재료를 찾고 있어요...', '소비기한을 계산하고 있어요...']
 
 interface Props {
   onRegistered: () => void
@@ -34,7 +34,7 @@ export default function ScanPage({ onRegistered }: Props) {
       logEvent('scan', { source: 'receipt', items_count: result.total })
 
       if (result.total === 0) {
-        setError('인식된 항목이 없어요. 영수증을 다시 찍어주세요.')
+        setError('식재료를 찾지 못했어요. 영수증이 잘 보이게 다시 찍어주세요.')
         setScanning(false)
         return
       }
@@ -43,7 +43,7 @@ export default function ScanPage({ onRegistered }: Props) {
       setShowResults(true)
     } catch (err: unknown) {
       clearInterval(interval)
-      const msg = err instanceof Error ? err.message : '스캔에 실패했어요. 다시 시도해주세요.'
+      const msg = err instanceof Error ? err.message : '읽기에 실패했어요. 다시 시도해주세요.'
       if (typeof err === 'object' && err !== null && 'response' in err) {
         const resp = (err as { response?: { data?: { detail?: string } } }).response
         setError(resp?.data?.detail ?? msg)
@@ -70,7 +70,7 @@ export default function ScanPage({ onRegistered }: Props) {
       setItems([])
       onRegistered()
     } catch {
-      setError('등록에 실패했어요. 다시 시도해주세요.')
+      setError('추가하지 못했어요. 다시 시도해주세요.')
     }
   }
 
@@ -80,10 +80,10 @@ export default function ScanPage({ onRegistered }: Props) {
         className="text-2xl font-bold tracking-tight mb-1"
         style={{ fontFamily: 'var(--font-headline)', color: 'var(--color-on-surface)' }}
       >
-        장 봤어요?
+        식재료 등록
       </h1>
       <p className="text-sm mb-8" style={{ color: 'var(--color-on-surface-variant)' }}>
-        영수증을 찍으면 자동으로 등록됩니다
+        영수증 사진만 찍으면 냉장고에 바로 추가돼요
       </p>
 
       {scanning ? (
@@ -112,7 +112,7 @@ export default function ScanPage({ onRegistered }: Props) {
         >
           <span className="text-5xl opacity-30">📷</span>
           <span className="text-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
-            영수증을 여기에 찍어주세요
+            여기를 눌러 영수증을 촬영하세요
           </span>
         </div>
       )}
@@ -151,7 +151,7 @@ export default function ScanPage({ onRegistered }: Props) {
         onClick={() => fileInputRef.current?.click()}
         disabled={scanning}
       >
-        영수증 촬영하기
+        카메라로 촬영
       </button>
 
       <button
@@ -160,11 +160,11 @@ export default function ScanPage({ onRegistered }: Props) {
         onClick={() => galleryInputRef.current?.click()}
         disabled={scanning}
       >
-        사진 업로드하기
+        앨범에서 선택
       </button>
 
       <p className="mt-3 text-xs" style={{ color: 'var(--color-outline)' }}>
-        이마트, 홈플러스, GS25 등 대부분의 영수증을 인식합니다
+        대형마트, 편의점 영수증 대부분 인식 가능해요
       </p>
 
       {showResults && (

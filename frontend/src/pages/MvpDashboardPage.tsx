@@ -132,7 +132,7 @@ export default function MvpDashboardPage() {
             아직 등록된 식재료가 없어요
           </p>
           <p className="text-xs" style={{ color: 'var(--color-outline)' }}>
-            스캔 탭에서 영수증을 찍어보세요
+            스캔 탭에서 영수증을 등록해보세요
           </p>
         </div>
       )}
