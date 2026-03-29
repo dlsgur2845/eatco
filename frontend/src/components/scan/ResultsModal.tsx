@@ -51,28 +51,28 @@ export default function ResultsModal({ items: initialItems, onConfirm, onClose }
 
       {/* 모달 */}
       <div
-        className="relative w-full max-w-md max-h-[85vh] rounded-t-3xl overflow-y-auto pb-8"
+        className="relative w-full max-w-md max-h-[85vh] rounded-t-3xl flex flex-col"
         style={{ backgroundColor: 'var(--color-surface-container-lowest)' }}
       >
-        {/* 핸들 */}
-        <div className="flex justify-center pt-3 pb-4">
-          <div className="w-10 h-1 rounded-full" style={{ backgroundColor: 'var(--color-outline-variant)' }} />
-        </div>
-
-        {/* 헤더 */}
-        <div className="flex items-center justify-between px-5 mb-4">
-          <h2
-            className="text-lg font-bold"
-            style={{ fontFamily: 'var(--font-headline)', color: 'var(--color-on-surface)' }}
-          >
-            인식된 식재료
-          </h2>
-          <span
-            className="text-xs font-semibold px-3 py-1 rounded-full"
-            style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-primary)' }}
-          >
-            {items.length}개 발견
-          </span>
+        {/* 핸들 + 헤더 (고정) */}
+        <div className="flex-shrink-0">
+          <div className="flex justify-center pt-3 pb-4">
+            <div className="w-10 h-1 rounded-full" style={{ backgroundColor: 'var(--color-outline-variant)' }} />
+          </div>
+          <div className="flex items-center justify-between px-5 mb-4">
+            <h2
+              className="text-lg font-bold"
+              style={{ fontFamily: 'var(--font-headline)', color: 'var(--color-on-surface)' }}
+            >
+              인식된 식재료
+            </h2>
+            <span
+              className="text-xs font-semibold px-3 py-1 rounded-full"
+              style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-primary)' }}
+            >
+              {items.length}개 발견
+            </span>
+          </div>
         </div>
 
         {/* 항목이 없을 때 */}
@@ -84,8 +84,8 @@ export default function ResultsModal({ items: initialItems, onConfirm, onClose }
           </div>
         )}
 
-        {/* 항목 리스트 */}
-        <div className="px-5 space-y-1">
+        {/* 항목 리스트 (스크롤 영역) */}
+        <div className="flex-1 overflow-y-auto px-5 space-y-1">
           {items.map((item, idx) => (
             <div
               key={idx}
@@ -208,7 +208,7 @@ export default function ResultsModal({ items: initialItems, onConfirm, onClose }
 
         {/* 등록 버튼 (하단 고정) */}
         {items.length > 0 && (
-          <div className="sticky bottom-0 px-5 pt-4 pb-2" style={{ backgroundColor: 'var(--color-surface-container-lowest)' }}>
+          <div className="flex-shrink-0 px-5 pt-4 pb-4" style={{ backgroundColor: 'var(--color-surface-container-lowest)' }}>
             <button
               className="w-full py-4 rounded-full text-base font-semibold text-white disabled:opacity-50"
               style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-container))' }}
