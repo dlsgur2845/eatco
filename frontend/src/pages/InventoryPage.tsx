@@ -149,14 +149,14 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
             />
             {/* 자동완성 드롭다운 */}
             {showSuggestions && (
-              <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-surface-container-lowest rounded-xl shadow-2xl border border-outline-variant/20 max-h-60 overflow-y-auto">
+              <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-surface-container-lowest rounded-xl shadow-2xl max-h-60 overflow-y-auto">
                 {suggestions.map((s) => (
                   <button
                     key={s.keyword}
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => selectSuggestion(s)}
-                    className="w-full text-left px-4 py-3 hover:bg-primary/5 transition-colors flex items-center justify-between gap-2 border-b border-outline-variant/10 last:border-none"
+                    className="w-full text-left px-4 py-3 hover:bg-primary/5 transition-colors flex items-center justify-between gap-2"
                   >
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-outlined text-primary text-sm">search</span>
