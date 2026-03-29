@@ -150,7 +150,7 @@ export default function LoginPage() {
         {/* Footer */}
         <footer className="text-center">
           <p className="font-body text-[10px] font-bold uppercase tracking-widest text-on-surface-variant opacity-60">
-            &copy; 2024 THE EDITORIAL PANTRY. ALL RIGHTS RESERVED.
+            &copy; 2026 THE EDITORIAL PANTRY. ALL RIGHTS RESERVED.
           </p>
         </footer>
       </div>
