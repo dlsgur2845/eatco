@@ -33,7 +33,7 @@ GEMINI_API_KEY=your_key_here
 OCR_PROVIDER=gemini
 OCR_MOCK_MODE=false
 
-# 식품안전나라 레시피 API (선택, fallback용)
+# 식품안전나라 레시피 API (추천, 사진 포함 레시피 제공)
 # 발급: https://www.foodsafetykorea.go.kr/api/openApiInfo.do
 RECIPE_API_KEY=
 ```

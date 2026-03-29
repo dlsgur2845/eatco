@@ -40,7 +40,7 @@
 ## 레시피 추천
 | Method | Endpoint | 설명 |
 |---|---|---|
-| GET | `/api/recipes/recommend` | AI 레시피 추천 (Gemini + 식품안전나라 fallback) |
+| GET | `/api/recipes/recommend` | 레시피 추천 (식품안전나라 우선 + Gemini 보충) |
 
 ## 가계부
 | Method | Endpoint | 설명 |
