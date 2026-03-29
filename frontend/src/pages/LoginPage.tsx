@@ -131,12 +131,10 @@ export default function LoginPage() {
 
             {/* Divider & Signup Link */}
             <div className="mt-8 flex flex-col items-center gap-6">
-              <div className="flex items-center gap-4 w-full">
-                <div className="h-px flex-1 bg-outline-variant opacity-30" />
+              <div className="flex items-center justify-center w-full py-2">
                 <span className="font-body text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
                   또는
                 </span>
-                <div className="h-px flex-1 bg-outline-variant opacity-30" />
               </div>
               <p className="text-on-surface-variant text-sm">
                 계정이 없으신가요?
