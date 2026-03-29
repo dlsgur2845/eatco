@@ -59,12 +59,39 @@ async def get_recommendations(
         if (ing.expiry_date - today).days <= 3
     ] if ingredients else []
 
-    # 1. Gemini 레시피 생성 시도
-    gemini_results = await generate_recipes(fridge_items, urgent_items)
+    # 1. 식품안전나라 API 우선 (사진 + 검증된 레시피)
+    responses: list[RecipeResponse] = []
+    recipes = await recommend_recipes(fridge_items, urgent_items, top_n=5)
 
-    if gemini_results:
-        responses = []
+    seen_names: set[str] = set()
+    for r in recipes:
+        responses.append(RecipeResponse(
+            name=r.name,
+            category=r.category,
+            cooking_method=r.cooking_method,
+            calories=r.calories,
+            image_url=r.image_url,
+            ingredients=r.ingredients,
+            manual_steps=r.manual_steps,
+            manual_images=r.manual_images,
+            tip=r.tip,
+            match_count=r.match_count,
+            total_ingredients=r.total_ingredients,
+            match_ratio=r.match_ratio,
+            matched_items=r.matched_items,
+            missing_items=r.missing_items,
+            urgent_used=r.urgent_used,
+            source="foodsafety" if r.image_url else "fallback",
+        ))
+        seen_names.add(r.name)
+
+    # 2. Gemini로 보충 (식품안전나라 결과가 부족하면)
+    if len(responses) < 5:
+        gemini_results = await generate_recipes(fridge_items, urgent_items,
+            matched_count=max(3, 5 - len(responses)), extra_count=2)
         for r in gemini_results:
+            if r.get("name") in seen_names:
+                continue
             matched = r.get("matched_items", [])
             missing = r.get("missing_items", [])
             all_ing = r.get("ingredients", [])
@@ -86,29 +113,6 @@ async def get_recommendations(
                 urgent_used=[u for u in urgent_items if u in matched],
                 source="gemini",
             ))
-        return responses
+            seen_names.add(r.get("name", ""))
 
-    # 2. Gemini 실패 시 식품안전나라 API + fallback
-    recipes = await recommend_recipes(fridge_items, urgent_items, top_n=5)
-
-    return [
-        RecipeResponse(
-            name=r.name,
-            category=r.category,
-            cooking_method=r.cooking_method,
-            calories=r.calories,
-            image_url=r.image_url,
-            ingredients=r.ingredients,
-            manual_steps=r.manual_steps,
-            manual_images=r.manual_images,
-            tip=r.tip,
-            match_count=r.match_count,
-            total_ingredients=r.total_ingredients,
-            match_ratio=r.match_ratio,
-            matched_items=r.matched_items,
-            missing_items=r.missing_items,
-            urgent_used=r.urgent_used,
-            source="foodsafety" if r.image_url else "fallback",
-        )
-        for r in recipes
-    ]
+    return responses
