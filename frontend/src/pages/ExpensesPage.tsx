@@ -18,6 +18,7 @@ export default function ExpensesPage() {
   const [searchName, setSearchName] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [allItemNames, setAllItemNames] = useState<string[]>([])
   const [itemPrices, setItemPrices] = useState<ItemPricePoint[]>([])
   const [stores, setStores] = useState<StoreComparison[]>([])
   const [budgetInput, setBudgetInput] = useState('')
@@ -35,7 +36,7 @@ export default function ExpensesPage() {
 
   const fetchSuggestions = (q: string) => {
     if (suggestTimer.current) clearTimeout(suggestTimer.current)
-    if (!q.trim()) { setSuggestions([]); setShowSuggestions(false); loadAllItems(); return }
+    if (!q.trim()) { setSuggestions([]); setShowSuggestions(false); loadAllItemNames(); return }
     suggestTimer.current = setTimeout(() => {
       api.get<string[]>(`/expenses/suggest-items?q=${encodeURIComponent(q)}`)
         .then(r => { setSuggestions(r.data); setShowSuggestions(r.data.length > 0) })
@@ -49,15 +50,17 @@ export default function ExpensesPage() {
     searchItem(name)
   }
 
-  const loadAllItems = () => {
-    api.get<ItemPricePoint[]>('/expenses/by-item').then(r => setItemPrices(r.data)).catch(() => {})
+  const loadAllItemNames = () => {
+    api.get<string[]>('/expenses/suggest-items').then(r => setAllItemNames(r.data)).catch(() => {})
+    setItemPrices([])
     setStores([])
   }
 
   const searchItem = (name?: string) => {
     const q = name || searchName
     setShowSuggestions(false)
-    if (!q.trim()) { loadAllItems(); return }
+    if (!q.trim()) { loadAllItemNames(); return }
+    setAllItemNames([])
     api.get<ItemPricePoint[]>(`/expenses/by-item?name=${encodeURIComponent(q)}`).then(r => setItemPrices(r.data)).catch(() => {})
     api.get<StoreComparison[]>(`/expenses/compare?name=${encodeURIComponent(q)}`).then(r => setStores(r.data)).catch(() => {})
   }
@@ -143,7 +146,7 @@ export default function ExpensesPage() {
           지출 요약
         </button>
         <button
-          onClick={() => { setTab('item'); if (!searchName.trim()) loadAllItems() }}
+          onClick={() => { setTab('item'); if (!searchName.trim()) loadAllItemNames() }}
           className={`px-6 py-2 rounded-xl text-sm font-semibold transition-all ${
             tab === 'item' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant'
           }`}
@@ -257,32 +260,22 @@ export default function ExpensesPage() {
             </div>
           )}
 
-          {/* 전체 식재료 가격 목록 (검색어 없을 때) */}
-          {itemPrices.length > 0 && !searchName.trim() && (
+          {/* 전체 식재료 목록 (검색어 없을 때) */}
+          {allItemNames.length > 0 && !searchName.trim() && (
             <div className="bg-surface-container-lowest rounded-[2rem] p-6">
               <h3 className="text-sm font-semibold text-on-surface-variant mb-4">
-                전체 구매 이력
+                전체 식재료 ({allItemNames.length}종)
               </h3>
-              <div className="space-y-2">
-                {itemPrices.map((item, i) => (
+              <div className="space-y-1">
+                {allItemNames.map((name) => (
                   <button
-                    key={i}
-                    onClick={() => { setSearchName(item.name || ''); searchItem(item.name || '') }}
-                    className="w-full flex items-center justify-between py-3 px-2 rounded-xl hover:bg-primary/5 transition-colors text-left"
+                    key={name}
+                    onClick={() => { setSearchName(name); searchItem(name) }}
+                    className="w-full flex items-center gap-3 py-3 px-3 rounded-xl hover:bg-primary/5 transition-colors text-left"
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined text-on-surface-variant text-lg">grocery</span>
-                      <div>
-                        <span className="font-medium text-on-surface">{item.name}</span>
-                        {item.store_name && (
-                          <span className="text-xs text-on-surface-variant ml-2">{item.store_name}</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-bold text-on-surface">{item.price.toLocaleString()}원</span>
-                      <span className="text-xs text-on-surface-variant ml-2">{item.date.slice(5)}</span>
-                    </div>
+                    <span className="material-symbols-outlined text-on-surface-variant text-lg">grocery</span>
+                    <span className="font-medium text-on-surface">{name}</span>
+                    <span className="material-symbols-outlined text-outline text-sm ml-auto">chevron_right</span>
                   </button>
                 ))}
               </div>
@@ -316,7 +309,7 @@ export default function ExpensesPage() {
             </p>
           )}
 
-          {itemPrices.length === 0 && !searchName.trim() && (
+          {allItemNames.length === 0 && !searchName.trim() && (
             <p className="text-center text-sm text-on-surface-variant py-8">
               구매 이력이 없어요. 식재료 등록 시 가격을 입력해보세요.
             </p>
