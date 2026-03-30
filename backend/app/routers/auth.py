@@ -212,14 +212,18 @@ async def join_family(
     current_user.family_id = family.id
     await db.flush()
 
-    # 기존 1인 가족이면 빈 가족 삭제
+    # 기존 가족 처리: 마스터 이전 또는 빈 가족 삭제
     if old_family_id and old_family_id != family.id:
         old_family_result = await db.execute(
             select(Family).where(Family.id == old_family_id).options(selectinload(Family.members))
         )
         old_family = old_family_result.scalar_one_or_none()
-        if old_family and len(old_family.members) == 0:
-            await db.delete(old_family)
+        if old_family:
+            if len(old_family.members) == 0:
+                await db.delete(old_family)
+            elif old_family.master_id == current_user.id:
+                old_family.members.sort(key=lambda m: m.created_at)
+                old_family.master_id = old_family.members[0].id
 
     # 참여 후 초대코드 갱신 (유출 방지 — 1회용)
     new_code = await generate_unique_invite_code(db)
@@ -300,9 +304,16 @@ async def leave_family(
     if len(family.members) <= 1:
         raise HTTPException(status_code=400, detail="1인 가족에서는 탈퇴할 수 없습니다.")
 
+    # 마스터가 탈퇴하면 남은 멤버 중 가장 오래된 사람에게 이전
+    if family.master_id == current_user.id:
+        remaining = [m for m in family.members if m.id != current_user.id]
+        if remaining:
+            remaining.sort(key=lambda m: m.created_at)
+            family.master_id = remaining[0].id
+
     # 새 1인 가족 생성
     new_invite = await generate_unique_invite_code(db)
-    new_family = Family(name=f"{current_user.nickname}의 냉장고", invite_code=new_invite)
+    new_family = Family(name=f"{current_user.nickname}의 냉장고", invite_code=new_invite, master_id=current_user.id)
     db.add(new_family)
     await db.flush()
 
