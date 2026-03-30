@@ -75,6 +75,9 @@ async def normalize_with_gemini(name: str) -> str | None:
     """Gemini Flash로 식재료 이름 정규화. 품질/종류 구분 유지."""
     if not settings.gemini_api_key:
         return None
+    # 짧은 이름(3자 이하)은 이미 정규화된 상태일 가능성이 높으므로 스킵
+    if len(name.strip()) <= 3:
+        return None
 
     try:
         from google import genai

@@ -118,7 +118,12 @@ async def update_ingredient(
         )
     )
     ingredient = result.scalar_one()
-    for key, value in data.model_dump(exclude_unset=True).items():
+    updates = data.model_dump(exclude_unset=True)
+    # 이름이 바뀌면 normalized_name 재생성
+    if "name" in updates and updates["name"] != ingredient.name:
+        from app.services.normalizer import get_normalized_name
+        updates["normalized_name"] = await get_normalized_name(updates["name"], db)
+    for key, value in updates.items():
         setattr(ingredient, key, value)
     await db.commit()
     await db.refresh(ingredient)
