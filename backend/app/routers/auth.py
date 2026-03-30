@@ -176,7 +176,7 @@ async def create_family(
 ):
     """새 가족 그룹을 생성하고 초대 코드를 발급합니다."""
     invite_code = await generate_unique_invite_code(db)
-    family = Family(name=data.name, invite_code=invite_code)
+    family = Family(name=data.name, invite_code=invite_code, master_id=current_user.id)
     db.add(family)
     await db.flush()
 
@@ -325,8 +325,8 @@ async def kick_member(
     if not family:
         raise HTTPException(status_code=404, detail="가족 그룹을 찾을 수 없습니다.")
 
-    # 마스터 확인 (첫 번째 멤버)
-    if not family.members or family.members[0].id != current_user.id:
+    # 마스터 확인
+    if family.master_id != current_user.id:
         raise HTTPException(status_code=403, detail="마스터만 구성원을 내보낼 수 있습니다.")
 
     # 대상 유저 찾기

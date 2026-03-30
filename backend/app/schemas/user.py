@@ -42,6 +42,7 @@ class FamilyResponse(BaseModel):
     name: str
     invite_code: str
     allow_shared_edit: bool
+    master_id: uuid.UUID | None
     created_at: datetime
     members: list[UserResponse] = []
 

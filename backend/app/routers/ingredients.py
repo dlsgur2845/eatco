@@ -31,8 +31,8 @@ async def check_edit_permission(user: User, db: AsyncSession) -> None:
         return
     if family.allow_shared_edit:
         return
-    # 관리자(첫 번째 멤버)만 허용
-    if family.members and family.members[0].id != user.id:
+    # 관리자(마스터)만 허용
+    if family.master_id != user.id:
         raise HTTPException(status_code=403, detail="공동 편집이 비활성화되어 있습니다. 관리자만 수정할 수 있습니다.")
 
 

@@ -84,9 +84,9 @@ function FamilyManageView({
             </div>
 
             <div className="space-y-4">
-              {localFamily.members.map((member, idx) => {
+              {localFamily.members.map((member) => {
                 const isMe = member.id === currentUser.id
-                const isAdmin = idx === 0
+                const isAdmin = member.id === localFamily.master_id
 
                 return (
                   <div
@@ -124,7 +124,7 @@ function FamilyManageView({
                           MASTER
                         </span>
                       )}
-                      {!isAdmin && !isMe && currentUser.id === localFamily.members[0]?.id && (
+                      {!isAdmin && !isMe && currentUser.id === localFamily.master_id && (
                         <button
                           onClick={async () => {
                             if (!confirm(`${member.nickname}님을 가족에서 내보내시겠습니까?`)) return

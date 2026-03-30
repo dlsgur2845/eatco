@@ -21,6 +21,20 @@ from app.services.expiry_checker import check_and_create_expiry_notifications
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # master_id 컬럼 마이그레이션 (이미 있으면 무시)
+        from sqlalchemy import text
+        await conn.execute(text(
+            "ALTER TABLE families ADD COLUMN IF NOT EXISTS master_id UUID"
+        ))
+        # 기존 가족의 master_id가 없으면 가장 오래된 멤버로 설정
+        await conn.execute(text("""
+            UPDATE families SET master_id = (
+                SELECT id FROM users
+                WHERE users.family_id = families.id
+                ORDER BY users.created_at ASC
+                LIMIT 1
+            ) WHERE master_id IS NULL
+        """))
     async with async_session() as db:
         await run_seed(db)
     # 시작 시 유통기한 알림 체크

@@ -28,6 +28,7 @@ export interface Family {
   name: string
   invite_code: string
   allow_shared_edit: boolean
+  master_id: string | null
   created_at: string
   members: User[]
 }
