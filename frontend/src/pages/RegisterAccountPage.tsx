@@ -15,8 +15,20 @@ export default function RegisterAccountPage() {
       const res = await api.post<User>('/auth/register', form)
       sessionStorage.setItem('user', JSON.stringify(res.data))
       navigate('/')
-    } catch {
-      setError('회원가입에 실패했습니다. 다시 시도해주세요.')
+    } catch (err: any) {
+      const detail = err.response?.data?.detail
+      if (Array.isArray(detail)) {
+        const msgs = detail.map((d: any) => {
+          if (d.loc?.includes('password')) return '비밀번호는 8자 이상이어야 합니다.'
+          if (d.loc?.includes('email')) return '올바른 이메일 주소를 입력해주세요.'
+          return d.msg
+        })
+        setError(msgs.join(' '))
+      } else if (typeof detail === 'string') {
+        setError(detail)
+      } else {
+        setError('회원가입에 실패했습니다. 다시 시도해주세요.')
+      }
     }
   }
 
@@ -87,7 +99,7 @@ export default function RegisterAccountPage() {
                 <input
                   type="password"
                   required
-                  minLength={6}
+                  minLength={8}
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                   className="w-full bg-surface-container-lowest border-none rounded-xl px-4 py-4 text-on-surface focus:ring-2 focus:ring-primary-container transition-all placeholder:text-outline-variant"
