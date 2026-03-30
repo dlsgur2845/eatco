@@ -3,8 +3,10 @@
 import uuid
 from datetime import date
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,8 +15,11 @@ from app.models.ingredient import Ingredient
 from app.models.user import User
 from app.routers.auth import get_current_user
 from app.routers.scan import get_user_family_id
+from app.config import settings
 from app.services.gemini_recipe import generate_recipes
 from app.services.recipe_service import RecipeMatch, recommend_recipes
+
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/api/recipes", tags=["recipes"])
 
@@ -39,7 +44,9 @@ class RecipeResponse(BaseModel):
 
 
 @router.get("/recommend", response_model=list[RecipeResponse])
+@limiter.limit(settings.rate_limit_recipes)
 async def get_recommendations(
+    request: Request,
     family_id: uuid.UUID = Depends(get_user_family_id),
     db: AsyncSession = Depends(get_db),
 ):

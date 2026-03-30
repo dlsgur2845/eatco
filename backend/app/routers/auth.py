@@ -237,6 +237,8 @@ async def get_family(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if current_user.family_id != family_id:
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
     result = await db.execute(
         select(Family).where(Family.id == family_id).options(selectinload(Family.members))
     )

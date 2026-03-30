@@ -8,8 +8,10 @@
 import uuid
 from datetime import date
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +20,8 @@ from app.models.ingredient import Ingredient, StorageMethod
 from app.models.user import Family, User
 from app.routers.auth import get_current_user
 from app.config import settings
+
+limiter = Limiter(key_func=get_remote_address)
 from app.services.category_mapper import MappedItem, map_ocr_results
 from app.services.ocr_service import OCRError, scan_image, scan_image_gemini
 
@@ -78,7 +82,9 @@ async def get_user_family_id(user: User = Depends(get_current_user)) -> uuid.UUI
 # --- Endpoints ---
 
 @router.post("/analyze", response_model=ScanResponse)
+@limiter.limit(settings.rate_limit_scan)
 async def analyze_receipt(
+    request: Request,
     file: UploadFile = File(...),
     family_id: uuid.UUID = Depends(get_user_family_id),
 ):

@@ -155,7 +155,7 @@ async def search_recipes(keyword: str) -> list[dict]:
     if not settings.recipe_api_key:
         return []
 
-    url = f"http://openapi.foodsafetykorea.go.kr/api/{settings.recipe_api_key}/COOKRCP01/json/1/20"
+    url = f"https://openapi.foodsafetykorea.go.kr/api/{settings.recipe_api_key}/COOKRCP01/json/1/20"
     if keyword:
         url += f"/RCP_PARTS_DTLS={keyword}"
 

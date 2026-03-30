@@ -39,6 +39,9 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       CLOVA_OCR_API_URL: ${CLOVA_OCR_API_URL:-}
       CLOVA_OCR_SECRET_KEY: ${CLOVA_OCR_SECRET_KEY:-}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      RATE_LIMIT_SCAN: ${RATE_LIMIT_SCAN:-100/hour}
+      RATE_LIMIT_RECIPES: ${RATE_LIMIT_RECIPES:-200/hour}
     depends_on:
       postgres:
         condition: service_healthy
