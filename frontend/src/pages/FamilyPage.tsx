@@ -272,15 +272,18 @@ function FamilyManageView({
                 <div>
                   <p className="font-headline font-medium text-on-surface">공동 편집 허용</p>
                   <p className="text-[12px] text-on-surface-variant">
-                    모든 구성원이 품목을 추가/삭제할 수 있습니다.
+                    {currentUser.id === localFamily.master_id
+                      ? '모든 구성원이 품목을 추가/삭제할 수 있습니다.'
+                      : '마스터만 이 설정을 변경할 수 있습니다.'}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => toggleSetting('allow_shared_edit')}
+                  disabled={currentUser.id !== localFamily.master_id}
                   className={`w-12 h-6 rounded-full relative p-1 flex items-center transition-colors ${
                     localFamily.allow_shared_edit ? 'bg-primary justify-end' : 'bg-surface-container-highest justify-start'
-                  }`}
+                  } ${currentUser.id !== localFamily.master_id ? 'opacity-40 cursor-not-allowed' : ''}`}
                 >
                   <div className="w-4 h-4 bg-white rounded-full" />
                 </button>

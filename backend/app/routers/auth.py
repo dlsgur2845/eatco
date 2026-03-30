@@ -254,7 +254,7 @@ async def update_family_settings(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """가족 그룹 설정 변경 (공동편집, 유통기한 리포트)."""
+    """가족 그룹 설정 변경 (공동편집, 유통기한 리포트). 마스터만 가능."""
     if not current_user.family_id:
         raise HTTPException(status_code=400, detail="가족 그룹이 없습니다.")
 
@@ -264,6 +264,9 @@ async def update_family_settings(
     family = result.scalar_one_or_none()
     if not family:
         raise HTTPException(status_code=404, detail="가족 그룹을 찾을 수 없습니다.")
+
+    if family.master_id != current_user.id:
+        raise HTTPException(status_code=403, detail="가족 설정은 마스터만 변경할 수 있습니다.")
 
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(family, key, value)
