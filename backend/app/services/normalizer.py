@@ -85,7 +85,7 @@ async def normalize_with_gemini(name: str) -> str | None:
 
         client = genai.Client(api_key=settings.gemini_api_key)
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.0-flash",
             contents=[
                 f'다음 식재료 상품명을 정규화해주세요.\n\n'
                 f'규칙:\n'
