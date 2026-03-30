@@ -16,7 +16,7 @@
 | POST | `/api/auth/family/leave` | 가족 탈퇴 |
 | POST | `/api/auth/family/kick/{user_id}` | 구성원 내보내기 (마스터만) |
 | GET | `/api/auth/family/{id}` | 가족 정보 조회 |
-| PUT | `/api/auth/family/settings` | 가족 설정 변경 |
+| PUT | `/api/auth/family/settings` | 가족 설정 변경 (마스터만) |
 
 ## 식재료
 | Method | Endpoint | 설명 |
@@ -57,8 +57,8 @@
 ## 알림
 | Method | Endpoint | 설명 |
 |---|---|---|
-| GET | `/api/notifications/settings` | 알림 주기 설정 조회 |
-| PUT | `/api/notifications/settings/{id}` | 알림 주기 변경 |
+| GET | `/api/notifications/settings` | 알림 주기 설정 조회 (인증 필요) |
+| PUT | `/api/notifications/settings/{id}` | 알림 주기 변경 (인증 필요) |
 | GET | `/api/notification-logs` | 알림 로그 목록 |
 | GET | `/api/notification-logs/unread-count` | 안 읽은 수 |
 | PUT | `/api/notification-logs/{id}/read` | 읽음 처리 |

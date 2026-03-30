@@ -38,7 +38,17 @@ OCR_MOCK_MODE=false
 RECIPE_API_KEY=
 ```
 
-> **프로덕션 배포 시** 반드시 `POSTGRES_PASSWORD`와 `SECRET_KEY`를 변경하세요.
+선택 설정 (기본값 사용 가능):
+```env
+# 환경 (development | production)
+ENVIRONMENT=development
+
+# Rate Limiting (개발: 넉넉하게, 프로덕션: 타이트하게)
+RATE_LIMIT_SCAN=100/hour      # 프로덕션 권장: 10/hour
+RATE_LIMIT_RECIPES=200/hour   # 프로덕션 권장: 20/hour
+```
+
+> **프로덕션 배포 시** 반드시 `POSTGRES_PASSWORD`와 `SECRET_KEY`를 변경하고, `ENVIRONMENT=production`으로 설정하세요.
 
 ## 3. Docker Compose로 실행
 
