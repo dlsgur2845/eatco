@@ -1,9 +1,26 @@
 import { useEffect, useState } from 'react'
 
-const CURRENT_VERSION = '1.1.1'
+const CURRENT_VERSION = '1.2.0'
 const STORAGE_KEY = 'eatco_changelog_seen'
 
 const CHANGELOG = [
+  {
+    version: '1.2.0',
+    date: '2026-03-30',
+    features: [
+      { icon: 'shield', text: '보안 강화 — JWT/IDOR/인증/비밀번호 정책 등 6건 수정' },
+      { icon: 'edit_note', text: '식재료 클릭 시 수정 가능 (이름, 가격, 매장, 유통기한)' },
+      { icon: 'admin_panel_settings', text: '가족 마스터 권한 시스템 (master_id 기반)' },
+      { icon: 'list', text: '식재료별 추이에서 전체 식재료 목록 바로 확인' },
+    ],
+    improvements: [
+      '공동 편집 설정은 마스터만 변경 가능',
+      '가격 검색 정확도 개선 (부분 매칭 제거)',
+      '직접등록 시 Gemini 기반 이름 정규화',
+      '회원가입 비밀번호 에러 메시지 한국어 표시',
+      'API rate limiting 추가 (스캔/레시피)',
+    ],
+  },
   {
     version: '1.1.1',
     date: '2026-03-30',
