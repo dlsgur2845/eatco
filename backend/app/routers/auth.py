@@ -55,12 +55,13 @@ def create_access_token(user_id: str, session_token: str) -> str:
 
 def set_auth_cookie(response: Response, token: str) -> None:
     """Set httpOnly secure cookie with JWT token."""
+    is_production = settings.environment == "production"
     response.set_cookie(
         key=COOKIE_NAME,
         value=token,
         max_age=COOKIE_MAX_AGE,
         httponly=True,
-        secure=True,
+        secure=is_production,
         samesite="lax",
         path="/",
     )
@@ -159,7 +160,8 @@ async def logout(
                     await db.commit()
         except jwt.InvalidTokenError:
             pass
-    response.delete_cookie(key=COOKIE_NAME, path="/", httponly=True, secure=True, samesite="lax")
+    is_production = settings.environment == "production"
+    response.delete_cookie(key=COOKIE_NAME, path="/", httponly=True, secure=is_production, samesite="lax")
     return {"message": "로그아웃 되었습니다."}
 
 
