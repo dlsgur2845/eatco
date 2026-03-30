@@ -29,6 +29,7 @@ class ItemPricePoint(BaseModel):
     price: int
     store_name: str | None = None
     quantity: str | None = None
+    name: str | None = None
 
 
 class CategoryExpense(BaseModel):
@@ -121,28 +122,38 @@ async def suggest_items(
 
 @router.get("/by-item", response_model=list[ItemPricePoint])
 async def get_item_prices(
-    name: str = Query(...),
+    name: str = Query(default=""),
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=50, ge=1, le=200),
     family_id: uuid.UUID = Depends(get_family_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """특정 식재료의 가격 이력."""
-    result = await db.execute(
+    """식재료 가격 이력. name이 비어있으면 전체 조회 (페이징 적용)."""
+    query = (
         select(Ingredient)
         .where(
             Ingredient.family_id == family_id,
             Ingredient.price.isnot(None),
-            (Ingredient.normalized_name == name) | (Ingredient.name.ilike(f"%{name}%")),
         )
-        .order_by(Ingredient.registered_at.asc())
+        .order_by(Ingredient.registered_at.desc())
     )
 
+    if name.strip():
+        query = query.where(
+            (Ingredient.normalized_name == name) | (Ingredient.name.ilike(f"%{name}%"))
+        )
+
+    query = query.offset((page - 1) * size).limit(size)
+    result = await db.execute(query)
     items = result.scalars().all()
+
     return [
         ItemPricePoint(
             date=i.registered_at.strftime('%Y-%m-%d'),
             price=i.price,
             store_name=i.store_name,
             quantity=i.quantity,
+            name=i.normalized_name or i.name,
         )
         for i in items
     ]

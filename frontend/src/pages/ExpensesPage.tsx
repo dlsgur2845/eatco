@@ -6,7 +6,7 @@ import {
 import api from '../api/client'
 
 interface MonthlyExpense { month: string; total: number; count: number }
-interface ItemPricePoint { date: string; price: number; store_name: string | null; quantity: string | null }
+interface ItemPricePoint { date: string; price: number; store_name: string | null; quantity: string | null; name: string | null }
 interface InflationAlert { name: string; current_price: number; old_price: number; change_pct: number }
 interface StoreComparison { store_name: string; latest_price: number; latest_date: string }
 interface BudgetInfo { monthly_budget: number | null; spent_this_month: number }
@@ -35,7 +35,7 @@ export default function ExpensesPage() {
 
   const fetchSuggestions = (q: string) => {
     if (suggestTimer.current) clearTimeout(suggestTimer.current)
-    if (!q.trim()) { setSuggestions([]); setShowSuggestions(false); return }
+    if (!q.trim()) { setSuggestions([]); setShowSuggestions(false); loadAllItems(); return }
     suggestTimer.current = setTimeout(() => {
       api.get<string[]>(`/expenses/suggest-items?q=${encodeURIComponent(q)}`)
         .then(r => { setSuggestions(r.data); setShowSuggestions(r.data.length > 0) })
@@ -49,10 +49,15 @@ export default function ExpensesPage() {
     searchItem(name)
   }
 
+  const loadAllItems = () => {
+    api.get<ItemPricePoint[]>('/expenses/by-item').then(r => setItemPrices(r.data)).catch(() => {})
+    setStores([])
+  }
+
   const searchItem = (name?: string) => {
     const q = name || searchName
-    if (!q.trim()) return
     setShowSuggestions(false)
+    if (!q.trim()) { loadAllItems(); return }
     api.get<ItemPricePoint[]>(`/expenses/by-item?name=${encodeURIComponent(q)}`).then(r => setItemPrices(r.data)).catch(() => {})
     api.get<StoreComparison[]>(`/expenses/compare?name=${encodeURIComponent(q)}`).then(r => setStores(r.data)).catch(() => {})
   }
@@ -138,7 +143,7 @@ export default function ExpensesPage() {
           지출 요약
         </button>
         <button
-          onClick={() => setTab('item')}
+          onClick={() => { setTab('item'); if (!searchName.trim()) loadAllItems() }}
           className={`px-6 py-2 rounded-xl text-sm font-semibold transition-all ${
             tab === 'item' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant'
           }`}
@@ -231,8 +236,8 @@ export default function ExpensesPage() {
             )}
           </div>
 
-          {/* 가격 추이 차트 */}
-          {itemPrices.length > 0 && (
+          {/* 가격 추이 차트 (검색 시) */}
+          {itemPrices.length > 0 && searchName.trim() && (
             <div className="bg-surface-container-lowest rounded-[2rem] p-6">
               <h3 className="text-sm font-semibold text-on-surface-variant mb-4">
                 "{searchName}" 가격 추이
@@ -249,6 +254,38 @@ export default function ExpensesPage() {
                   <Line type="monotone" dataKey="price" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 4, fill: 'var(--color-primary)' }} />
                 </LineChart>
               </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* 전체 식재료 가격 목록 (검색어 없을 때) */}
+          {itemPrices.length > 0 && !searchName.trim() && (
+            <div className="bg-surface-container-lowest rounded-[2rem] p-6">
+              <h3 className="text-sm font-semibold text-on-surface-variant mb-4">
+                전체 구매 이력
+              </h3>
+              <div className="space-y-2">
+                {itemPrices.map((item, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setSearchName(item.name || ''); searchItem(item.name || '') }}
+                    className="w-full flex items-center justify-between py-3 px-2 rounded-xl hover:bg-primary/5 transition-colors text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-on-surface-variant text-lg">grocery</span>
+                      <div>
+                        <span className="font-medium text-on-surface">{item.name}</span>
+                        {item.store_name && (
+                          <span className="text-xs text-on-surface-variant ml-2">{item.store_name}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-bold text-on-surface">{item.price.toLocaleString()}원</span>
+                      <span className="text-xs text-on-surface-variant ml-2">{item.date.slice(5)}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -273,9 +310,15 @@ export default function ExpensesPage() {
             </div>
           )}
 
-          {itemPrices.length === 0 && searchName && (
+          {itemPrices.length === 0 && searchName.trim() && (
             <p className="text-center text-sm text-on-surface-variant py-8">
               "{searchName}"에 대한 가격 데이터가 없어요.
+            </p>
+          )}
+
+          {itemPrices.length === 0 && !searchName.trim() && (
+            <p className="text-center text-sm text-on-surface-variant py-8">
+              구매 이력이 없어요. 식재료 등록 시 가격을 입력해보세요.
             </p>
           )}
         </>
