@@ -56,13 +56,23 @@ export default function ExpensesPage() {
     setStores([])
   }
 
-  const searchItem = (name?: string) => {
+  const searchItem = async (name?: string) => {
     const q = name || searchName
     setShowSuggestions(false)
     if (!q.trim()) { loadAllItemNames(); return }
     setAllItemNames([])
-    api.get<ItemPricePoint[]>(`/expenses/by-item?name=${encodeURIComponent(q)}`).then(r => setItemPrices(r.data)).catch(() => {})
-    api.get<StoreComparison[]>(`/expenses/compare?name=${encodeURIComponent(q)}`).then(r => setStores(r.data)).catch(() => {})
+    setStores([])
+    try {
+      const r = await api.get<ItemPricePoint[]>(`/expenses/by-item?name=${encodeURIComponent(q)}`)
+      setItemPrices(r.data)
+      // 가격 이력이 있을 때만 매장 비교를 같은 normalized_name으로 조회
+      if (r.data.length > 0 && r.data[0].name) {
+        const matched = r.data[0].name
+        api.get<StoreComparison[]>(`/expenses/compare?name=${encodeURIComponent(matched)}`).then(cr => setStores(cr.data)).catch(() => {})
+      }
+    } catch {
+      setItemPrices([])
+    }
   }
 
   const saveBudget = () => {
