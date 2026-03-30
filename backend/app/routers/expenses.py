@@ -129,23 +129,35 @@ async def get_item_prices(
     db: AsyncSession = Depends(get_db),
 ):
     """식재료 가격 이력. name이 비어있으면 전체 조회 (페이징 적용)."""
-    query = (
-        select(Ingredient)
-        .where(
-            Ingredient.family_id == family_id,
-            Ingredient.price.isnot(None),
-        )
-        .order_by(Ingredient.registered_at.desc())
-    )
+    base_filter = [Ingredient.family_id == family_id, Ingredient.price.isnot(None)]
 
     if name.strip():
-        query = query.where(
-            (Ingredient.normalized_name == name) | (Ingredient.name.ilike(f"%{name}%"))
+        # 1차: normalized_name 정확 매칭
+        result = await db.execute(
+            select(Ingredient).where(*base_filter, Ingredient.normalized_name == name.strip())
+            .order_by(Ingredient.registered_at.desc()).offset((page - 1) * size).limit(size)
         )
-
-    query = query.offset((page - 1) * size).limit(size)
-    result = await db.execute(query)
-    items = result.scalars().all()
+        items = result.scalars().all()
+        if not items:
+            # 2차: 원본 이름 정확 매칭
+            result = await db.execute(
+                select(Ingredient).where(*base_filter, Ingredient.name == name.strip())
+                .order_by(Ingredient.registered_at.desc()).offset((page - 1) * size).limit(size)
+            )
+            items = result.scalars().all()
+        if not items:
+            # 3차: 부분 매칭 fallback
+            result = await db.execute(
+                select(Ingredient).where(*base_filter, Ingredient.name.ilike(f"%{name.strip()}%"))
+                .order_by(Ingredient.registered_at.desc()).offset((page - 1) * size).limit(size)
+            )
+            items = result.scalars().all()
+    else:
+        result = await db.execute(
+            select(Ingredient).where(*base_filter)
+            .order_by(Ingredient.registered_at.desc()).offset((page - 1) * size).limit(size)
+        )
+        items = result.scalars().all()
 
     return [
         ItemPricePoint(
@@ -250,18 +262,26 @@ async def compare_stores(
     db: AsyncSession = Depends(get_db),
 ):
     """매장별 가격 비교."""
-    result = await db.execute(
-        select(Ingredient)
-        .where(
-            Ingredient.family_id == family_id,
-            Ingredient.price.isnot(None),
-            Ingredient.store_name.isnot(None),
-            (Ingredient.normalized_name == name) | (Ingredient.name.ilike(f"%{name}%")),
-        )
-        .order_by(Ingredient.registered_at.desc())
-    )
+    base_filter = [
+        Ingredient.family_id == family_id,
+        Ingredient.price.isnot(None),
+        Ingredient.store_name.isnot(None),
+    ]
 
-    items = result.scalars().all()
+    # normalized_name 정확 매칭 우선, 없으면 원본 이름, 최후에 부분 매칭
+    items = []
+    for condition in [
+        Ingredient.normalized_name == name.strip(),
+        Ingredient.name == name.strip(),
+        Ingredient.name.ilike(f"%{name.strip()}%"),
+    ]:
+        result = await db.execute(
+            select(Ingredient).where(*base_filter, condition)
+            .order_by(Ingredient.registered_at.desc())
+        )
+        items = result.scalars().all()
+        if items:
+            break
 
     # 매장별 최신 가격
     store_latest: dict[str, tuple] = {}
