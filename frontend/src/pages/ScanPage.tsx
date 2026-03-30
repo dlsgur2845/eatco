@@ -45,13 +45,16 @@ export default function ScanPage({ onRegistered }: Props) {
       setShowResults(true)
     } catch (err: unknown) {
       clearInterval(interval)
-      const msg = err instanceof Error ? err.message : '읽기에 실패했어요. 다시 시도해주세요.'
+      let msg = '읽기에 실패했어요. 다시 시도해주세요.'
       if (typeof err === 'object' && err !== null && 'response' in err) {
-        const resp = (err as { response?: { data?: { detail?: string } } }).response
-        setError(resp?.data?.detail ?? msg)
-      } else {
-        setError(msg)
+        const resp = (err as { response?: { status?: number; data?: { detail?: string } } }).response
+        if (resp?.status === 503 || resp?.status === 429) {
+          msg = 'AI 서비스가 일시적으로 혼잡합니다. 잠시 후 다시 시도해주세요.'
+        } else if (resp?.data?.detail && !resp.data.detail.includes('API') && !resp.data.detail.includes('{')) {
+          msg = resp.data.detail
+        }
       }
+      setError(msg)
     } finally {
       setScanning(false)
       setProgressStep(0)

@@ -106,20 +106,31 @@ async def scan_image_gemini(image_bytes: bytes, content_type: str = "image/jpeg"
 
     client = genai.Client(api_key=settings.gemini_api_key)
 
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[
-                types.Part.from_bytes(data=image_bytes, mime_type=content_type),
-                GEMINI_PROMPT,
-            ],
-            config=types.GenerateContentConfig(
-                temperature=0.1,
-                response_mime_type="application/json",
-            ),
-        )
-    except Exception as e:
-        raise OCRError(f"Gemini API 오류: {str(e)}")
+    import asyncio
+    last_error = None
+    for attempt in range(3):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[
+                    types.Part.from_bytes(data=image_bytes, mime_type=content_type),
+                    GEMINI_PROMPT,
+                ],
+                config=types.GenerateContentConfig(
+                    temperature=0.1,
+                    response_mime_type="application/json",
+                ),
+            )
+            break
+        except Exception as e:
+            last_error = e
+            if "503" in str(e) or "UNAVAILABLE" in str(e) or "overloaded" in str(e).lower():
+                if attempt < 2:
+                    await asyncio.sleep(2 ** attempt)
+                    continue
+            raise OCRError("AI 서비스에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해주세요.")
+    else:
+        raise OCRError("AI 서비스가 일시적으로 혼잡합니다. 잠시 후 다시 시도해주세요.")
 
     text = response.text.strip()
 
