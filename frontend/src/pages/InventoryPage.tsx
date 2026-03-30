@@ -317,6 +317,165 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
   )
 }
 
+/* ── Edit Form (inline modal) ── */
+function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; onClose: () => void; onSuccess: () => void }) {
+  const [categories, setCategories] = useState<Category[]>([])
+  const [form, setForm] = useState({
+    name: ingredient.name,
+    storage_method: ingredient.storage_method as StorageMethod,
+    quantity: ingredient.quantity || '',
+    price: ingredient.price ?? undefined as number | undefined,
+    store_name: ingredient.store_name || '',
+    expiry_date: ingredient.expiry_date.slice(0, 10),
+    category_id: ingredient.category_id || undefined as string | undefined,
+  })
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    api.get<Category[]>('/categories').then((r) => setCategories(r.data)).catch(() => {})
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setSubmitting(true)
+    try {
+      await api.put(`/ingredients/${ingredient.id}`, form)
+      onSuccess()
+    } catch {
+      setError('수정에 실패했습니다.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto bg-surface rounded-[2rem] p-6 sm:p-8 shadow-2xl mx-4">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="font-headline font-bold text-xl text-on-surface">식재료 수정</h3>
+          <button onClick={onClose} className="p-2 hover:bg-surface-container-high rounded-full transition-colors">
+            <span className="material-symbols-outlined text-on-surface-variant">close</span>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* 상품명 */}
+          <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2">
+            <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">상품명</label>
+            <input
+              type="text"
+              required
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full border-none p-0 text-lg font-medium bg-transparent focus:ring-0"
+            />
+          </div>
+
+          {/* 보관 방법 */}
+          <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-3">
+            <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">보관 방법</label>
+            <div className="grid grid-cols-3 gap-3">
+              {storageMethods.map((m) => (
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => setForm({ ...form, storage_method: m.value })}
+                  className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-colors ${
+                    form.storage_method === m.value
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-outline-variant bg-surface-container-lowest text-outline'
+                  }`}
+                >
+                  <span className="material-symbols-outlined mb-1">{m.icon}</span>
+                  <span className="text-xs font-bold">{m.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 카테고리 + 수량 */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2">
+              <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">카테고리</label>
+              <select
+                value={form.category_id || ''}
+                onChange={(e) => setForm({ ...form, category_id: e.target.value || undefined })}
+                className="w-full border-none p-0 text-base font-medium bg-transparent focus:ring-0"
+              >
+                <option value="">선택</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2">
+              <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">수량</label>
+              <input
+                type="text"
+                value={form.quantity}
+                onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                className="w-full border-none p-0 text-base font-medium bg-transparent focus:ring-0"
+                placeholder="예: 600g, 1L"
+              />
+            </div>
+          </div>
+
+          {/* 가격 + 매장명 */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2">
+              <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">가격 (원)</label>
+              <input
+                type="number"
+                value={form.price ?? ''}
+                onChange={(e) => setForm({ ...form, price: e.target.value ? parseInt(e.target.value) : undefined })}
+                className="w-full border-none p-0 text-base font-medium bg-transparent focus:ring-0"
+                placeholder="예: 12900"
+              />
+            </div>
+            <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2">
+              <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">구매처</label>
+              <input
+                type="text"
+                value={form.store_name}
+                onChange={(e) => setForm({ ...form, store_name: e.target.value })}
+                className="w-full border-none p-0 text-base font-medium bg-transparent focus:ring-0"
+                placeholder="예: 이마트, 쿠팡"
+              />
+            </div>
+          </div>
+
+          {/* 유통기한 */}
+          <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2 relative overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-secondary-container" />
+            <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">유통기한</label>
+            <input
+              type="date"
+              required
+              value={form.expiry_date}
+              onChange={(e) => setForm({ ...form, expiry_date: e.target.value })}
+              className="w-full border-none p-0 text-lg font-medium bg-transparent focus:ring-0"
+            />
+          </div>
+
+          {error && <p className="text-tertiary text-sm text-center">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full py-4 rounded-full bg-gradient-to-r from-primary to-primary-container text-white font-headline font-bold text-lg shadow-xl active:scale-95 transition-transform duration-200 flex items-center justify-center gap-3 disabled:opacity-50"
+          >
+            <span className="material-symbols-outlined">save</span>
+            {submitting ? '저장 중...' : '저장하기'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 /* ── Main InventoryPage ── */
 export default function InventoryPage() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
@@ -325,6 +484,7 @@ export default function InventoryPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [selectMode, setSelectMode] = useState(false)
   const [showRegister, setShowRegister] = useState(false)
+  const [editTarget, setEditTarget] = useState<Ingredient | null>(null)
 
   const fetchIngredients = () => {
     const params: Record<string, string> = {}
@@ -463,10 +623,10 @@ export default function InventoryPage() {
           return (
             <div
               key={item.id}
-              onClick={() => selectMode && toggleSelect(item.id)}
-              className={`relative bg-surface-container-lowest rounded-[2.5rem] p-6 flex items-center gap-5 transition-all hover:shadow-[0_20px_50px_rgba(0,0,0,0.05)] ${
+              onClick={() => selectMode ? toggleSelect(item.id) : setEditTarget(item)}
+              className={`relative bg-surface-container-lowest rounded-[2.5rem] p-6 flex items-center gap-5 transition-all hover:shadow-[0_20px_50px_rgba(0,0,0,0.05)] cursor-pointer ${
                 isSelected ? 'border-2 border-primary bg-surface-container-low' : ''
-              } ${selectMode ? 'cursor-pointer' : ''}`}
+              }`}
             >
               <div className={`absolute left-0 top-1/4 bottom-1/4 w-1.5 ${v.border.replace('border-', 'bg-')} rounded-r-full`} />
               {isSelected && (
@@ -510,6 +670,18 @@ export default function InventoryPage() {
           onClose={() => setShowRegister(false)}
           onSuccess={() => {
             setShowRegister(false)
+            fetchIngredients()
+          }}
+        />
+      )}
+
+      {/* Edit Modal */}
+      {editTarget && (
+        <EditForm
+          ingredient={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSuccess={() => {
+            setEditTarget(null)
             fetchIngredients()
           }}
         />

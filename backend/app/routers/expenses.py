@@ -132,26 +132,15 @@ async def get_item_prices(
     base_filter = [Ingredient.family_id == family_id, Ingredient.price.isnot(None)]
 
     if name.strip():
-        # 1차: normalized_name 정확 매칭
+        # normalized_name 또는 원본 이름 정확 매칭만 (부분 매칭 없음)
         result = await db.execute(
-            select(Ingredient).where(*base_filter, Ingredient.normalized_name == name.strip())
+            select(Ingredient).where(
+                *base_filter,
+                (Ingredient.normalized_name == name.strip()) | (Ingredient.name == name.strip()),
+            )
             .order_by(Ingredient.registered_at.desc()).offset((page - 1) * size).limit(size)
         )
         items = result.scalars().all()
-        if not items:
-            # 2차: 원본 이름 정확 매칭
-            result = await db.execute(
-                select(Ingredient).where(*base_filter, Ingredient.name == name.strip())
-                .order_by(Ingredient.registered_at.desc()).offset((page - 1) * size).limit(size)
-            )
-            items = result.scalars().all()
-        if not items:
-            # 3차: 부분 매칭 fallback
-            result = await db.execute(
-                select(Ingredient).where(*base_filter, Ingredient.name.ilike(f"%{name.strip()}%"))
-                .order_by(Ingredient.registered_at.desc()).offset((page - 1) * size).limit(size)
-            )
-            items = result.scalars().all()
     else:
         result = await db.execute(
             select(Ingredient).where(*base_filter)
@@ -268,20 +257,15 @@ async def compare_stores(
         Ingredient.store_name.isnot(None),
     ]
 
-    # normalized_name 정확 매칭 우선, 없으면 원본 이름, 최후에 부분 매칭
-    items = []
-    for condition in [
-        Ingredient.normalized_name == name.strip(),
-        Ingredient.name == name.strip(),
-        Ingredient.name.ilike(f"%{name.strip()}%"),
-    ]:
-        result = await db.execute(
-            select(Ingredient).where(*base_filter, condition)
-            .order_by(Ingredient.registered_at.desc())
+    # normalized_name 또는 원본 이름 정확 매칭만
+    result = await db.execute(
+        select(Ingredient).where(
+            *base_filter,
+            (Ingredient.normalized_name == name.strip()) | (Ingredient.name == name.strip()),
         )
-        items = result.scalars().all()
-        if items:
-            break
+        .order_by(Ingredient.registered_at.desc())
+    )
+    items = result.scalars().all()
 
     # 매장별 최신 가격
     store_latest: dict[str, tuple] = {}

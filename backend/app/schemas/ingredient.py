@@ -25,6 +25,7 @@ class IngredientUpdate(BaseModel):
     price: int | None = None
     expiry_date: date | None = None
     image_url: str | None = None
+    store_name: str | None = None
 
 
 class IngredientResponse(BaseModel):
