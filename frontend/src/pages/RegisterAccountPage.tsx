@@ -51,7 +51,7 @@ export default function RegisterAccountPage() {
             회원가입
           </h1>
           <p className="text-on-surface-variant text-lg leading-relaxed max-w-sm">
-            신선한 일상을 큐레이팅하세요. 당신의 주방을 위한 에디토리얼 경험.
+            신선한 일상을 큐레이팅하세요.
           </p>
         </header>
 

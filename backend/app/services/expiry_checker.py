@@ -1,4 +1,4 @@
-"""유통기한 임박 알림 생성 서비스.
+"""소비기한 임박 알림 생성 서비스.
 
 앱 시작 시 및 /api/notification-logs/check-expiry 호출 시 실행.
 이미 당일 생성된 알림은 중복 생성하지 않음.
@@ -18,7 +18,7 @@ from app.models.user import Family
 async def check_and_create_expiry_notifications(
     db: AsyncSession,
 ) -> list[tuple]:
-    """모든 가족에 대해 유통기한 임박 알림을 생성합니다.
+    """모든 가족에 대해 소비기한 임박 알림을 생성합니다.
 
     Returns: list of (family_id, title, message, link) tuples for push delivery.
     """
@@ -90,7 +90,7 @@ async def check_and_create_expiry_notifications(
                 title = f"{setting.days_before}일 후 만료 예정"
 
             when = "오늘" if setting.days_before == 0 else f"{setting.days_before}일 후"
-            message = f"{names}{extra}의 유통기한이 {when}입니다."
+            message = f"{names}{extra}의 소비기한이 {when}입니다."
 
             db.add(NotificationLog(
                 family_id=family.id,

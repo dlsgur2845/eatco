@@ -285,10 +285,10 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
             </div>
           </div>
 
-          {/* 유통기한 */}
+          {/* 소비기한 */}
           <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2 relative overflow-hidden">
             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-secondary-container" />
-            <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">유통기한</label>
+            <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">소비기한</label>
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined text-secondary-container">calendar_today</span>
               <input
@@ -447,10 +447,10 @@ function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; 
             </div>
           </div>
 
-          {/* 유통기한 */}
+          {/* 소비기한 */}
           <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2 relative overflow-hidden">
             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-secondary-container" />
-            <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">유통기한</label>
+            <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">소비기한</label>
             <input
               type="date"
               required

@@ -1,4 +1,7 @@
-/* Eatco Service Worker — push notifications only, no fetch caching */
+/* Eatco Service Worker — push notifications + PWA install support */
+
+// PWA 설치 조건 충족용 — 캐싱 없이 네트워크 패스스루
+self.addEventListener('fetch', () => {});
 
 self.addEventListener('push', (event) => {
   const data = event.data

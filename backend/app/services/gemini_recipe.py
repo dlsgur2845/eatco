@@ -69,7 +69,7 @@ async def generate_recipes(
 
     urgent_section = ""
     if urgent_items:
-        urgent_section = f"유통기한 임박 재료 (우선 활용): {', '.join(urgent_items)}"
+        urgent_section = f"소비기한 임박 재료 (우선 활용): {', '.join(urgent_items)}"
 
     prompt = RECIPE_PROMPT.format(
         fridge_items=", ".join(fridge_items),

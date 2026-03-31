@@ -49,7 +49,7 @@ export default function DashboardPage() {
                 </span>
               </div>
               <div>
-                <h3 className="font-headline font-bold text-lg text-on-tertiary-container">유통기한 임박 알림</h3>
+                <h3 className="font-headline font-bold text-lg text-on-tertiary-container">소비기한 임박 알림</h3>
                 <p className="text-on-surface-variant text-sm mt-0.5">
                   {summary.critical}개의 식재료가 곧 만료됩니다.
                 </p>

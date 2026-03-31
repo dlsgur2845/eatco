@@ -1,15 +1,39 @@
 import { useEffect, useState } from 'react'
 
-const CURRENT_VERSION = '1.2.0'
+const CURRENT_VERSION = '1.4.0'
 const STORAGE_KEY = 'eatco_changelog_seen'
 
 const CHANGELOG = [
+  {
+    version: '1.4.0',
+    date: '2026-03-31',
+    features: [
+      { icon: 'install_mobile', text: '홈화면에 앱 아이콘 추가 가능 (PWA 설치)' },
+      { icon: 'notifications_active', text: '푸시 알림 활성화 (VAPID 키 설정)' },
+    ],
+    improvements: [
+      '"유통기한" → "소비기한" 용어 통일',
+      '회원가입/설정 페이지 문구 간소화',
+    ],
+  },
+  {
+    version: '1.3.0',
+    date: '2026-03-31',
+    features: [
+      { icon: 'notifications', text: '푸시 알림 — 소비기한 알림을 기기로 전송' },
+      { icon: 'schedule', text: '알림 시간/주기 설정 (가족별 독립)' },
+    ],
+    improvements: [
+      'DB 커넥션 풀 + 인덱스 최적화',
+      '알림 설정 보안 강화 (IDOR 수정)',
+    ],
+  },
   {
     version: '1.2.0',
     date: '2026-03-30',
     features: [
       { icon: 'shield', text: '보안 강화 — JWT/IDOR/인증/비밀번호 정책 등 6건 수정' },
-      { icon: 'edit_note', text: '식재료 클릭 시 수정 가능 (이름, 가격, 매장, 유통기한)' },
+      { icon: 'edit_note', text: '식재료 클릭 시 수정 가능 (이름, 가격, 매장, 소비기한)' },
       { icon: 'admin_panel_settings', text: '가족 마스터 권한 시스템 (master_id 기반)' },
       { icon: 'list', text: '식재료별 추이에서 전체 식재료 목록 바로 확인' },
     ],
@@ -55,7 +79,7 @@ const CHANGELOG = [
     date: '2026-03-22',
     features: [
       { icon: 'kitchen', text: '식재료 등록/관리 (냉장/냉동/실온)' },
-      { icon: 'timer', text: '유통기한 D-Day 추적 + 알림' },
+      { icon: 'timer', text: '소비기한 D-Day 추적 + 알림' },
       { icon: 'group', text: '가족 공유 (초대 코드, 공동 편집)' },
       { icon: 'search', text: '보관기한 자동 추천 (221종 DB)' },
       { icon: 'edit', text: '실시간 자동완성 검색' },

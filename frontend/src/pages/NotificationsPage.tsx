@@ -129,7 +129,7 @@ export default function NotificationsPage() {
           </span>
           <p className="text-on-surface-variant">아직 알림이 없습니다.</p>
           <p className="text-sm text-on-surface-variant mt-1">
-            식재료를 등록하면 유통기한 알림을 받을 수 있어요.
+            식재료를 등록하면 소비기한 알림을 받아요.
           </p>
         </div>
       ) : (

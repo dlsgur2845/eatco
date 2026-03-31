@@ -294,7 +294,7 @@ function FamilyManageView({
                 <span className="material-symbols-outlined text-primary text-xl">notifications</span>
                 <div className="flex-1">
                   <p className="text-[12px] text-on-surface-variant">
-                    유통기한 알림 주기는 <span className="font-bold text-on-surface">설정</span> 페이지에서 변경할 수 있습니다.
+                    소비기한 알림 주기는 <span className="font-bold text-on-surface">설정</span> 페이지에서 변경할 수 있습니다.
                   </p>
                 </div>
               </div>

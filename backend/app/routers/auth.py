@@ -271,7 +271,7 @@ async def update_family_settings(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """가족 그룹 설정 변경 (공동편집, 유통기한 리포트). 마스터만 가능."""
+    """가족 그룹 설정 변경 (공동편집, 소비기한 리포트). 마스터만 가능."""
     if not current_user.family_id:
         raise HTTPException(status_code=400, detail="가족 그룹이 없습니다.")
 

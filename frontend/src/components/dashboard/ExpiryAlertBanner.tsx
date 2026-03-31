@@ -10,7 +10,7 @@ export default function ExpiryAlertBanner({ count }: { count: number }) {
         </div>
         <div>
           <h3 className="font-headline font-bold text-lg text-on-tertiary-container">
-            유통기한 임박 알림
+            소비기한 임박 알림
           </h3>
           <p className="text-on-surface-variant text-sm mt-0.5">
             {count}개의 식재료가 곧 만료됩니다.

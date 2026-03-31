@@ -50,7 +50,7 @@ async def lifespan(app: FastAPI):
         ))
     async with async_session() as db:
         await run_seed(db)
-    # 시작 시 유통기한 알림 체크
+    # 시작 시 소비기한 알림 체크
     async with async_session() as db:
         created = await check_and_create_expiry_notifications(db)
         if created:

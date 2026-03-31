@@ -69,11 +69,11 @@ export default function SettingsPage() {
                 <span className="font-medium block">
                   {subscribed ? '푸시 알림 켜짐' : '푸시 알림 꺼짐'}
                 </span>
-                <span className="text-xs text-on-surface-variant">
-                  {subscribed
-                    ? '유통기한 알림을 이 기기로 받습니다'
-                    : '켜면 유통기한 알림을 실시간으로 받을 수 있어요'}
-                </span>
+                {subscribed && (
+                  <span className="text-xs text-on-surface-variant">
+                    소비기한 알림을 이 기기로 받아요
+                  </span>
+                )}
               </div>
             </div>
             <div
@@ -117,7 +117,7 @@ export default function SettingsPage() {
       <section className="bg-surface-container-low p-8 rounded-[2.5rem]">
         <h3 className="font-headline font-bold text-lg text-on-surface mb-6 flex items-center gap-2">
           <span className="material-symbols-outlined text-primary">notifications_active</span>
-          유통기한 알림 주기
+          소비기한 알림 주기
         </h3>
         {settings.length === 0 ? (
           <p className="text-on-surface-variant text-sm text-center py-4">
@@ -168,7 +168,7 @@ export default function SettingsPage() {
               <span className="material-symbols-outlined text-outline">info</span>
               <span className="font-medium">버전 정보</span>
             </div>
-            <span className="text-sm text-primary font-bold">v1.3.0</span>
+            <span className="text-sm text-primary font-bold">v1.4.0</span>
           </div>
           <button
             onClick={handleLogout}

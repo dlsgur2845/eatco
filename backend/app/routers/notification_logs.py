@@ -92,7 +92,7 @@ async def check_expiry(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """수동으로 유통기한 알림을 확인/생성합니다."""
+    """수동으로 소비기한 알림을 확인/생성합니다."""
     from app.services.expiry_checker import check_and_create_expiry_notifications
     created = await check_and_create_expiry_notifications(db)
     return {"created": len(created)}
