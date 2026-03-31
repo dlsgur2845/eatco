@@ -19,5 +19,12 @@ class NotificationLogResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PaginatedNotificationLogResponse(BaseModel):
+    items: list[NotificationLogResponse]
+    total: int
+    limit: int
+    offset: int
+
+
 class UnreadCountResponse(BaseModel):
     count: int

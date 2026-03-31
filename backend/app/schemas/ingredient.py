@@ -52,5 +52,12 @@ class DashboardSummary(BaseModel):
     safe: int      # 안전
 
 
+class PaginatedIngredientResponse(BaseModel):
+    items: list[IngredientResponse]
+    total: int
+    limit: int
+    offset: int
+
+
 class BatchDeleteRequest(BaseModel):
     ids: list[uuid.UUID]

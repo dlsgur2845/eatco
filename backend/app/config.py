@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     environment: str = "development"  # "development" | "production"
     rate_limit_scan: str = "100/hour"  # 개발: 100/hour, 프로덕션: 10/hour
     rate_limit_recipes: str = "200/hour"  # 개발: 200/hour, 프로덕션: 20/hour
+    timezone: str = "Asia/Seoul"
+    vapid_private_key: str = ""
+    vapid_public_key: str = ""
+    vapid_claim_email: str = "mailto:admin@eatco.app"
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

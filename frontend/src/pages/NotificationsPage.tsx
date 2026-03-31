@@ -12,13 +12,59 @@ interface Notification {
   created_at: string
 }
 
+interface PaginatedResponse {
+  items: Notification[]
+  total: number
+  limit: number
+  offset: number
+}
+
 export default function NotificationsPage() {
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+
+  const PAGE_SIZE = 20
+
+  const fetchNotifications = async (offset: number, append: boolean) => {
+    try {
+      const r = await api.get('/notification-logs', {
+        params: { limit: PAGE_SIZE, offset },
+      })
+      // 방어: 응답이 배열이면(구 버전) 그대로 사용, 객체면 paginated 형식
+      const data = r.data as PaginatedResponse | Notification[]
+      let items: Notification[]
+      let total: number
+
+      if (Array.isArray(data)) {
+        items = data
+        total = data.length
+      } else {
+        items = data.items ?? []
+        total = data.total ?? 0
+      }
+
+      if (append) {
+        setNotifications((prev) => [...prev, ...items])
+      } else {
+        setNotifications(items)
+      }
+      setHasMore(offset + PAGE_SIZE < total)
+    } catch {
+      // silent
+    }
+  }
 
   useEffect(() => {
-    api.get<Notification[]>('/notification-logs').then((r) => setNotifications(r.data)).catch(() => {})
+    fetchNotifications(0, false)
   }, [])
+
+  const loadMore = async () => {
+    setLoadingMore(true)
+    await fetchNotifications(notifications.length, true)
+    setLoadingMore(false)
+  }
 
   const markAsRead = async (notif: Notification) => {
     if (!notif.is_read) {
@@ -132,6 +178,15 @@ export default function NotificationsPage() {
               )}
             </button>
           ))}
+          {hasMore && (
+            <button
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="w-full py-3 text-sm font-medium text-primary hover:bg-primary/5 rounded-xl transition-colors disabled:opacity-50"
+            >
+              {loadingMore ? '불러오는 중...' : '더 보기'}
+            </button>
+          )}
         </div>
       )}
     </div>

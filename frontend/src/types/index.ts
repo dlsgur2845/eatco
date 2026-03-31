@@ -52,9 +52,17 @@ export interface DashboardSummary {
 
 export interface NotificationSetting {
   id: string
+  family_id: string | null
   days_before: number
   enabled: boolean
   push_time: string
+}
+
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  limit: number
+  offset: number
 }
 
 export interface IngredientCreate {

@@ -13,3 +13,5 @@ httpx==0.28.1
 aiosqlite==0.21.0
 google-genai==1.14.0
 slowapi==0.1.9
+pywebpush==2.0.1
+APScheduler==3.10.4

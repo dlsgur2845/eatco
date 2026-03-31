@@ -116,8 +116,15 @@ async def register(data: UserCreate, response: Response, db: AsyncSession = Depe
         session_token=session_tok,
     )
     db.add(user)
+    await db.flush()
+
+    # 마스터 설정 + 기본 알림 설정 생성
+    family.master_id = user.id
     await db.commit()
     await db.refresh(user)
+
+    from app.seed import seed_notification_settings_for_family
+    await seed_notification_settings_for_family(db, family.id)
 
     token = create_access_token(str(user.id), session_tok)
     set_auth_cookie(response, token)
@@ -184,6 +191,10 @@ async def create_family(
 
     current_user.family_id = family.id
     await db.commit()
+
+    # 새 가족에 기본 알림 설정 생성
+    from app.seed import seed_notification_settings_for_family
+    await seed_notification_settings_for_family(db, family.id)
 
     result = await db.execute(
         select(Family).where(Family.id == family.id).options(selectinload(Family.members))

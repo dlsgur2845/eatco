@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,23 +8,31 @@ from app.database import get_db
 from app.models.notification_log import NotificationLog
 from app.models.user import User
 from app.routers.auth import get_current_user
-from app.schemas.notification_log import NotificationLogResponse, UnreadCountResponse
+from app.schemas.notification_log import NotificationLogResponse, PaginatedNotificationLogResponse, UnreadCountResponse
 
 router = APIRouter(prefix="/api/notification-logs", tags=["notification-logs"])
 
 
-@router.get("", response_model=list[NotificationLogResponse])
+@router.get("", response_model=PaginatedNotificationLogResponse)
 async def list_notifications(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(NotificationLog)
-        .where(NotificationLog.family_id == current_user.family_id)
-        .order_by(NotificationLog.created_at.desc())
-        .limit(50)
+    base_query = select(NotificationLog).where(
+        NotificationLog.family_id == current_user.family_id
     )
-    return result.scalars().all()
+    total = await db.scalar(
+        select(func.count()).select_from(base_query.subquery())
+    )
+    result = await db.execute(
+        base_query.order_by(NotificationLog.created_at.desc())
+        .limit(limit).offset(offset)
+    )
+    return PaginatedNotificationLogResponse(
+        items=result.scalars().all(), total=total or 0, limit=limit, offset=offset,
+    )
 
 
 @router.get("/unread-count", response_model=UnreadCountResponse)
@@ -86,5 +94,5 @@ async def check_expiry(
 ):
     """수동으로 유통기한 알림을 확인/생성합니다."""
     from app.services.expiry_checker import check_and_create_expiry_notifications
-    count = await check_and_create_expiry_notifications(db)
-    return {"created": count}
+    created = await check_and_create_expiry_notifications(db)
+    return {"created": len(created)}

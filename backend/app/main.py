@@ -1,6 +1,8 @@
+import logging
 import os
 from contextlib import asynccontextmanager
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -15,14 +17,17 @@ from app.models.ingredient import Base
 from app.routers import auth, categories, custom_recipes, dashboard, events, expenses, ingredients, notification_logs, notifications, recipes, scan, storage_guide
 from app.seed import run_seed
 from app.services.expiry_checker import check_and_create_expiry_notifications
+from app.services.scheduled_notifier import scheduled_expiry_check
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # master_id 컬럼 마이그레이션 (이미 있으면 무시)
         from sqlalchemy import text
+        # master_id 컬럼 마이그레이션 (이미 있으면 무시)
         await conn.execute(text(
             "ALTER TABLE families ADD COLUMN IF NOT EXISTS master_id UUID"
         ))
@@ -35,12 +40,32 @@ async def lifespan(app: FastAPI):
                 LIMIT 1
             ) WHERE master_id IS NULL
         """))
+        # notification_settings에 family_id 컬럼 추가 (이미 있으면 무시)
+        await conn.execute(text(
+            "ALTER TABLE notification_settings ADD COLUMN IF NOT EXISTS family_id UUID REFERENCES families(id)"
+        ))
+        # notification_logs에 days_before 컬럼 추가 (이미 있으면 무시)
+        await conn.execute(text(
+            "ALTER TABLE notification_logs ADD COLUMN IF NOT EXISTS days_before INTEGER"
+        ))
     async with async_session() as db:
         await run_seed(db)
     # 시작 시 유통기한 알림 체크
     async with async_session() as db:
-        await check_and_create_expiry_notifications(db)
+        created = await check_and_create_expiry_notifications(db)
+        if created:
+            logger.info(f"시작 시 만료 알림 {len(created)}건 생성")
+
+    # APScheduler: 15분 간격으로 만료 알림 체크 + 푸시 전송
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(scheduled_expiry_check, "interval", minutes=15, id="expiry_check")
+    scheduler.start()
+    logger.info("APScheduler 시작: 15분 간격 만료 알림 체크")
+
     yield
+
+    scheduler.shutdown()
+    logger.info("APScheduler 종료")
 
 
 app = FastAPI(title="Eatco API", version="0.1.0", lifespan=lifespan)

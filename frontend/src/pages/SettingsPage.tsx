@@ -1,48 +1,35 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import api from '../api/client'
+import NotificationCycleForm from '../components/settings/NotificationCycleForm'
+import PushTimeSelector from '../components/settings/PushTimeSelector'
+import { usePushNotification } from '../hooks/usePushNotification'
 import type { NotificationSetting } from '../types'
-
-const cycleLabels: Record<number, string> = {
-  0: '당일 알림',
-  1: '1일 전 알림',
-  3: '3일 전 알림',
-  5: '5일 전 알림',
-  7: '7일 전 알림',
-  14: '14일 전 알림',
-  21: '21일 전 알림',
-  30: '한 달 전 알림',
-}
-
-const cycleColors: Record<number, string> = {
-  0: 'bg-tertiary-container',
-  1: 'bg-secondary-container',
-  3: 'bg-primary',
-  5: 'bg-primary/60',
-  7: 'bg-primary/40',
-  14: 'bg-primary/30',
-  21: 'bg-primary/20',
-  30: 'bg-primary/10',
-}
 
 export default function SettingsPage() {
   const navigate = useNavigate()
   const [settings, setSettings] = useState<NotificationSetting[]>([])
   const user = sessionStorage.getItem('user') ? JSON.parse(sessionStorage.getItem('user')!) : null
+  const { permission, subscribed, loading: pushLoading, subscribe, unsubscribe, isSupported, isIOS } =
+    usePushNotification()
 
   useEffect(() => {
-    api.get<NotificationSetting[]>('/notifications/settings').then((r) => setSettings(r.data)).catch(() => {})
+    api
+      .get<NotificationSetting[]>('/notifications/settings')
+      .then((r) => setSettings(r.data))
+      .catch(() => {})
   }, [])
 
-  const toggleSetting = async (setting: NotificationSetting) => {
-    try {
-      const res = await api.put<NotificationSetting>(`/notifications/settings/${setting.id}`, {
-        enabled: !setting.enabled,
-      })
-      setSettings(settings.map((s) => (s.id === setting.id ? res.data : s)))
-    } catch {
-      /* ignore */
+  const handlePushToggle = async () => {
+    if (subscribed) {
+      await unsubscribe()
+    } else {
+      await subscribe()
     }
+  }
+
+  const handleCycleToggle = (id: string, enabled: boolean) => {
+    setSettings(settings.map((s) => (s.id === id ? { ...s, enabled } : s)))
   }
 
   const handleLogout = async () => {
@@ -55,9 +42,76 @@ export default function SettingsPage() {
     navigate('/login')
   }
 
+  const pushTime = settings.length > 0 ? settings[0].push_time : '09:00'
+
   return (
     <div className="max-w-screen-md mx-auto space-y-10">
       <h2 className="font-headline font-bold text-2xl text-on-surface">알림 설정</h2>
+
+      {/* Push Notification Toggle (gate) */}
+      {isSupported && (
+        <section className="bg-surface-container-low p-8 rounded-[2.5rem]">
+          <h3 className="font-headline font-bold text-lg text-on-surface mb-4 flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary">notifications</span>
+            푸시 알림
+          </h3>
+
+          <button
+            onClick={handlePushToggle}
+            disabled={pushLoading || permission === 'denied'}
+            className="w-full flex items-center justify-between p-4 bg-surface-container-lowest rounded-xl min-h-[44px] transition-all active:scale-[0.98] disabled:opacity-50"
+          >
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-on-surface-variant">
+                {subscribed ? 'notifications_active' : 'notifications_off'}
+              </span>
+              <div className="text-left">
+                <span className="font-medium block">
+                  {subscribed ? '푸시 알림 켜짐' : '푸시 알림 꺼짐'}
+                </span>
+                <span className="text-xs text-on-surface-variant">
+                  {subscribed
+                    ? '유통기한 알림을 이 기기로 받습니다'
+                    : '켜면 유통기한 알림을 실시간으로 받을 수 있어요'}
+                </span>
+              </div>
+            </div>
+            <div
+              className={`w-12 h-7 rounded-full transition-colors relative ${
+                subscribed ? 'bg-primary' : 'bg-outline/30'
+              }`}
+            >
+              <div
+                className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform ${
+                  subscribed ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </div>
+          </button>
+
+          {permission === 'denied' && (
+            <p className="mt-3 text-xs text-error px-2">
+              브라우저에서 알림이 차단되어 있습니다. 브라우저 설정에서 이 사이트의 알림을 허용해주세요.
+            </p>
+          )}
+
+          {isIOS && !subscribed && (
+            <p className="mt-3 text-xs text-on-surface-variant px-2">
+              iPhone/iPad에서는 "홈 화면에 추가"로 앱을 설치한 후 푸시 알림을 받을 수 있습니다.
+            </p>
+          )}
+
+          {pushLoading && (
+            <p className="mt-3 text-xs text-on-surface-variant px-2 animate-pulse">처리 중...</p>
+          )}
+
+          {subscribed && (
+            <div className="mt-4 px-2">
+              <PushTimeSelector initialTime={pushTime} />
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Notification Cycle */}
       <section className="bg-surface-container-low p-8 rounded-[2.5rem]">
@@ -65,30 +119,13 @@ export default function SettingsPage() {
           <span className="material-symbols-outlined text-primary">notifications_active</span>
           유통기한 알림 주기
         </h3>
-        <div className="space-y-3">
-          {settings.length === 0 && (
-            <p className="text-on-surface-variant text-sm text-center py-4">
-              알림 설정이 없습니다. 서버가 초기화되면 기본 설정이 생성됩니다.
-            </p>
-          )}
-          {settings.map((s) => (
-            <label
-              key={s.id}
-              className="flex items-center justify-between p-4 bg-surface-container-lowest rounded-xl cursor-pointer group hover:bg-primary/5 transition-colors"
-            >
-              <div className="flex items-center gap-4">
-                <div className={`w-1.5 h-6 ${cycleColors[s.days_before] || 'bg-primary/10'} rounded-full`} />
-                <span className="font-medium">{cycleLabels[s.days_before] || `${s.days_before}일 전 알림`}</span>
-              </div>
-              <input
-                type="checkbox"
-                checked={s.enabled}
-                onChange={() => toggleSetting(s)}
-                className="w-6 h-6 rounded-md text-primary border-outline focus:ring-primary"
-              />
-            </label>
-          ))}
-        </div>
+        {settings.length === 0 ? (
+          <p className="text-on-surface-variant text-sm text-center py-4">
+            알림 설정이 없습니다. 서버가 초기화되면 기본 설정이 생성됩니다.
+          </p>
+        ) : (
+          <NotificationCycleForm settings={settings} onToggle={handleCycleToggle} />
+        )}
       </section>
 
       {/* Account */}
@@ -131,7 +168,7 @@ export default function SettingsPage() {
               <span className="material-symbols-outlined text-outline">info</span>
               <span className="font-medium">버전 정보</span>
             </div>
-            <span className="text-sm text-primary font-bold">v1.2.0</span>
+            <span className="text-sm text-primary font-bold">v1.3.0</span>
           </div>
           <button
             onClick={handleLogout}

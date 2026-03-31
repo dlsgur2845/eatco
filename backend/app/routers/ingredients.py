@@ -1,7 +1,7 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, delete
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -14,6 +14,7 @@ from app.schemas.ingredient import (
     IngredientCreate,
     IngredientResponse,
     IngredientUpdate,
+    PaginatedIngredientResponse,
 )
 
 router = APIRouter(prefix="/api/ingredients", tags=["ingredients"])
@@ -36,23 +37,39 @@ async def check_edit_permission(user: User, db: AsyncSession) -> None:
         raise HTTPException(status_code=403, detail="공동 편집이 비활성화되어 있습니다. 관리자만 수정할 수 있습니다.")
 
 
-@router.get("", response_model=list[IngredientResponse])
+@router.get("")
 async def list_ingredients(
     category_id: uuid.UUID | None = None,
     storage_method: StorageMethod | None = None,
     search: str | None = None,
+    limit: int | None = Query(default=None, ge=1, le=200),
+    offset: int | None = Query(default=None, ge=0),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    query = select(Ingredient).where(Ingredient.family_id == current_user.family_id)
+) -> list[IngredientResponse] | PaginatedIngredientResponse:
+    base_query = select(Ingredient).where(Ingredient.family_id == current_user.family_id)
     if category_id:
-        query = query.where(Ingredient.category_id == category_id)
+        base_query = base_query.where(Ingredient.category_id == category_id)
     if storage_method:
-        query = query.where(Ingredient.storage_method == storage_method)
+        base_query = base_query.where(Ingredient.storage_method == storage_method)
     if search:
-        query = query.where(Ingredient.name.ilike(f"%{search}%"))
-    query = query.order_by(Ingredient.expiry_date.asc())
-    result = await db.execute(query)
+        base_query = base_query.where(Ingredient.name.ilike(f"%{search}%"))
+    base_query = base_query.order_by(Ingredient.expiry_date.asc())
+
+    # 하위 호환: limit/offset 파라미터가 있으면 paginated, 없으면 기존 flat array
+    if limit is not None or offset is not None:
+        actual_limit = limit or 50
+        actual_offset = offset or 0
+        total = await db.scalar(
+            select(func.count()).select_from(base_query.subquery())
+        )
+        result = await db.execute(base_query.limit(actual_limit).offset(actual_offset))
+        items = result.scalars().all()
+        return PaginatedIngredientResponse(
+            items=items, total=total or 0, limit=actual_limit, offset=actual_offset,
+        )
+
+    result = await db.execute(base_query)
     return result.scalars().all()
 
 
