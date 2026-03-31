@@ -8,6 +8,7 @@
 - **AI 레시피 추천** — 식품안전나라 API 우선 + Gemini AI 보충 (냉장고 재료 기반 맞춤 추천)
 - **가계부** — 월별 지출 차트, 식재료별 가격 추이, 매장 비교, 인플레이션 알림
 - **유통기한 관리** — D-Day 표시, 알림 주기 설정, 부분 사용/삭제
+- **푸시 알림** — Web Push로 유통기한 알림을 기기로 전송 (VAPID, 15분 간격 체크)
 - **가족 공유** — 초대 코드로 가족 참여, 마스터 권한 관리, 공동 편집
 - **보관기한 자동 추천** — USDA FoodKeeper 기반 221종 식재료 DB
 - **식재료 수정** — 인벤토리에서 클릭하여 이름, 가격, 매장, 유통기한 편집
@@ -55,7 +56,7 @@ eatco/
 ├── backend/
 │   └── app/
 │       ├── routers/        # auth, ingredients, scan, recipes, expenses, ...
-│       ├── services/       # ocr_service, gemini_recipe, normalizer, ...
+│       ├── services/       # ocr_service, push_service, scheduled_notifier, ...
 │       ├── models/         # User, Family, Ingredient, ...
 │       └── schemas/
 ├── frontend/

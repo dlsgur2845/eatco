@@ -21,7 +21,7 @@
 ## 식재료
 | Method | Endpoint | 설명 |
 |---|---|---|
-| GET | `/api/ingredients` | 목록 조회 (필터/검색) |
+| GET | `/api/ingredients` | 목록 조회 (필터/검색, `limit`/`offset` 페이지네이션 지원) |
 | POST | `/api/ingredients` | 등록 |
 | GET | `/api/ingredients/{id}` | 상세 조회 |
 | PUT | `/api/ingredients/{id}` | 수정 |
@@ -57,12 +57,18 @@
 ## 알림
 | Method | Endpoint | 설명 |
 |---|---|---|
-| GET | `/api/notifications/settings` | 알림 주기 설정 조회 (인증 필요) |
-| PUT | `/api/notifications/settings/{id}` | 알림 주기 변경 (인증 필요) |
-| GET | `/api/notification-logs` | 알림 로그 목록 |
+| GET | `/api/notifications/settings` | 알림 주기 설정 조회 (가족별) |
+| PUT | `/api/notifications/settings/{id}` | 알림 주기 변경 (가족 소유권 검증) |
+| PUT | `/api/notifications/push-time` | 알림 시간 일괄 변경 |
+| GET | `/api/notifications/vapid-public-key` | VAPID 공개키 조회 (푸시 구독용) |
+| POST | `/api/notifications/push-subscription` | 푸시 구독 등록 (upsert) |
+| DELETE | `/api/notifications/push-subscription` | 푸시 구독 해제 |
+| GET | `/api/notifications/push-subscription/status` | 푸시 구독 상태 확인 |
+| GET | `/api/notification-logs` | 알림 로그 목록 (limit/offset 페이지네이션) |
 | GET | `/api/notification-logs/unread-count` | 안 읽은 수 |
 | PUT | `/api/notification-logs/{id}/read` | 읽음 처리 |
 | PUT | `/api/notification-logs/read-all` | 모두 읽음 |
+| POST | `/api/notification-logs/check-expiry` | 수동 만료 알림 체크 |
 
 ## 보관기한 가이드
 | Method | Endpoint | 설명 |

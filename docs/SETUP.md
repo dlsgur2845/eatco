@@ -46,7 +46,15 @@ ENVIRONMENT=development
 # Rate Limiting (개발: 넉넉하게, 프로덕션: 타이트하게)
 RATE_LIMIT_SCAN=100/hour      # 프로덕션 권장: 10/hour
 RATE_LIMIT_RECIPES=200/hour   # 프로덕션 권장: 20/hour
+
+# 푸시 알림 (VAPID 키, 무료)
+# 키 생성: docker compose exec backend python3 -c "..."  (.env.example 참고)
+VAPID_PRIVATE_KEY=
+VAPID_PUBLIC_KEY=
+VAPID_CLAIM_EMAIL=mailto:admin@eatco.app
 ```
+
+> VAPID 키가 없으면 앱은 정상 동작하지만 푸시 알림이 비활성화됩니다.
 
 > **프로덕션 배포 시** 반드시 `POSTGRES_PASSWORD`와 `SECRET_KEY`를 변경하고, `ENVIRONMENT=production`으로 설정하세요.
 
