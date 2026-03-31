@@ -5,12 +5,16 @@ from datetime import datetime, timedelta, timezone
 import bcrypt
 import jwt
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.database import get_db
+from app.models.custom_recipe import CustomRecipe
+from app.models.ingredient import Ingredient
+from app.models.notification import NotificationSetting, PushSubscription
+from app.models.notification_log import NotificationLog
 from app.models.user import Family, User
 from app.schemas.user import (
     FamilyCreate,
@@ -36,6 +40,16 @@ def hash_password(password: str) -> str:
 
 def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode(), hashed.encode())
+
+
+async def delete_empty_family(db: AsyncSession, family_id: uuid.UUID) -> None:
+    """빈 가족 삭제 시 관련 테이블의 레코드를 먼저 정리합니다."""
+    await db.execute(delete(NotificationSetting).where(NotificationSetting.family_id == family_id))
+    await db.execute(delete(PushSubscription).where(PushSubscription.family_id == family_id))
+    await db.execute(delete(NotificationLog).where(NotificationLog.family_id == family_id))
+    await db.execute(delete(Ingredient).where(Ingredient.family_id == family_id))
+    await db.execute(delete(CustomRecipe).where(CustomRecipe.family_id == family_id))
+    await db.execute(delete(Family).where(Family.id == family_id))
 
 
 async def generate_unique_invite_code(db: AsyncSession) -> str:
@@ -231,7 +245,7 @@ async def join_family(
         old_family = old_family_result.scalar_one_or_none()
         if old_family:
             if len(old_family.members) == 0:
-                await db.delete(old_family)
+                await delete_empty_family(db, old_family.id)
             elif old_family.master_id == current_user.id:
                 old_family.members.sort(key=lambda m: m.created_at)
                 old_family.master_id = old_family.members[0].id
