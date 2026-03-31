@@ -5,8 +5,8 @@ import api from '../../api/client'
 export default function TopAppBar() {
   const navigate = useNavigate()
   const [unreadCount, setUnreadCount] = useState(0)
-  const user = sessionStorage.getItem('user')
-    ? JSON.parse(sessionStorage.getItem('user')!)
+  const user = localStorage.getItem('user')
+    ? JSON.parse(localStorage.getItem('user')!)
     : null
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function TopAppBar() {
     } catch {
       /* ignore */
     }
-    sessionStorage.removeItem('user')
+    localStorage.removeItem('user')
     navigate('/login')
   }
 

@@ -13,7 +13,7 @@ export default function RegisterAccountPage() {
     setError('')
     try {
       const res = await api.post<User>('/auth/register', form)
-      sessionStorage.setItem('user', JSON.stringify(res.data))
+      localStorage.setItem('user', JSON.stringify(res.data))
       navigate('/')
     } catch (err: any) {
       const detail = err.response?.data?.detail

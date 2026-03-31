@@ -205,7 +205,7 @@ export default function ExpensesPage() {
               />
               <button
                 onClick={saveBudget}
-                className="bg-gradient-to-r from-primary to-primary-container text-white px-5 py-3 rounded-full font-medium active:scale-95 transition-transform"
+                className="bg-gradient-to-r from-primary to-primary-container text-white px-5 py-3 rounded-full font-medium active:scale-95 transition-transform whitespace-nowrap"
               >
                 저장
               </button>

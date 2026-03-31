@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import api from '../api/client'
 import type { User } from '../types'
+
+const SAVED_EMAIL_KEY = 'eatco_saved_email'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -11,8 +13,14 @@ export default function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [showExpiredBanner, setShowExpiredBanner] = useState(sessionExpired)
+  const [saveEmail, setSaveEmail] = useState(() => !!localStorage.getItem(SAVED_EMAIL_KEY))
 
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const saved = localStorage.getItem(SAVED_EMAIL_KEY)
+    if (saved) setForm(f => ({ ...f, email: saved }))
+  }, [])
 
   const doLogin = async () => {
     if (!form.email || !form.password) return
@@ -20,7 +28,12 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const res = await api.post<User>('/auth/login', form)
-      sessionStorage.setItem('user', JSON.stringify(res.data))
+      if (saveEmail) {
+        localStorage.setItem(SAVED_EMAIL_KEY, form.email)
+      } else {
+        localStorage.removeItem(SAVED_EMAIL_KEY)
+      }
+      localStorage.setItem('user', JSON.stringify(res.data))
       navigate('/')
     } catch {
       setError('이메일 또는 비밀번호가 올바르지 않습니다.')
@@ -113,6 +126,17 @@ export default function LoginPage() {
                   placeholder="••••••••"
                 />
               </div>
+
+              {/* 이메일 저장 */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={saveEmail}
+                  onChange={(e) => setSaveEmail(e.target.checked)}
+                  className="w-4 h-4 rounded accent-primary"
+                />
+                <span className="text-sm text-on-surface-variant">이메일 저장</span>
+              </label>
 
               {error && <p className="text-tertiary text-sm text-center">{error}</p>}
 

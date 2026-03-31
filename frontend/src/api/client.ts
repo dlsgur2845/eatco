@@ -14,7 +14,7 @@ api.interceptors.response.use(
     const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register')
 
     if (error.response?.status === 401 && !isAuthEndpoint) {
-      sessionStorage.removeItem('user')
+      localStorage.removeItem('user')
 
       // 세션 만료 메시지가 있으면 쿼리 파라미터로 전달
       const detail = error.response?.data?.detail || ''

@@ -30,7 +30,7 @@ services:
       - "8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      CORS_ORIGINS: https://localhost:8443,http://localhost:8080
+      CORS_ORIGINS: "https://192.168.0.9,http://192.168.0.9,https://localhost,http://localhost"
       SECRET_KEY: ${SECRET_KEY}
       RECIPE_API_KEY: ${RECIPE_API_KEY:-}
       DATA_GO_KR_API_KEY: ${DATA_GO_KR_API_KEY:-}
@@ -62,8 +62,8 @@ services:
     container_name: eatco-frontend
     restart: unless-stopped
     ports:
-      - "8443:8443"
-      - "8080:8080"
+      - "443:8443"
+      - "80:8080"
     depends_on:
       - backend
     networks:

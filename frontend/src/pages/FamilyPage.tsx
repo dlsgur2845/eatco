@@ -324,7 +324,7 @@ export default function FamilyPage() {
       const meRes = await api.get<User>('/auth/me')
       const user = meRes.data
       setCurrentUser(user)
-      sessionStorage.setItem('user', JSON.stringify(user))
+      localStorage.setItem('user', JSON.stringify(user))
 
       if (user.family_id) {
         const famRes = await api.get<Family>(`/auth/family/${user.family_id}`)

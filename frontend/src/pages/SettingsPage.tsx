@@ -9,7 +9,7 @@ import type { NotificationSetting } from '../types'
 export default function SettingsPage() {
   const navigate = useNavigate()
   const [settings, setSettings] = useState<NotificationSetting[]>([])
-  const user = sessionStorage.getItem('user') ? JSON.parse(sessionStorage.getItem('user')!) : null
+  const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null
   const { permission, subscribed, loading: pushLoading, subscribe, unsubscribe, isSupported, isIOS } =
     usePushNotification()
 
@@ -38,7 +38,7 @@ export default function SettingsPage() {
     } catch {
       /* ignore */
     }
-    sessionStorage.removeItem('user')
+    localStorage.removeItem('user')
     navigate('/login')
   }
 

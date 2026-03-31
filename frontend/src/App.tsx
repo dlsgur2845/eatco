@@ -12,7 +12,7 @@ import MyRecipesPage from './pages/MyRecipesPage'
 import SettingsPage from './pages/SettingsPage'
 
 function AuthGuard() {
-  const user = sessionStorage.getItem('user')
+  const user = localStorage.getItem('user')
   if (!user) {
     return <Navigate to="/login" replace />
   }

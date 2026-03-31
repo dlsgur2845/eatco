@@ -13,9 +13,9 @@ FROM nginx:alpine
 # Generate self-signed certificate (as root, then hand off)
 RUN apk add --no-cache openssl \
     && mkdir -p /etc/nginx/certs /var/cache/nginx /var/run \
-    && openssl req -x509 -nodes -days 365 \
-       -subj "/CN=localhost" \
-       -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
+    && openssl req -x509 -nodes -days 3650 \
+       -subj "/CN=eatco.local" \
+       -addext "subjectAltName=DNS:localhost,DNS:*.sslip.io,DNS:*.nip.io,IP:127.0.0.1,IP:192.168.0.9" \
        -newkey rsa:2048 \
        -keyout /etc/nginx/certs/key.pem \
        -out /etc/nginx/certs/cert.pem \
