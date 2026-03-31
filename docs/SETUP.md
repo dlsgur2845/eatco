@@ -70,12 +70,17 @@ docker compose up -d --build
 |---|---|---|
 | `eatco-postgres` | PostgreSQL DB | 내부 5432 |
 | `eatco-backend` | FastAPI API 서버 | 내부 8000 |
-| `eatco-frontend` | Nginx (HTTPS + SPA) | **8443** (HTTPS), 8080 (HTTP) |
+| `eatco-frontend` | Nginx (HTTPS + SPA) | **443** (HTTPS), 80 (HTTP → HTTPS 리다이렉트) |
 
 ## 4. 접속
 
 ```
-https://localhost:8443
+https://localhost
+```
+
+같은 WiFi의 다른 기기에서는 PC의 LAN IP로 접속:
+```
+https://192.168.x.x
 ```
 
 > 자체 서명 인증서를 사용하므로 브라우저에서 보안 경고가 나타납니다.

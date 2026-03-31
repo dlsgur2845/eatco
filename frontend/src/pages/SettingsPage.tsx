@@ -168,7 +168,7 @@ export default function SettingsPage() {
               <span className="material-symbols-outlined text-outline">info</span>
               <span className="font-medium">버전 정보</span>
             </div>
-            <span className="text-sm text-primary font-bold">v1.4.1</span>
+            <span className="text-sm text-primary font-bold">v1.5.0</span>
           </div>
           <button
             onClick={handleLogout}

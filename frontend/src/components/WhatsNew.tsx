@@ -1,9 +1,21 @@
 import { useEffect, useState } from 'react'
 
-const CURRENT_VERSION = '1.4.0'
+const CURRENT_VERSION = '1.5.0'
 const STORAGE_KEY = 'eatco_changelog_seen'
 
 const CHANGELOG = [
+  {
+    version: '1.5.0',
+    date: '2026-03-31',
+    features: [
+      { icon: 'mail', text: '이메일 저장 + 자동 로그인 유지 (7일)' },
+      { icon: 'security', text: 'CORS 보안 강화 + Nginx 보안 헤더 추가' },
+    ],
+    improvements: [
+      'HTTP → HTTPS 자동 리다이렉트',
+      '접속 포트 80/443으로 변경 (포트 입력 불필요)',
+    ],
+  },
   {
     version: '1.4.0',
     date: '2026-03-31',
