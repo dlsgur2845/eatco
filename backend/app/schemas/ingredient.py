@@ -3,7 +3,9 @@ from datetime import date, datetime
 
 from pydantic import BaseModel
 
-from app.models.ingredient import StorageMethod
+from pydantic import Field
+
+from app.models.ingredient import IngredientUnit, StorageMethod
 
 
 class IngredientCreate(BaseModel):
@@ -11,6 +13,8 @@ class IngredientCreate(BaseModel):
     category_id: uuid.UUID | None = None
     storage_method: StorageMethod = StorageMethod.REFRIGERATED
     quantity: str | None = None
+    amount_value: float | None = Field(default=None, ge=0)
+    unit: IngredientUnit | None = None
     price: int | None = None
     expiry_date: date
     image_url: str | None = None
@@ -22,6 +26,8 @@ class IngredientUpdate(BaseModel):
     category_id: uuid.UUID | None = None
     storage_method: StorageMethod | None = None
     quantity: str | None = None
+    amount_value: float | None = Field(default=None, ge=0)
+    unit: IngredientUnit | None = None
     price: int | None = None
     expiry_date: date | None = None
     image_url: str | None = None
@@ -34,6 +40,8 @@ class IngredientResponse(BaseModel):
     category_id: uuid.UUID | None
     storage_method: StorageMethod
     quantity: str | None
+    amount_value: float | None
+    unit: IngredientUnit | None
     price: int | None
     expiry_date: date
     registered_at: datetime

@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import api from '../api/client'
-import type { Category, Ingredient, IngredientCreate, StorageMethod } from '../types'
+import { QuantityInput } from '../components/ingredients/QuantityInput'
+import { QuantityCleanupBanner } from '../components/ingredients/QuantityCleanupBanner'
+import { formatQuantity } from '../lib/format'
+import type { Category, Ingredient, IngredientCreate, IngredientUnit, StorageMethod } from '../types'
 
 /* ── Constants ── */
 const storageFilters: { value: StorageMethod | 'all'; label: string }[] = [
@@ -42,7 +45,8 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
   const [form, setForm] = useState<IngredientCreate>({
     name: '',
     storage_method: 'refrigerated',
-    quantity: '1',
+    amount_value: 1,
+    unit: 'g',
     expiry_date: '',
   })
   const [guide, setGuide] = useState<StorageGuide | null>(null)
@@ -249,14 +253,12 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
                 ))}
               </select>
             </div>
-            <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2">
-              <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">수량</label>
-              <input
-                type="text"
-                value={form.quantity}
-                onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                className="w-full border-none p-0 text-base font-medium bg-transparent focus:ring-0 placeholder:text-surface-container-highest"
-                placeholder="예: 600g, 1L, 3개"
+            <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm">
+              <QuantityInput
+                amount={form.amount_value ?? null}
+                unit={form.unit ?? 'g'}
+                onAmountChange={(v) => setForm({ ...form, amount_value: v })}
+                onUnitChange={(u) => setForm({ ...form, unit: u })}
               />
             </div>
           </div>
@@ -323,12 +325,14 @@ function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; 
   const [form, setForm] = useState({
     name: ingredient.name,
     storage_method: ingredient.storage_method as StorageMethod,
-    quantity: ingredient.quantity || '',
+    amount_value: ingredient.amount_value as number | null,
+    unit: (ingredient.unit ?? 'g') as IngredientUnit,
     price: ingredient.price ?? undefined as number | undefined,
     store_name: ingredient.store_name || '',
     expiry_date: ingredient.expiry_date.slice(0, 10),
     category_id: ingredient.category_id || undefined as string | undefined,
   })
+  const unitLocked = (ingredient.amount_value ?? 0) > 0
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -411,14 +415,14 @@ function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; 
                 ))}
               </select>
             </div>
-            <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2">
-              <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">수량</label>
-              <input
-                type="text"
-                value={form.quantity}
-                onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                className="w-full border-none p-0 text-base font-medium bg-transparent focus:ring-0"
-                placeholder="예: 600g, 1L"
+            <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm">
+              <QuantityInput
+                amount={form.amount_value}
+                unit={form.unit}
+                onAmountChange={(v) => setForm({ ...form, amount_value: v })}
+                onUnitChange={(u) => setForm({ ...form, unit: u })}
+                unitLocked={unitLocked}
+                lockedHelper="수량이 남아있어 단위를 바꿀 수 없어요 · 0으로 설정 후 수정"
               />
             </div>
           </div>
@@ -536,6 +540,7 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-8">
+      <QuantityCleanupBanner />
       {/* Title */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
@@ -646,7 +651,10 @@ export default function InventoryPage() {
                     {v.text}
                   </span>
                 </div>
-                <p className="text-xs text-on-surface-variant mb-2">등록일: {item.registered_at.slice(0, 10)}</p>
+                <p className="text-xs text-on-surface-variant mb-1">등록일: {item.registered_at.slice(0, 10)}</p>
+                <p className="text-xs text-on-surface-variant mb-2">
+                  남은 수량: <span className="font-semibold text-on-surface">{formatQuantity(item)}</span>
+                </p>
                 <div className="h-1 w-full bg-surface-container rounded-full overflow-hidden">
                   <div className={`h-full ${progressColor(d)} ${progressWidth(d)}`} />
                 </div>

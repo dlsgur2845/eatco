@@ -10,6 +10,8 @@ import ScanPage from './pages/ScanPage'
 import ExpensesPage from './pages/ExpensesPage'
 import MyRecipesPage from './pages/MyRecipesPage'
 import SettingsPage from './pages/SettingsPage'
+import QuantityCleanupPage from './pages/QuantityCleanupPage'
+import CookingLogPage from './pages/CookingLogPage'
 
 function AuthGuard() {
   const user = localStorage.getItem('user')
@@ -38,6 +40,8 @@ export default function App() {
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/family" element={<FamilyPage />} />
+            <Route path="/quantity-cleanup" element={<QuantityCleanupPage />} />
+            <Route path="/cooking-logs" element={<CookingLogPage />} />
           </Route>
         </Route>
 

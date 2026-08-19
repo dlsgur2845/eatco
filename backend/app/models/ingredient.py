@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, Index, Integer, String, func
+from sqlalchemy import CheckConstraint, Date, DateTime, Enum, Float, ForeignKey, Index, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -17,6 +17,12 @@ class StorageMethod(str, enum.Enum):
     ROOM_TEMP = "room_temp"
 
 
+class IngredientUnit(str, enum.Enum):
+    GRAM = "g"
+    MILLILITER = "ml"
+    PIECE = "piece"
+
+
 class Ingredient(Base):
     __tablename__ = "ingredients"
 
@@ -25,6 +31,15 @@ class Ingredient(Base):
     category_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("categories.id"))
     storage_method: Mapped[StorageMethod] = mapped_column(Enum(StorageMethod), default=StorageMethod.REFRIGERATED)
     quantity: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    amount_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    unit: Mapped[IngredientUnit | None] = mapped_column(
+        Enum(
+            IngredientUnit,
+            name="ingredientunit",
+            values_callable=lambda x: [e.value for e in x],
+        ),
+        nullable=True,
+    )
     price: Mapped[int | None] = mapped_column(Integer, nullable=True)
     expiry_date: Mapped[date] = mapped_column(Date, nullable=False)
     registered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -39,4 +54,5 @@ class Ingredient(Base):
     __table_args__ = (
         Index("ix_ingredients_family_expiry", "family_id", "expiry_date"),
         Index("ix_ingredients_family_category", "family_id", "category_id"),
+        CheckConstraint("amount_value IS NULL OR amount_value >= 0", name="ck_ingredients_amount_nonneg"),
     )

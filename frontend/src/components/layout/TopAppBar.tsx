@@ -45,6 +45,17 @@ export default function TopAppBar() {
               {user.nickname}
             </span>
 
+            {/* 요리 기록 */}
+            <button
+              onClick={() => navigate('/cooking-logs')}
+              className="p-2 rounded-full hover:bg-surface-container-high transition-colors"
+              title="요리 기록"
+            >
+              <span className="material-symbols-outlined text-on-surface-variant text-xl">
+                restaurant
+              </span>
+            </button>
+
             {/* 알림 아이콘 */}
             <button
               onClick={() => navigate('/notifications')}

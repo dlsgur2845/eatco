@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
+import { QuantityInput } from '../components/ingredients/QuantityInput'
 import type { Category, IngredientCreate, StorageMethod } from '../types'
 
 interface StorageGuide {
@@ -29,7 +30,8 @@ export default function RegisterPage() {
   const [form, setForm] = useState<IngredientCreate>({
     name: '',
     storage_method: 'refrigerated',
-    quantity: '1',
+    amount_value: 1,
+    unit: 'g',
     expiry_date: '',
   })
   const [guide, setGuide] = useState<StorageGuide | null>(null)
@@ -184,17 +186,13 @@ export default function RegisterPage() {
               ))}
             </select>
           </div>
-          <div className="bg-surface-container-lowest p-5 rounded-[1.5rem] shadow-sm flex flex-col gap-2">
-            <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">수량</label>
-            <div className="flex items-center justify-between">
-              <button type="button" onClick={() => setForm({ ...form, quantity: String(Math.max(1, parseInt(form.quantity || '1') - 1)) })} className="text-primary">
-                <span className="material-symbols-outlined">remove_circle_outline</span>
-              </button>
-              <span className="text-lg font-bold">{form.quantity}</span>
-              <button type="button" onClick={() => setForm({ ...form, quantity: String(parseInt(form.quantity || '0') + 1) })} className="text-primary">
-                <span className="material-symbols-outlined">add_circle_outline</span>
-              </button>
-            </div>
+          <div className="bg-surface-container-lowest p-5 rounded-[1.5rem] shadow-sm">
+            <QuantityInput
+              amount={form.amount_value ?? null}
+              unit={form.unit ?? 'g'}
+              onAmountChange={(v) => setForm({ ...form, amount_value: v })}
+              onUnitChange={(u) => setForm({ ...form, unit: u })}
+            />
           </div>
         </div>
 

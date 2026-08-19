@@ -50,7 +50,29 @@
       "Bash(mkdir -p \"$REPORT_DIR/screenshots\")",
       "Bash($B screenshot:*)",
       "Bash($B goto:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(docker-compose restart:*)",
+      "Bash(docker-compose logs:*)",
+      "Bash(curl -s http://localhost:8080/docs)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} %{url_effective}\\\\n\" http://localhost:8080/api/docs)",
+      "Bash(curl -s http://localhost:8080/api/cooking-logs -o /tmp/r.txt -w \"HTTP %{http_code}\\\\n\")",
+      "Read(//tmp/**)",
+      "Bash(docker-compose up:*)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:8080/)",
+      "Bash(curl -s -o /dev/null -w \"FE HTTP %{http_code}\\\\n\" http://localhost:8080/)",
+      "Bash(curl -s -o /dev/null -w \"API HTTP %{http_code}\\\\n\" http://localhost:8080/api/health)",
+      "Bash(curl -s -o /dev/null -w \"FE :80 HTTP %{http_code}\\\\n\" http://localhost/)",
+      "Bash(curl -s -o /dev/null -w \"API :80 HTTP %{http_code}\\\\n\" http://localhost/api/health)",
+      "Bash(curl -sk -o /dev/null -w \"FE HTTPS %{http_code}\\\\n\" https://localhost/)",
+      "Bash(curl -sk -o /dev/null -w \"API HTTPS %{http_code}\\\\n\" https://localhost/api/health)",
+      "Bash(docker-compose build:*)",
+      "Bash(docker-compose down:*)",
+      "Bash(curl -sk -o /dev/null -w \"FE %{http_code} | \" https://localhost/)",
+      "Bash(curl -sk -o /dev/null -w \"API %{http_code}\\\\n\" https://localhost/api/health)",
+      "Bash(curl -sk -c /tmp/eatco.txt -X POST https://localhost/api/auth/register -H 'Content-Type: application/json' -d '{\"email\":\"dbg@example.com\",\"nickname\":\"디버그\",\"password\":\"dbg12345\"}' -o /tmp/r.json -w 'REG %{http_code}\\\\n')",
+      "Bash(curl -sk -b /tmp/eatco.txt -X POST https://localhost/api/ingredients -H 'Content-Type: application/json' -d '{\"name\":\"테스트재료\",\"storage_method\":\"refrigerated\",\"amount_value\":500,\"unit\":\"g\",\"expiry_date\":\"2026-12-31\"}' -o /tmp/ing.json -w 'CREATE %{http_code}\\\\n')",
+      "Bash(curl -sk -o /dev/null -w \"FE %{http_code}\\\\n\" https://localhost/)"
     ]
   }
 }

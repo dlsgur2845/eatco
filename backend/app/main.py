@@ -14,7 +14,9 @@ from slowapi.util import get_remote_address
 from app.config import settings
 from app.database import async_session, engine
 from app.models.ingredient import Base
-from app.routers import auth, categories, custom_recipes, dashboard, events, expenses, ingredients, notification_logs, notifications, recipes, scan, storage_guide
+from app.models.ingredient_nutrition import IngredientNutrition  # noqa: F401 — register with Base.metadata
+from app.models.cooking_log import CookingLog, CookingLogItem  # noqa: F401 — register with Base.metadata
+from app.routers import auth, categories, cooking_logs, custom_recipes, dashboard, events, expenses, ingredients, notification_logs, notifications, recipes, scan, storage_guide
 from app.seed import run_seed
 from app.services.expiry_checker import check_and_create_expiry_notifications
 from app.services.scheduled_notifier import scheduled_expiry_check
@@ -25,8 +27,32 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
         from sqlalchemy import text
+        # cooking-log v1 선행: 기존 ingredientunit enum 이 잘못된 값으로 만들어졌으면
+        # (SQLAlchemy 가 Python enum name 인 GRAM/MILLILITER/PIECE 로 생성) drop 하고
+        # values_callable 로 수정된 모델이 다시 만들게 한다. 종속 컬럼도 함께 drop.
+        await conn.execute(text("""
+            DO $$
+            DECLARE
+                has_bad boolean;
+            BEGIN
+                SELECT EXISTS (
+                    SELECT 1 FROM pg_type t
+                    JOIN pg_enum e ON e.enumtypid = t.oid
+                    WHERE t.typname = 'ingredientunit' AND e.enumlabel = 'GRAM'
+                ) INTO has_bad;
+                IF has_bad THEN
+                    BEGIN
+                        ALTER TABLE ingredients DROP COLUMN IF EXISTS unit;
+                    EXCEPTION WHEN undefined_table THEN NULL; END;
+                    BEGIN
+                        ALTER TABLE cooking_log_items DROP COLUMN IF EXISTS unit;
+                    EXCEPTION WHEN undefined_table THEN NULL; END;
+                    DROP TYPE IF EXISTS ingredientunit;
+                END IF;
+            END $$;
+        """))
+        await conn.run_sync(Base.metadata.create_all)
         # master_id 컬럼 마이그레이션 (이미 있으면 무시)
         await conn.execute(text(
             "ALTER TABLE families ADD COLUMN IF NOT EXISTS master_id UUID"
@@ -48,6 +74,31 @@ async def lifespan(app: FastAPI):
         await conn.execute(text(
             "ALTER TABLE notification_logs ADD COLUMN IF NOT EXISTS days_before INTEGER"
         ))
+        # cooking-log v1: ingredients 수량 정규화 컬럼 추가 (이미 있으면 무시)
+        await conn.execute(text(
+            "ALTER TABLE ingredients ADD COLUMN IF NOT EXISTS amount_value DOUBLE PRECISION"
+        ))
+        # IngredientUnit enum 타입 (이미 있으면 무시)
+        await conn.execute(text("""
+            DO $$ BEGIN
+                CREATE TYPE ingredientunit AS ENUM ('g', 'ml', 'piece');
+            EXCEPTION WHEN duplicate_object THEN null;
+            END $$;
+        """))
+        await conn.execute(text(
+            "ALTER TABLE ingredients ADD COLUMN IF NOT EXISTS unit ingredientunit"
+        ))
+        # 음수 재고 방지
+        await conn.execute(text("""
+            DO $$ BEGIN
+                ALTER TABLE ingredients ADD CONSTRAINT ck_ingredients_amount_nonneg
+                    CHECK (amount_value IS NULL OR amount_value >= 0);
+            EXCEPTION WHEN duplicate_object THEN null;
+            END $$;
+        """))
+        # 기존 quantity 문자열 데이터 마이그레이션 (idempotent: amount_value IS NULL 인 row 만)
+        from app.services.quantity_parser import migrate_legacy_quantities
+        await migrate_legacy_quantities(conn)
     async with async_session() as db:
         await run_seed(db)
     # 시작 시 소비기한 알림 체크
@@ -102,6 +153,7 @@ app.include_router(events.router)
 app.include_router(recipes.router)
 app.include_router(expenses.router)
 app.include_router(custom_recipes.router)
+app.include_router(cooking_logs.router)
 
 
 # 업로드 이미지 서빙
