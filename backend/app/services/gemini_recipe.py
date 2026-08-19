@@ -6,13 +6,18 @@
 
 import hashlib
 import json
+import logging
 import time
 
 from app.config import settings
+from app.services import gemini
 
 # 캐시 (메모리, TTL 1시간)
+logger = logging.getLogger(__name__)
+
 _cache: dict[str, tuple[float, list]] = {}
 CACHE_TTL = 3600
+CACHE_MAX_ENTRIES = 256
 
 
 RECIPE_PROMPT = """냉장고에 있는 재료로 만들 수 있는 요리를 추천해주세요.
@@ -79,34 +84,25 @@ async def generate_recipes(
     )
 
     try:
-        import asyncio
-        from google import genai
-        from google.genai import types
-
-        client = genai.Client(api_key=settings.gemini_api_key)
-
-        # 10초 타임아웃 — 느리면 fallback으로
-        response = await asyncio.wait_for(
-            asyncio.to_thread(
-                client.models.generate_content,
-                model="gemini-2.5-flash",
-                contents=[prompt],
-                config=types.GenerateContentConfig(
-                    temperature=0.7,
-                    response_mime_type="application/json",
-                ),
-            ),
-            timeout=10.0,
+        parsed = await gemini.generate_json(
+            [prompt],
+            models=settings.fast_models,
+            temperature=0.7,
+            timeout=20.0,
         )
 
-        text = response.text.strip()
-        parsed = json.loads(text)
-
         if not isinstance(parsed, list):
+            logger.warning("레시피 응답이 배열이 아닙니다: %r", type(parsed).__name__)
             return []
 
+        # 캐시 상한 — 예전에는 무제한으로 자라서 프로세스 수명 내내 누적됐다.
+        if len(_cache) >= CACHE_MAX_ENTRIES:
+            oldest = min(_cache, key=lambda k: _cache[k][0])
+            _cache.pop(oldest, None)
         _cache[cache_key] = (now, parsed)
         return parsed
 
-    except Exception:
+    except gemini.GeminiError as exc:
+        # 조용히 빈 배열을 돌려주면 "오늘은 추천이 없네"와 구분이 안 된다.
+        logger.warning("레시피 생성 실패: %s", exc)
         return []

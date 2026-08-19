@@ -26,6 +26,9 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # 정의만 있고 호출된 적 없던 검증. 프로덕션에서 약한 키면 여기서 기동이 멈춘다.
+    settings.validate_secret_key()
+
     async with engine.begin() as conn:
         from sqlalchemy import text
         # cooking-log v1 선행: 예전 모델이 values_callable 없이 enum 을 만들면

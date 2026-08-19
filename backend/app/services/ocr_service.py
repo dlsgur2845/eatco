@@ -13,6 +13,7 @@ from dataclasses import dataclass
 import httpx
 
 from app.config import settings
+from app.services import gemini
 
 
 @dataclass
@@ -97,52 +98,25 @@ class GeminiScanResult:
 
 
 async def scan_image_gemini(image_bytes: bytes, content_type: str = "image/jpeg") -> GeminiScanResult:
-    """Gemini Flash로 영수증에서 매장명 + 식재료를 직접 추출합니다."""
-    if not settings.gemini_api_key:
-        raise OCRError("Gemini API 키가 설정되지 않았습니다. .env에 GEMINI_API_KEY를 추가하세요.")
+    """Gemini 로 영수증에서 매장명 + 식재료를 직접 추출합니다.
 
-    from google import genai
-    from google.genai import types
-
-    client = genai.Client(api_key=settings.gemini_api_key)
-
-    import asyncio
-    models = ["gemini-2.5-flash", "gemini-2.0-flash"]
-    response = None
-    for model_name in models:
-        for attempt in range(2):
-            try:
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=[
-                        types.Part.from_bytes(data=image_bytes, mime_type=content_type),
-                        GEMINI_PROMPT,
-                    ],
-                    config=types.GenerateContentConfig(
-                        temperature=0.1,
-                        response_mime_type="application/json",
-                    ),
-                )
-                break
-            except Exception as e:
-                err_str = str(e)
-                if "503" in err_str or "429" in err_str or "UNAVAILABLE" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                    if attempt == 0:
-                        await asyncio.sleep(2)
-                        continue
-                    break  # 다음 모델로
-                raise OCRError("AI 서비스에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해주세요.")
-        if response is not None:
-            break
-    if response is None:
-        raise OCRError("AI 서비스가 일시적으로 혼잡합니다. 1~2분 후 다시 시도해주세요.")
-
-    text = response.text.strip()
-
+    구현 노트: 예전에는 google-genai SDK 의 **동기** generate_content 를
+    `async def` 안에서 그대로 호출해서, 응답이 오는 수 초 동안 이벤트 루프가
+    통째로 멈췄다 (= 가족 중 한 명이 스캔하면 나머지 전원 대기).
+    지금은 app.services.gemini 의 async REST 클라이언트를 쓴다.
+    모델 폴백 체인은 settings.vision_models 에서 온다.
+    """
     try:
-        parsed = json.loads(text)
-    except json.JSONDecodeError:
-        raise OCRError("Gemini 응답을 파싱할 수 없습니다.")
+        parsed = await gemini.generate_json(
+            [gemini.InlineImage(data=image_bytes, mime_type=content_type), GEMINI_PROMPT],
+            models=settings.vision_models,
+            temperature=0.1,
+            timeout=60.0,
+        )
+    except gemini.GeminiNotConfigured as exc:
+        raise OCRError(str(exc)) from exc
+    except gemini.GeminiError as exc:
+        raise OCRError(str(exc)) from exc
 
     # 새 형식: { store_name, items: [...] }
     if isinstance(parsed, dict) and "items" in parsed:

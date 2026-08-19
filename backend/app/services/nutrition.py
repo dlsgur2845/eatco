@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models.ingredient import IngredientUnit
 from app.models.ingredient_nutrition import IngredientNutrition
+from app.services import gemini
 
 logger = logging.getLogger(__name__)
 
@@ -103,47 +104,46 @@ async def _fetch_from_public_api(normalized_name: str) -> NutritionData | None:
 
 
 async def _fetch_from_gemini(normalized_name: str) -> NutritionData | None:
-    """Gemini 로 kcal 추정. JSON 응답 파싱."""
+    """Gemini 로 kcal 추정.
+
+    gemini-2.0-flash 하드코딩 + 동기 SDK 호출이었다. 모델은 2026-06-01 종료됐고,
+    동기 호출은 이벤트 루프를 막았다 — 그것도 cooking-log 의 FOR UPDATE 락 안에서.
+    """
     if not settings.gemini_api_key:
         return None
+
+    prompt = (
+        f"식재료 '{normalized_name}' 의 칼로리를 추정해주세요.\n"
+        f"반드시 JSON 으로만 답하세요. 다른 텍스트 금지.\n"
+        f"형식: "
+        f'{{"kcal_per_100g": 숫자 or null, "kcal_per_100ml": 숫자 or null, '
+        f'"kcal_per_piece": 숫자 or null, "confidence": 0~1 사이 숫자}}\n'
+        f"- 해당하지 않는 단위는 null\n"
+        f"- 고기/채소/곡물 등 무게 단위는 kcal_per_100g\n"
+        f"- 음료/국물은 kcal_per_100ml\n"
+        f"- 계란/바나나 등 낱개 단위는 kcal_per_piece\n"
+        f"- confidence 는 모르면 0.3 이하"
+    )
+
     try:
-        import json
-
-        from google import genai
-        from google.genai import types
-
-        client = genai.Client(api_key=settings.gemini_api_key)
-        prompt = (
-            f"식재료 '{normalized_name}' 의 칼로리를 추정해주세요.\n"
-            f"반드시 JSON 으로만 답하세요. 다른 텍스트 금지.\n"
-            f"형식: "
-            f'{{"kcal_per_100g": 숫자 or null, "kcal_per_100ml": 숫자 or null, '
-            f'"kcal_per_piece": 숫자 or null, "confidence": 0~1 사이 숫자}}\n'
-            f"- 해당하지 않는 단위는 null\n"
-            f"- 고기/채소/곡물 등 무게 단위는 kcal_per_100g\n"
-            f"- 음료/국물은 kcal_per_100ml\n"
-            f"- 계란/바나나 등 낱개 단위는 kcal_per_piece\n"
-            f"- confidence 는 모르면 0.3 이하"
+        payload = await gemini.generate_json(
+            [prompt], models=settings.fast_models, temperature=0.0, timeout=15.0
         )
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=[prompt],
-            config=types.GenerateContentConfig(
-                temperature=0.0,
-                response_mime_type="application/json",
-            ),
-        )
-        payload = json.loads(response.text.strip())
-        return NutritionData(
-            kcal_per_100g=_safe_float(payload.get("kcal_per_100g")),
-            kcal_per_100ml=_safe_float(payload.get("kcal_per_100ml")),
-            kcal_per_piece=_safe_float(payload.get("kcal_per_piece")),
-            source="gemini",
-            confidence=max(0.0, min(1.0, _safe_float(payload.get("confidence")) or 0.3)),
-        )
-    except Exception as exc:
+    except gemini.GeminiError as exc:
         logger.warning("gemini nutrition lookup failed for %r: %s", normalized_name, exc)
         return None
+
+    if not isinstance(payload, dict):
+        logger.warning("gemini nutrition 응답이 객체가 아님 (%r)", normalized_name)
+        return None
+
+    return NutritionData(
+        kcal_per_100g=_safe_float(payload.get("kcal_per_100g")),
+        kcal_per_100ml=_safe_float(payload.get("kcal_per_100ml")),
+        kcal_per_piece=_safe_float(payload.get("kcal_per_piece")),
+        source="gemini",
+        confidence=max(0.0, min(1.0, _safe_float(payload.get("confidence")) or 0.3)),
+    )
 
 
 def _safe_float(v: object) -> float | None:

@@ -7,6 +7,7 @@
     "미국산 소고기 채끝" → "미국산 소고기 채끝"    (원산지 유지)
 """
 
+import logging
 import re
 
 from sqlalchemy import select
@@ -14,6 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.ingredient import Ingredient
+from app.services import gemini
+
+logger = logging.getLogger(__name__)
 
 
 # 숫자+단위 표현 제거 (용량/수량)
@@ -72,43 +76,46 @@ def normalize_local(name: str) -> str:
 
 
 async def normalize_with_gemini(name: str) -> str | None:
-    """Gemini Flash로 식재료 이름 정규화. 품질/종류 구분 유지."""
+    """Gemini 로 식재료 이름 정규화. 품질/종류 구분 유지.
+
+    이 경로는 gemini-2.0-flash 를 하드코딩하고 있었고, 그 모델은 2026-06-01 에
+    종료됐다. 예외를 통째로 삼키고 있어서 3개월 동안 조용히 로컬 정규식
+    폴백만 돌고 있었다. 이제 모델은 설정에서 오고 실패는 로그로 남는다.
+    """
     if not settings.gemini_api_key:
         return None
     # 짧은 이름(3자 이하)은 이미 정규화된 상태일 가능성이 높으므로 스킵
     if len(name.strip()) <= 3:
         return None
 
-    try:
-        from google import genai
-        from google.genai import types
+    prompt = (
+        f'다음 식재료 상품명을 정규화해주세요.\n\n'
+        f'규칙:\n'
+        f'- 브랜드명 제거 (서울우유, 풀무원, CJ 등)\n'
+        f'- 용량/수량 제거 (600g, 1L, 3개입 등)\n'
+        f'- 마케팅 수식어 제거 (프리미엄, 특대, 골드 등)\n'
+        f'- 반드시 유지: 냉동/생, 한우/미국산/호주산/국내산, 등급(1등급), 부위(등심/갈비/삼겹살), 종류(저지방/무지방)\n'
+        f'- 결과는 2-4단어로, 다른 텍스트 없이 이름만\n\n'
+        f'예시:\n'
+        f'국내산냉동엿날삼겹살 600g → 냉동 삼겹살\n'
+        f'한우 등심 1등급 300g → 한우 등심 1등급\n'
+        f'서울우유 1L → 우유\n'
+        f'미국산 소고기 채끝 → 미국산 소고기 채끝\n'
+        f'풀무원 순두부 → 순두부\n'
+        f'저지방 우유 1L → 저지방 우유\n\n'
+        f'상품명: {name}'
+    )
 
-        client = genai.Client(api_key=settings.gemini_api_key)
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=[
-                f'다음 식재료 상품명을 정규화해주세요.\n\n'
-                f'규칙:\n'
-                f'- 브랜드명 제거 (서울우유, 풀무원, CJ 등)\n'
-                f'- 용량/수량 제거 (600g, 1L, 3개입 등)\n'
-                f'- 마케팅 수식어 제거 (프리미엄, 특대, 골드 등)\n'
-                f'- 반드시 유지: 냉동/생, 한우/미국산/호주산/국내산, 등급(1등급), 부위(등심/갈비/삼겹살), 종류(저지방/무지방)\n'
-                f'- 결과는 2-4단어로, 다른 텍스트 없이 이름만\n\n'
-                f'예시:\n'
-                f'국내산냉동엿날삼겹살 600g → 냉동 삼겹살\n'
-                f'한우 등심 1등급 300g → 한우 등심 1등급\n'
-                f'서울우유 1L → 우유\n'
-                f'미국산 소고기 채끝 → 미국산 소고기 채끝\n'
-                f'풀무원 순두부 → 순두부\n'
-                f'저지방 우유 1L → 저지방 우유\n\n'
-                f'상품명: {name}'
-            ],
-            config=types.GenerateContentConfig(temperature=0.0),
+    try:
+        result = await gemini.generate(
+            [prompt], models=settings.fast_models, temperature=0.0, timeout=15.0
         )
-        result = response.text.strip().strip('"').strip("'")
-        return result if result else None
-    except Exception:
+    except gemini.GeminiError as exc:
+        logger.warning("이름 정규화 실패 (%r): %s — 로컬 폴백 사용", name, exc)
         return None
+
+    result = result.strip().strip('"').strip("'")
+    return result or None
 
 
 async def get_normalized_name(name: str, db: AsyncSession) -> str:
