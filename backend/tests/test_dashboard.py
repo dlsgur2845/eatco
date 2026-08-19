@@ -9,15 +9,15 @@ from httpx import AsyncClient
 @pytest.mark.asyncio
 async def test_dashboard_summary(auth_client: AsyncClient):
     await auth_client.post("/api/ingredients", json={
-        "name": "임박1", "storage_method": "refrigerated", "quantity": 1,
+        "name": "임박1", "storage_method": "refrigerated", "quantity": "1개",
         "expiry_date": str(date.today() + timedelta(days=1)),
     })
     await auth_client.post("/api/ingredients", json={
-        "name": "경고1", "storage_method": "refrigerated", "quantity": 1,
+        "name": "경고1", "storage_method": "refrigerated", "quantity": "1개",
         "expiry_date": str(date.today() + timedelta(days=5)),
     })
     await auth_client.post("/api/ingredients", json={
-        "name": "안전1", "storage_method": "frozen", "quantity": 1,
+        "name": "안전1", "storage_method": "frozen", "quantity": "1개",
         "expiry_date": str(date.today() + timedelta(days=30)),
     })
 
@@ -31,7 +31,7 @@ async def test_dashboard_summary(auth_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_dashboard_recent(auth_client: AsyncClient):
     await auth_client.post("/api/ingredients", json={
-        "name": "최근등록", "storage_method": "refrigerated", "quantity": 1,
+        "name": "최근등록", "storage_method": "refrigerated", "quantity": "1개",
         "expiry_date": str(date.today() + timedelta(days=7)),
     })
     res = await auth_client.get("/api/dashboard/recent")

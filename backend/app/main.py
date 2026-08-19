@@ -28,30 +28,30 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         from sqlalchemy import text
-        # cooking-log v1 선행: 기존 ingredientunit enum 이 잘못된 값으로 만들어졌으면
-        # (SQLAlchemy 가 Python enum name 인 GRAM/MILLILITER/PIECE 로 생성) drop 하고
-        # values_callable 로 수정된 모델이 다시 만들게 한다. 종속 컬럼도 함께 drop.
-        await conn.execute(text("""
-            DO $$
-            DECLARE
-                has_bad boolean;
-            BEGIN
-                SELECT EXISTS (
-                    SELECT 1 FROM pg_type t
-                    JOIN pg_enum e ON e.enumtypid = t.oid
-                    WHERE t.typname = 'ingredientunit' AND e.enumlabel = 'GRAM'
-                ) INTO has_bad;
-                IF has_bad THEN
-                    BEGIN
-                        ALTER TABLE ingredients DROP COLUMN IF EXISTS unit;
-                    EXCEPTION WHEN undefined_table THEN NULL; END;
-                    BEGIN
-                        ALTER TABLE cooking_log_items DROP COLUMN IF EXISTS unit;
-                    EXCEPTION WHEN undefined_table THEN NULL; END;
-                    DROP TYPE IF EXISTS ingredientunit;
-                END IF;
-            END $$;
-        """))
+        # cooking-log v1 선행: 예전 모델이 values_callable 없이 enum 을 만들면
+        # Python enum *name* (GRAM/MILLILITER/PIECE) 으로 라벨이 생성된다.
+        # 현재 모델은 *value* (g/ml/piece) 를 기대하므로 라벨을 맞춰줘야 한다.
+        #
+        # 라벨만 rename 한다. 컬럼을 drop 하면 안 된다 —
+        # 이전 구현은 ingredients.unit 과 cooking_log_items.unit 을 DROP 했는데
+        # cooking_log_items.unit 은 재생성하는 코드가 없어서(create_all 은 기존
+        # 테이블을 변경하지 않는다) 해당 테이블이 영구히 사용 불가가 된다.
+        # RENAME VALUE 는 기존 행 데이터를 그대로 보존한다.
+        for bad_label, good_label in (("GRAM", "g"), ("MILLILITER", "ml"), ("PIECE", "piece")):
+            await conn.execute(text(f"""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM pg_type t JOIN pg_enum e ON e.enumtypid = t.oid
+                        WHERE t.typname = 'ingredientunit' AND e.enumlabel = '{bad_label}'
+                    ) AND NOT EXISTS (
+                        SELECT 1 FROM pg_type t JOIN pg_enum e ON e.enumtypid = t.oid
+                        WHERE t.typname = 'ingredientunit' AND e.enumlabel = '{good_label}'
+                    ) THEN
+                        ALTER TYPE ingredientunit RENAME VALUE '{bad_label}' TO '{good_label}';
+                    END IF;
+                END $$;
+            """))
         await conn.run_sync(Base.metadata.create_all)
         # master_id 컬럼 마이그레이션 (이미 있으면 무시)
         await conn.execute(text(
@@ -157,9 +157,14 @@ app.include_router(cooking_logs.router)
 
 
 # 업로드 이미지 서빙
-UPLOAD_DIR = "/app/uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+# 경로를 설정으로 뺀다. 예전에는 "/app/uploads" 를 import 시점에 makedirs 했는데,
+# 컨테이너 밖(테스트/로컬)에서는 / 가 쓰기 불가라 app.main 을 import 조차 할 수 없었다.
+UPLOAD_DIR = settings.upload_dir
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+except OSError:  # pragma: no cover - 읽기 전용 FS (테스트 환경 등)
+    logger.warning("업로드 디렉토리를 만들 수 없습니다: %s — /uploads 마운트를 건너뜁니다.", UPLOAD_DIR)
 
 
 @app.get("/api/health")

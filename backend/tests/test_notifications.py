@@ -5,8 +5,8 @@ from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_get_notification_settings(client: AsyncClient):
-    res = await client.get("/api/notifications/settings")
+async def test_get_notification_settings(auth_client: AsyncClient):
+    res = await auth_client.get("/api/notifications/settings")
     assert res.status_code == 200
     data = res.json()
     assert isinstance(data, list)

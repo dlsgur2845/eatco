@@ -68,3 +68,27 @@ def test_parse_quantity_failure(raw: str | None) -> None:
         assert result == (0.5, IngredientUnit.PIECE)
     else:
         assert result is None
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        # 회귀 방지: 단위 매칭이 `u in tail` 부분문자열이라 짧은 토큰이 긴 토큰 안에 숨는다.
+        # 접두 단위(m/k)가 붙은 쪽을 맨단위보다 먼저 검사하지 않으면 1000배로 어긋난다.
+        #   "l"   in "ml"        -> 500ml 이 500,000ml 로
+        #   "리터" in "밀리리터"    -> 동일
+        #   "그램" in "밀리그램"    -> 밀리그램이 그램으로
+        ("500ml", (500.0, IngredientUnit.MILLILITER)),
+        ("500 밀리리터", (500.0, IngredientUnit.MILLILITER)),
+        ("500cc", (500.0, IngredientUnit.MILLILITER)),
+        ("2 liter", (2000.0, IngredientUnit.MILLILITER)),
+        ("500mg", (0.5, IngredientUnit.GRAM)),
+        ("200밀리그램", (0.2, IngredientUnit.GRAM)),
+        ("1킬로그램", (1000.0, IngredientUnit.GRAM)),
+    ],
+)
+def test_prefixed_units_do_not_collide_with_base_units(
+    raw: str, expected: tuple[float, IngredientUnit]
+) -> None:
+    """밀리/킬로 접두 단위가 맨단위로 오인식되지 않아야 한다."""
+    assert parse_quantity(raw) == expected

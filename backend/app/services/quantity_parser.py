@@ -144,16 +144,21 @@ def parse_quantity(raw: str | None) -> tuple[float, IngredientUnit] | None:
         # 숫자만 — 단위 없음. 기본값 추측하지 않음 → 실패.
         return None
 
-    # 순서 중요: 긴 토큰 먼저 (큰술 전에 술 같은 부분 매칭 방지)
+    # 순서 중요: 매칭이 `u in tail` 부분문자열이라 짧은 토큰이 긴 토큰 안에 숨는다.
+    # 접두 단위(m/k)가 붙은 쪽을 반드시 맨단위보다 먼저 검사해야 한다:
+    #   "l"    in "ml"        -> ML 이 L 보다 먼저여야 함 (아니면 500ml -> 500,000ml)
+    #   "리터"  in "밀리리터"    -> 동일
+    #   "그램"  in "밀리그램"    -> MG 가 G 보다 먼저여야 함
+    #   "g"    in "kg"        -> KG 가 G 보다 먼저여야 함
     for unit_set, target_unit, multiplier in [
         (_UNIT_BIG_SPOON, IngredientUnit.MILLILITER, 15.0),
         (_UNIT_SMALL_SPOON, IngredientUnit.MILLILITER, 5.0),
         (_UNIT_CUP, IngredientUnit.MILLILITER, 200.0),
         (_UNIT_KG, IngredientUnit.GRAM, 1000.0),
-        (_UNIT_L, IngredientUnit.MILLILITER, 1000.0),
         (_UNIT_MG, IngredientUnit.GRAM, 0.001),
-        (_UNIT_G, IngredientUnit.GRAM, 1.0),
         (_UNIT_ML, IngredientUnit.MILLILITER, 1.0),
+        (_UNIT_L, IngredientUnit.MILLILITER, 1000.0),
+        (_UNIT_G, IngredientUnit.GRAM, 1.0),
         (_UNIT_PIECE, IngredientUnit.PIECE, 1.0),
     ]:
         for u in unit_set:
