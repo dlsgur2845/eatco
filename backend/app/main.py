@@ -170,6 +170,70 @@ except OSError:  # pragma: no cover - 읽기 전용 FS (테스트 환경 등)
     logger.warning("업로드 디렉토리를 만들 수 없습니다: %s — /uploads 마운트를 건너뜁니다.", UPLOAD_DIR)
 
 
+# AI 헬스체크 결과 캐시 — 폴링마다 실제 호출하면 쿼터가 샌다.
+_ai_health_cache: dict[str, object] = {"checked_at": 0.0, "result": None}
+_AI_HEALTH_TTL = 600  # 10분
+
+
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok"}
+    """실제 의존성을 확인한다.
+
+    예전에는 정적 {"status":"ok"} 를 돌려줘서 DB 가 죽든 말든 healthy 로 보였다.
+    컨테이너에 healthcheck 도 없어서 restart:unless-stopped 가 먹통 프로세스를
+    그대로 살려두고 있었다.
+    """
+    from sqlalchemy import text as _text
+
+    components: dict[str, str] = {}
+    ok = True
+
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(_text("SELECT 1"))
+        components["database"] = "ok"
+    except Exception as exc:
+        logger.error("헬스체크: DB 연결 실패: %s", exc)
+        components["database"] = "error"
+        ok = False
+
+    components["gemini_key"] = "ok" if settings.gemini_api_key else "missing"
+    components["vapid"] = "ok" if settings.vapid_private_key and settings.vapid_public_key else "missing"
+
+    body = {"status": "ok" if ok else "degraded", "components": components}
+    return JSONResponse(status_code=200 if ok else 503, content=body)
+
+
+@app.get("/api/health/ai")
+async def ai_health_check():
+    """Gemini 가 실제로 응답하는지 확인 (10분 캐시).
+
+    모델이 조용히 종료돼도 알아채지 못하던 게 이 프로젝트의 핵심 문제였다.
+    설정 화면에서 이 값을 보여주면 '죽었는데 아무도 모름' 상태가 재발하지 않는다.
+    """
+    import time as _time
+
+    from app.services import gemini
+
+    now = _time.time()
+    cached = _ai_health_cache.get("result")
+    if cached is not None and now - float(_ai_health_cache["checked_at"]) < _AI_HEALTH_TTL:
+        return cached
+
+    result: dict[str, object]
+    try:
+        text = await gemini.generate(
+            ["ok 라고만 답하세요."],
+            models=settings.vision_models,
+            temperature=0.0,
+            timeout=15.0,
+        )
+        result = {"status": "ok", "models": settings.vision_models, "sample": text[:40]}
+    except gemini.GeminiNotConfigured:
+        result = {"status": "not_configured", "models": settings.vision_models}
+    except gemini.GeminiError as exc:
+        result = {"status": "error", "models": settings.vision_models, "detail": str(exc)}
+
+    _ai_health_cache["checked_at"] = now
+    _ai_health_cache["result"] = result
+    return result

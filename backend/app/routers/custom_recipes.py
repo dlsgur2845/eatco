@@ -8,10 +8,31 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 
-UPLOAD_DIR = "/app/uploads/recipes"
+UPLOAD_DIR = os.path.join(settings.upload_dir, "recipes")
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+
+# 확장자는 사용자가 보낸 filename 이 아니라 **실제 바이트**로 정한다.
+# 예전에는 file.filename 의 확장자를 그대로 썼고 검사는 클라이언트가 보낸
+# content_type 헤더뿐이었다. Content-Type: image/png + filename "x.html" 이면
+# /uploads/<uuid>.html 로 저장되어 StaticFiles 가 앱 자체 오리진에서 HTML 로
+# 서빙한다 = 저장형 XSS.
+_MAGIC = (
+    (b"\xff\xd8\xff", "jpg"),
+    (b"\x89PNG\r\n\x1a\n", "png"),
+)
+
+
+def _sniff_image_ext(data: bytes) -> str | None:
+    """이미지 시그니처로 확장자를 판정. 모르면 None."""
+    for magic, ext in _MAGIC:
+        if data.startswith(magic):
+            return ext
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "webp"
+    return None
 MAX_IMAGE_SIZE = 30 * 1024 * 1024  # 30MB (미러리스 원본 대응)
 from app.models.custom_recipe import CustomRecipe
 from app.models.user import User
@@ -202,7 +223,7 @@ async def delete_recipe(
 
     # 이미지 파일도 삭제
     if recipe.image_url:
-        file_path = recipe.image_url.replace("/uploads/", "/app/uploads/", 1)
+        file_path = recipe.image_url.replace("/uploads/", settings.upload_dir + "/", 1)
         if os.path.exists(file_path):
             os.remove(file_path)
 
@@ -243,12 +264,14 @@ async def upload_image(
 
     # 기존 이미지 삭제
     if recipe.image_url:
-        old_path = recipe.image_url.replace("/uploads/", "/app/uploads/", 1)
+        old_path = recipe.image_url.replace("/uploads/", settings.upload_dir + "/", 1)
         if os.path.exists(old_path):
             os.remove(old_path)
 
-    # UUID 파일명으로 저장
-    ext = file.filename.rsplit(".", 1)[-1] if file.filename and "." in file.filename else "jpg"
+    # UUID 파일명으로 저장. 확장자는 실제 바이트에서만 얻는다.
+    ext = _sniff_image_ext(image_bytes)
+    if ext is None:
+        raise HTTPException(status_code=422, detail="JPG, PNG, WebP 이미지만 지원합니다.")
     filename = f"{uuid.uuid4()}.{ext}"
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     file_path = os.path.join(UPLOAD_DIR, filename)

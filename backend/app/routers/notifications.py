@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import logging
+
 from app.config import settings
 from app.database import get_db
 from app.models.notification import NotificationSetting, PushSubscription
@@ -15,6 +17,8 @@ from app.schemas.notification import (
     PushSubscriptionCreate,
     PushSubscriptionResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 
@@ -91,16 +95,31 @@ async def subscribe_push(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """푸시 구독 등록 (같은 endpoint가 있으면 업데이트)."""
+    """푸시 구독 등록 (같은 endpoint가 있으면 업데이트).
+
+    endpoint 는 unique 라 기기 1대 = 행 1개다. 같은 기기를 가족 중 다른 사람이
+    쓰기 시작하면 재할당하는 게 맞다. 다만 **다른 가족으로의 재할당은 막는다** —
+    예전 코드는 소유자 확인 없이 user_id/family_id 를 호출자로 덮어써서,
+    남의 endpoint 를 아는 사람이 그 기기를 자기 가족 알림 수신처로 바꿔치기할 수
+    있었다 (= 상대 기기로 우리 가족 데이터가 흘러감).
+    """
     result = await db.execute(
         select(PushSubscription).where(PushSubscription.endpoint == data.endpoint)
     )
     existing = result.scalar_one_or_none()
     if existing:
+        if existing.family_id != current_user.family_id:
+            logger.warning(
+                "다른 가족(%s)에 등록된 푸시 endpoint 를 가족 %s 의 사용자 %s 가 요청 — 거부",
+                existing.family_id, current_user.family_id, current_user.id,
+            )
+            raise HTTPException(
+                status_code=409,
+                detail="이 기기는 다른 가족에 등록되어 있습니다. 해당 기기에서 먼저 알림을 해제해주세요.",
+            )
         existing.p256dh = data.keys.p256dh
         existing.auth = data.keys.auth
         existing.user_id = current_user.id
-        existing.family_id = current_user.family_id
         await db.commit()
         await db.refresh(existing)
         return existing
