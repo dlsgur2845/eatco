@@ -9,8 +9,14 @@ const navItems = [
 ]
 
 export default function BottomNav() {
+  // 홈 인디케이터를 피한다. index.html 의 viewport-fit=cover 가 있어야 env() 가 0이 아니다.
+  const safeAreaPadding = { paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }
+
   return (
-    <nav className="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-6 pt-3 bg-surface/80 backdrop-blur-xl rounded-t-[2.5rem] z-50 shadow-[0_-10px_40px_rgba(25,28,27,0.04)]">
+    <nav
+      className="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pt-3 bg-surface/80 backdrop-blur-xl rounded-t-[2.5rem] z-50 shadow-[0_-10px_40px_rgba(25,28,27,0.04)]"
+      style={safeAreaPadding}
+    >
       {navItems.map(({ to, icon, label }) => (
         <NavLink
           key={to}
@@ -18,8 +24,8 @@ export default function BottomNav() {
           className={({ isActive }) =>
             `flex flex-col items-center justify-center transition-all active:scale-90 duration-200 relative ${
               isActive
-                ? 'bg-primary-container text-white rounded-full px-5 py-2 scale-110'
-                : 'text-slate-400 p-2 min-w-[44px] min-h-[44px] hover:text-primary'
+                ? 'bg-primary-container text-on-primary-container rounded-full px-5 py-2 scale-110'
+                : 'text-on-surface-variant p-2 min-w-[48px] min-h-[48px] hover:text-primary'
             }`
           }
         >
@@ -31,7 +37,9 @@ export default function BottomNav() {
               >
                 {icon}
               </span>
-              <span className="font-body text-[11px] font-bold uppercase tracking-wider mt-0.5">
+              {/* 한글에는 uppercase 가 무효이고 tracking-wider 는 음절을 벌려놓는다.
+                  11px 한글은 가독 하한 미만이라 12px + 굵기 600 으로. */}
+              <span className="font-body text-xs font-semibold mt-0.5">
                 {label}
               </span>
             </>

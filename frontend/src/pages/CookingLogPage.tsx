@@ -56,7 +56,7 @@ export default function CookingLogPage() {
   const dates = Object.keys(grouped).sort((a, b) => b.localeCompare(a))
 
   return (
-    <div className="px-5 pt-8 pb-24 min-h-screen">
+    <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1

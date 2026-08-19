@@ -28,12 +28,16 @@
   --color-surface-container-low: #f2f4f2;
   --color-surface-container-lowest: #ffffff;
   --color-surface-container-high: #e6e9e7;
+  /* 13곳에서 사용 중인데 정의가 없었다 (placeholder 색, FamilyPage 폼 배경 등) */
+  --color-surface-container-highest: #dfe3e0;
 
   --color-outline: #6f7a6b;
   --color-outline-variant: #becab9;
 
-  --font-headline: "Plus Jakarta Sans", sans-serif;
-  --font-body: "Inter", sans-serif;
+  /* Inter / Plus Jakarta Sans 에는 한글 글리프가 없다. Pretendard 를 먼저 두어
+     한글과 Latin 이 같은 줄에서 다른 서체로 갈라지지 않게 한다. */
+  --font-headline: "Plus Jakarta Sans", "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-body: "Pretendard Variable", Pretendard, "Inter", -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 }
 
 body {
@@ -41,4 +45,39 @@ body {
   background-color: var(--color-surface);
   color: var(--color-on-surface);
   margin: 0;
+}
+
+/* --- 모바일 기본기 --- */
+
+html {
+  /* iOS 스탠드얼론에서 문서 전체가 고무줄처럼 튕기는 것 방지 */
+  overscroll-behavior-y: none;
+}
+
+body {
+  /* 탭할 때마다 뜨는 기본 반투명 사각형 제거. active:scale-* 와 겹쳐 이중 깜빡임이었다. */
+  -webkit-tap-highlight-color: transparent;
+  /* 한글은 어절 단위로 끊어야 한다. 없으면 단어 중간에서 줄바꿈된다. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* iOS 는 16px 미만 입력에 포커스하면 뷰포트를 확대하고 되돌리지 않는다.
+   스캔 결과 수정 화면(수량/가격/날짜)이 정확히 여기 걸렸다. */
+input,
+select,
+textarea {
+  font-size: max(16px, 1em);
+}
+
+/* 포커스 표시. ~30개 컨트롤에서 outline-none / focus:ring-0 을 쓰면서
+   대체 표시를 넣지 않아 키보드/스위치 사용자에게 커서가 보이지 않았다. */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* 모달 내부 스크롤이 뒤 페이지로 전파되지 않게 */
+.modal-scroll {
+  overscroll-behavior: contain;
 }

@@ -107,7 +107,7 @@ export default function MvpDashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-3 px-5 pt-8">
+      <div className="flex flex-col gap-3">
         {[1, 2, 3].map(i => (
           <div key={i} className="h-16 rounded-xl animate-pulse" style={{ backgroundColor: 'var(--color-surface-container-low)' }} />
         ))}
@@ -131,7 +131,7 @@ export default function MvpDashboardPage() {
   }
 
   return (
-    <div className="px-5 pt-8 pb-24 min-h-screen">
+    <div className="">
       <QuantityCleanupBanner />
       <CookingStatsCard />
       {/* 헤더 */}
@@ -382,7 +382,10 @@ function ItemRow({
           </button>
         </div>
       ) : (
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+        // 터치 기기 전용 제품이라 :hover 뒤에 숨기면 안 된다. iOS 는 첫 탭이
+        // emulated hover 라 더블탭이 필요했고, Android 는 탭 후 hover 가 남았다.
+        // 식재료를 소비하는 유일한 두 버튼이므로 항상 보여야 한다.
+        <div className="flex items-center gap-1 flex-shrink-0">
           {item.quantity && (
             <button
               className="text-xs px-3 py-2.5 rounded-lg min-h-[44px]"

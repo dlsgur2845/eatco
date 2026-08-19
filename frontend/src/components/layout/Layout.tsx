@@ -7,7 +7,10 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-surface">
       <TopAppBar />
-      <main className="max-w-screen-lg mx-auto px-6 pt-8 pb-32">
+      <main
+        className="max-w-screen-lg mx-auto px-6 pt-8"
+        style={{ paddingBottom: 'calc(8rem + env(safe-area-inset-bottom))' }}
+      >
         <Outlet />
       </main>
       <BottomNav />

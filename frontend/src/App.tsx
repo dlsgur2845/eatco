@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import FamilyPage from './pages/FamilyPage'
 import InventoryPage from './pages/InventoryPage'
@@ -12,6 +12,13 @@ import MyRecipesPage from './pages/MyRecipesPage'
 import SettingsPage from './pages/SettingsPage'
 import QuantityCleanupPage from './pages/QuantityCleanupPage'
 import CookingLogPage from './pages/CookingLogPage'
+
+// 등록 성공은 앱에서 가장 기분 좋은 순간인데, window.location.href 는 전체
+// 페이지 리로드라 스탠드얼론 PWA 에서 흰 화면 깜빡임 + 콜드 부팅 + 전체 재조회가 났다.
+function ScanRoute() {
+  const navigate = useNavigate()
+  return <ScanPage onRegistered={() => navigate('/')} />
+}
 
 function AuthGuard() {
   const user = localStorage.getItem('user')
@@ -34,7 +41,7 @@ export default function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<MvpDashboardPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
-            <Route path="/scan" element={<ScanPage onRegistered={() => window.location.href = '/'} />} />
+            <Route path="/scan" element={<ScanRoute />} />
             <Route path="/expenses" element={<ExpensesPage />} />
             <Route path="/my-recipes" element={<MyRecipesPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />

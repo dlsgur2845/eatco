@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { logEvent } from '../api/events'
 import { analyzeReceipt, registerItems, type ScannedItem } from '../api/scan'
+import { downscaleImage } from '../lib/image'
 import ResultsModal from '../components/scan/ResultsModal'
 
 const PROGRESS_STEPS = ['영수증을 읽고 있어요...', '식재료를 찾고 있어요...', '소비기한을 계산하고 있어요...']
@@ -29,7 +30,9 @@ export default function ScanPage({ onRegistered }: Props) {
     }, 1200)
 
     try {
-      const result = await analyzeReceipt(file)
+      // 업로드 전에 줄인다. 원본 그대로 보내면 업로드가 느리고 토큰만 늘어난다.
+      const prepared = await downscaleImage(file)
+      const result = await analyzeReceipt(prepared)
       clearInterval(interval)
 
       logEvent('scan', { source: 'receipt', items_count: result.total })
@@ -80,7 +83,7 @@ export default function ScanPage({ onRegistered }: Props) {
   }
 
   return (
-    <div className="flex flex-col items-center px-5 pt-8 pb-24 min-h-screen">
+    <div className="flex flex-col items-center">
       <h1
         className="text-2xl font-bold tracking-tight mb-1"
         style={{ fontFamily: 'var(--font-headline)', color: 'var(--color-on-surface)' }}

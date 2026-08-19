@@ -203,13 +203,15 @@ export default function ResultsModal({ items: initialItems, storeName, onConfirm
               </span>
 
               {/* 삭제 */}
+              {/* 상시 노출 + 44px 터치 타겟. 예전에는 hover 로 숨겨져 있어서
+                  오인식 항목을 지울 방법이 사실상 없었다. */}
               <button
-                className="text-xs opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                className="flex-shrink-0 flex items-center justify-center w-11 h-11 -mr-2 rounded-full active:scale-90 transition-transform"
                 style={{ color: 'var(--color-error)' }}
                 onClick={() => handleDelete(idx)}
                 aria-label={`${item.name} 삭제`}
               >
-                ✕
+                <span className="material-symbols-outlined text-xl">close</span>
               </button>
             </div>
           ))}

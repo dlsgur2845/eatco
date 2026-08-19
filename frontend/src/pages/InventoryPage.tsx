@@ -490,11 +490,30 @@ export default function InventoryPage() {
   const [showRegister, setShowRegister] = useState(false)
   const [editTarget, setEditTarget] = useState<Ingredient | null>(null)
 
+  // 예전에는 로딩 상태 없이 .catch(() => {}) 였다. 백엔드가 죽으면 빈 배열이
+  // 그대로 남아서 "등록된 식재료가 없습니다 + 등록해보세요" 가 떴다.
+  // 가족에게 냉장고가 비었다고 말하고 전부 다시 입력하라고 권하는 화면이었다.
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+
   const fetchIngredients = () => {
     const params: Record<string, string> = {}
     if (filter !== 'all') params.storage_method = filter
     if (search) params.search = search
-    api.get<Ingredient[]>('/ingredients', { params }).then((r) => setIngredients(r.data)).catch(() => {})
+    api
+      .get<Ingredient[]>('/ingredients', { params })
+      .then((r) => {
+        setIngredients(r.data)
+        setLoadError(false)
+      })
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false))
+  }
+
+  const retryFetch = () => {
+    setLoading(true)
+    setLoadError(false)
+    fetchIngredients()
   }
 
   useEffect(() => {
@@ -607,7 +626,31 @@ export default function InventoryPage() {
 
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {ingredients.length === 0 && (
+        {loading && (
+          <div className="col-span-full flex flex-col gap-4" aria-busy="true">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-28 rounded-[2.5rem] bg-surface-container-low animate-pulse" />
+            ))}
+          </div>
+        )}
+
+        {!loading && loadError && (
+          <div className="col-span-full text-center py-16">
+            <span className="material-symbols-outlined text-outline text-6xl mb-4 block">cloud_off</span>
+            <p className="text-on-surface font-semibold mb-1">목록을 불러오지 못했어요</p>
+            <p className="text-on-surface-variant text-sm mb-4">
+              재료가 없는 게 아니라 서버에 연결하지 못한 거예요.
+            </p>
+            <button
+              onClick={retryFetch}
+              className="px-5 py-3 rounded-full font-semibold text-on-primary bg-primary active:scale-95 transition-transform"
+            >
+              다시 시도
+            </button>
+          </div>
+        )}
+
+        {!loading && !loadError && ingredients.length === 0 && (
           <div className="col-span-full text-center py-16">
             <span className="material-symbols-outlined text-outline-variant text-6xl mb-4 block">inventory_2</span>
             <p className="text-on-surface-variant mb-4">등록된 식재료가 없습니다.</p>

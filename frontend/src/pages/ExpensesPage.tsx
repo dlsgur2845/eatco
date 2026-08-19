@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line,
@@ -22,17 +22,41 @@ export default function ExpensesPage() {
   const [itemPrices, setItemPrices] = useState<ItemPricePoint[]>([])
   const [stores, setStores] = useState<StoreComparison[]>([])
   const [budgetInput, setBudgetInput] = useState('')
+  // 저장 버튼이 성공/실패/무효 입력 모두 무반응이라 사용자가 반복해서 눌렀다.
+  const [budgetMsg, setBudgetMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const [tab, setTab] = useState<'overview' | 'item'>('overview')
   const suggestTimer = useRef<ReturnType<typeof setTimeout>>(null)
 
-  useEffect(() => {
-    api.get<MonthlyExpense[]>('/expenses/monthly?months=6').then(r => setMonthly(r.data)).catch(() => {})
-    api.get<InflationAlert[]>('/expenses/alerts').then(r => setAlerts(r.data)).catch(() => {})
-    api.get<BudgetInfo>('/expenses/budget').then(r => {
-      setBudget(r.data)
-      if (r.data.monthly_budget) setBudgetInput(String(r.data.monthly_budget))
-    }).catch(() => {})
+  // 예전에는 세 요청 모두 조용히 삼켜서, 백엔드가 죽으면 "가격 데이터가 없어요"
+  // 가 떴다. 데이터가 없는 것과 서버가 죽은 것은 다른 상황이고 다른 안내가 필요하다.
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+
+  // 상태 갱신은 전부 비동기 콜백에서만 한다. 이펙트 본문에서 동기로 setState 하면
+  // 연쇄 렌더가 발생한다 (react-hooks/set-state-in-effect).
+  const loadOverview = useCallback(() => {
+    return Promise.allSettled([
+      api.get<MonthlyExpense[]>('/expenses/monthly?months=6').then(r => setMonthly(r.data)),
+      api.get<InflationAlert[]>('/expenses/alerts').then(r => setAlerts(r.data)),
+      api.get<BudgetInfo>('/expenses/budget').then(r => {
+        setBudget(r.data)
+        if (r.data.monthly_budget) setBudgetInput(String(r.data.monthly_budget))
+      }),
+    ]).then(results => {
+      setLoadError(results.every(x => x.status === 'rejected'))
+      setLoading(false)
+    })
   }, [])
+
+  const retryOverview = () => {
+    setLoading(true)
+    setLoadError(false)
+    loadOverview()
+  }
+
+  useEffect(() => {
+    loadOverview()
+  }, [loadOverview])
 
   const fetchSuggestions = (q: string) => {
     if (suggestTimer.current) clearTimeout(suggestTimer.current)
@@ -77,10 +101,17 @@ export default function ExpensesPage() {
 
   const saveBudget = () => {
     const amount = parseInt(budgetInput)
-    if (isNaN(amount) || amount < 0) return
+    if (isNaN(amount) || amount < 0) {
+      setBudgetMsg({ kind: 'error', text: '숫자를 입력해주세요.' })
+      return
+    }
+    setBudgetMsg(null)
     api.post(`/expenses/budget?amount=${amount}`).then(() => {
       setBudget(prev => prev ? { ...prev, monthly_budget: amount } : { monthly_budget: amount, spent_this_month: 0 })
-    }).catch(() => {})
+      setBudgetMsg({ kind: 'ok', text: '예산을 저장했어요.' })
+    }).catch(() => {
+      setBudgetMsg({ kind: 'error', text: '저장하지 못했어요. 다시 시도해주세요.' })
+    })
   }
 
   const thisMonth = monthly[monthly.length - 1]
@@ -89,15 +120,38 @@ export default function ExpensesPage() {
     ? Math.round(((thisMonth.total - lastMonth.total) / lastMonth.total) * 100)
     : null
 
-  const formatPrice = (v: number) => v >= 10000 ? `${(v / 10000).toFixed(1)}만` : `${v.toLocaleString()}`
+  // 1만 미만일 때 단위가 빠져서 '8,500' 과 '30.0만원' 이 나란히 보였다.
+  const formatPrice = (v: number) => v >= 10000 ? `${(v / 10000).toFixed(1)}만원` : `${v.toLocaleString()}원`
 
   return (
     <div className="space-y-8">
       {/* 헤더 */}
       <div>
-        <h2 className="font-headline font-bold text-4xl tracking-tight text-on-surface mb-2">가계부</h2>
+        <h2 className="font-headline font-bold text-3xl tracking-tight text-on-surface mb-2">가계부</h2>
         <p className="text-on-surface-variant">식재료 지출 분석 · 가격 추이 · 예산 관리</p>
       </div>
+
+      {/* 서버 연결 실패는 "데이터 없음"과 구분해서 보여준다 */}
+      {loadError && (
+        <div className="rounded-2xl p-5 text-center bg-surface-container-low">
+          <span className="material-symbols-outlined text-outline text-4xl mb-2 block">cloud_off</span>
+          <p className="text-on-surface font-semibold mb-1">가계부를 불러오지 못했어요</p>
+          <p className="text-on-surface-variant text-sm mb-4">데이터가 없는 게 아니라 서버에 연결하지 못한 거예요.</p>
+          <button
+            onClick={retryOverview}
+            className="px-5 py-3 rounded-full font-semibold text-on-primary bg-primary active:scale-95 transition-transform"
+          >
+            다시 시도
+          </button>
+        </div>
+      )}
+
+      {loading && !loadError && (
+        <div className="space-y-4" aria-busy="true">
+          <div className="h-24 rounded-2xl bg-surface-container-low animate-pulse" />
+          <div className="h-56 rounded-2xl bg-surface-container-low animate-pulse" />
+        </div>
+      )}
 
       {/* 인플레이션 알림 */}
       {alerts.length > 0 && (
@@ -123,7 +177,7 @@ export default function ExpensesPage() {
             <span className="text-sm font-semibold text-on-surface-variant">이번 달 식재료 예산</span>
             <span className="text-sm text-on-surface">
               <strong className="text-lg font-headline">{formatPrice(budget.spent_this_month)}</strong>
-              <span className="text-on-surface-variant"> / {formatPrice(budget.monthly_budget)}원</span>
+              <span className="text-on-surface-variant"> / {formatPrice(budget.monthly_budget)}</span>
             </span>
           </div>
           <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-container)' }}>
@@ -210,6 +264,15 @@ export default function ExpensesPage() {
                 저장
               </button>
             </div>
+            {budgetMsg && (
+              <p
+                role="status"
+                className="mt-3 text-sm"
+                style={{ color: budgetMsg.kind === 'ok' ? 'var(--color-primary)' : 'var(--color-error)' }}
+              >
+                {budgetMsg.text}
+              </p>
+            )}
           </div>
         </>
       )}

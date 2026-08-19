@@ -33,7 +33,10 @@ export default function TopAppBar() {
   }
 
   return (
-    <header className="bg-surface sticky top-0 z-50 shadow-[0_10px_40px_rgba(25,28,27,0.04)]">
+    <header
+      className="bg-surface sticky top-0 z-50 shadow-[0_10px_40px_rgba(25,28,27,0.04)]"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
       <div className="flex justify-between items-center px-6 py-4 w-full max-w-screen-xl mx-auto">
         <div className="flex items-center gap-3">
           <span className="material-symbols-outlined text-primary">restaurant_menu</span>
