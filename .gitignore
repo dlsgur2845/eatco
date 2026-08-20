@@ -36,3 +36,4 @@ test.jpg
 
 # Cloudflare
 .wrangler/
+.dev.vars
