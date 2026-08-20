@@ -239,7 +239,7 @@ export default function ResultsModal({ items: initialItems, storeName, error, on
             )}
             <button
               className="w-full py-4 rounded-full text-base font-semibold text-white disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-container))' }}
+              style={{ backgroundColor: 'var(--color-primary)' }}
               disabled={submitting}
               onClick={async () => { setSubmitting(true); try { await onConfirm(items) } finally { setSubmitting(false) } }}
             >

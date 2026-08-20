@@ -160,3 +160,18 @@ textarea {
     animation-iteration-count: infinite !important;
   }
 }
+
+/* 가로 스크롤 방어벽.
+
+   행 하나가 넘치면 페이지 전체가 옆으로 밀린다. 가계부의 매장 비교 행이
+   그랬다 — 매장명이 영수증 OCR 에서 오기 때문에 "이마트 트레이더스 월계점"
+   같은 게 들어오고, min-w-0 이 없어서 줄이 안 줄어들었다.
+
+   개별 행은 min-w-0 + truncate 로 고치는 게 맞다. 이건 그걸 대신하는 게
+   아니라, 놓친 한 곳이 앱 전체를 망가뜨리지 않게 하는 안전망이다.
+
+   clip 을 쓰는 이유: hidden 은 스크롤 컨테이너를 만들어서 position: sticky
+   자식의 기준을 바꾼다. clip 은 안 만든다. */
+body {
+  overflow-x: clip;
+}

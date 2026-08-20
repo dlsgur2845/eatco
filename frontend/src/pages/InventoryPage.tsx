@@ -316,7 +316,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-4 rounded-full bg-gradient-to-r from-primary to-primary-container text-white font-headline font-bold text-lg shadow-xl active:scale-95 transition-transform duration-200 flex items-center justify-center gap-3 disabled:opacity-50"
+            className="w-full py-4 rounded-full bg-primary text-on-primary font-headline font-bold text-lg shadow-xl active:scale-95 transition-transform duration-200 flex items-center justify-center gap-3 disabled:opacity-50"
           >
             <span className="material-symbols-outlined">check_circle</span>
             {submitting ? '등록 중...' : '등록하기'}
@@ -484,7 +484,7 @@ function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; 
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-4 rounded-full bg-gradient-to-r from-primary to-primary-container text-white font-headline font-bold text-lg shadow-xl active:scale-95 transition-transform duration-200 flex items-center justify-center gap-3 disabled:opacity-50"
+            className="w-full py-4 rounded-full bg-primary text-on-primary font-headline font-bold text-lg shadow-xl active:scale-95 transition-transform duration-200 flex items-center justify-center gap-3 disabled:opacity-50"
           >
             <span className="material-symbols-outlined">save</span>
             {submitting ? '저장 중...' : '저장하기'}
@@ -603,14 +603,14 @@ export default function InventoryPage() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowRegister(true)}
-            className="bg-gradient-to-r from-primary to-primary-container text-white px-5 py-2.5 rounded-full font-medium flex items-center gap-2 active:scale-95 transition-transform shadow-lg"
+            className="bg-primary text-on-primary px-5 min-h-[48px] rounded-full font-medium flex items-center gap-2 active:scale-95 transition-transform shadow-lg"
           >
             <span className="material-symbols-outlined text-[20px]">add</span>
             등록
           </button>
           <button
             onClick={() => { setSelectMode(!selectMode); setSelected(new Set()) }}
-            className={`px-5 py-2.5 rounded-full font-medium flex items-center gap-2 active:scale-95 transition-transform ${
+            className={`px-5 min-h-[48px] rounded-full font-medium flex items-center gap-2 active:scale-95 transition-transform ${
               selectMode ? 'bg-primary text-white' : 'bg-surface-container-high text-on-surface'
             }`}
           >
@@ -620,7 +620,7 @@ export default function InventoryPage() {
           {selectMode && selected.size > 0 && (
             <button
               onClick={handleBatchDelete}
-              className="bg-tertiary-container text-white px-5 py-2.5 rounded-full font-medium flex items-center gap-2 active:scale-95 transition-transform"
+              className="bg-tertiary text-white px-5 min-h-[48px] rounded-full font-medium flex items-center gap-2 active:scale-95 transition-transform"
             >
               <span className="material-symbols-outlined text-[20px]">delete</span>
               삭제 ({selected.size})
@@ -649,7 +649,7 @@ export default function InventoryPage() {
           <button
             key={f.value}
             onClick={() => setFilter(f.value)}
-            className={`px-6 py-2 rounded-xl text-sm font-semibold active:scale-95 transition-all ${
+            className={`px-6 min-h-[48px] rounded-xl text-sm font-semibold active:scale-95 transition-all ${
               filter === f.value ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'
             }`}
           >
@@ -788,7 +788,7 @@ export default function InventoryPage() {
       {/* FAB (모바일) */}
       <button
         onClick={() => setShowRegister(true)}
-        className="fixed right-6 bottom-28 w-14 h-14 rounded-full bg-gradient-to-br from-primary to-primary-container text-white shadow-2xl flex items-center justify-center active:scale-90 transition-transform z-40 md:hidden"
+        className="fixed right-6 bottom-28 w-14 h-14 rounded-full bg-primary text-on-primary shadow-2xl flex items-center justify-center active:scale-90 transition-transform z-40 md:hidden"
       >
         <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>add</span>
       </button>

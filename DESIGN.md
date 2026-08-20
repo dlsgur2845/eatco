@@ -78,6 +78,27 @@ surface 위 색 있는 텍스트가 필요하면 `secondary` / `tertiary` / `pri
 `outline-variant #becab9` 는 흰 배경에서 **1.70:1** 이다. **텍스트로 쓰지 않는다** —
 구분선과 테두리 전용이다.
 
+### 위 감사는 절반만 본다 — `text-white` 도 같이 검사할 것
+
+토큰 감사(`text-*-container`)는 **`text-white` 를 못 잡는다.** 이 구멍으로 9곳이
+통과했다. `*-container` 는 전부 밝은 색이라 그 위의 흰 글자는 항상 실패한다:
+
+| 조합 | 대비 |
+|---|---|
+| `text-white` on `primary-container #4caf50` | **2.78:1** ✗ |
+| `text-white` on `tertiary-container #ff6c5c` | **2.78:1** ✗ |
+| `text-white` on `primary #006e1c` | 6.46:1 ✓ |
+| `text-white` on `tertiary #bb1614` | 6.49:1 ✓ |
+
+```bash
+find frontend/src -name '*.tsx' -print0 \
+  | xargs -0 grep -nE "text-white" \
+  | grep -E "primary-container|secondary-container|tertiary-container"
+```
+
+읽히지 않던 것 중에는 **상단바의 안 읽은 알림 개수 배지**도 있었다
+(`bg-tertiary-container text-white`, 12px 숫자, 2.78:1).
+
 색만으로 긴급도를 전달하지 않는다. 색과 함께 형태/문구(D-3, D-DAY)를 같이 쓴다.
 
 ---
@@ -109,7 +130,14 @@ Pretendard 없이는 `Eatco` `D-3` `12,900` 같은 Latin 만 웹폰트로 렌더
 실제로 쓰이고 있는 것:
 
 - **카드 좌측 상태 바** — 폭 1, 높이 9의 둥근 막대로 신선도를 표시. 대시보드/재고/스캔결과 공통.
-- **Pill 버튼** — 주요 CTA 는 `rounded-full` + `primary → primary-container` 그라디언트.
+- **Pill 버튼** — 주요 CTA 는 `rounded-full` + **단색 `primary`** + `on-primary`.
+
+  이 줄은 원래 *"`primary → primary-container` 그라디언트"* 였다. **문서가 자기모순이었다.**
+  1절이 "`primary-container` 위 흰 글자 = 2.78:1"을 금지 목록에 올려두고, 3절이
+  바로 그 조합을 CTA 표준으로 지정하고 있었다. 코드는 3절을 따랐고, 그래서
+  앱에서 가장 많이 눌리는 버튼 9개의 **오른쪽 절반 글자가 2.78:1** 이었다
+  ("식재료 등록하기" 처럼 긴 문구는 뒷글자가 정확히 밝은 끝에 놓인다).
+  단색 `primary` 위 흰 글자는 **6.46:1** 이다. 대비 규칙이 이긴다.
 - **누름 반응** — 색 변경이 아니라 `active:scale-95`.
 - **글래스모피즘** — 모달과 하단 네비게이션에 `backdrop-blur`.
 - **앰비언트 섀도우** — `0 10px 40px rgba(25,28,27,0.04)`. 상단바/하단바에 적용.
@@ -213,3 +241,36 @@ Pretendard 없이는 `Eatco` `D-3` `12,900` 같은 Latin 만 웹폰트로 렌더
 - 되돌릴 수 없는 일괄 동작에 확인 단계를 빼지 않는다.
 - 한글에 `uppercase` / `letter-spacing` 을 쓰지 않는다. 전자는 무효이고 후자는
   음절 블록을 분해한다. 한글 최소 크기는 12px.
+
+---
+
+## 10. 가로 넘침
+
+`body { overflow-x: clip }` 이 안전망으로 있지만 **개별 행을 고치는 게 먼저다.**
+안전망은 넘친 내용을 잘라내는 것이지 읽히게 만드는 게 아니다.
+
+`flex justify-between` 행에서 한쪽이 사용자 데이터(매장명, 재료명, 이메일)면
+그 쪽에 `min-w-0` + `truncate`, 반대쪽에 `shrink-0` 을 준다. 없으면 flex 자식이
+콘텐츠 크기 아래로 안 줄어들어서 행이 넘치고, 페이지 전체가 옆으로 밀린다.
+
+가계부 매장 비교 행이 그랬다. 매장명은 영수증 OCR 에서 오기 때문에
+"이마트 트레이더스 월계점" 같은 게 들어온다.
+
+    find frontend/src -name '*.tsx' -print0 | xargs -0 grep -n "justify-between"
+
+각 결과의 다음 몇 줄에 `min-w-0` 또는 `truncate` 가 있는지 본다.
+
+## 11. 터치 타겟 실측
+
+Tailwind 패딩만 보고 판단하지 않는다. 실제 높이를 계산한다:
+
+| 클래스 | 높이 (text-sm 기준) | 판정 |
+|---|---|---|
+| `py-1.5` | ~28px | ✗ |
+| `py-2` | ~36px | ✗ |
+| `py-2.5` | ~40px | ✗ (iOS 44pt 미달) |
+| `py-3` | ~44px | 경계 |
+| `min-h-[48px]` | 48px | ✓ |
+
+애매하면 `min-h-[48px]` 를 명시한다. 패딩으로 높이를 맞추면 글자 크기가
+바뀔 때 조용히 무너진다.

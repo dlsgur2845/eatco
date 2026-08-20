@@ -152,7 +152,7 @@ export default function ScanPage({ onRegistered }: Props) {
               </p>
               <button
                 onClick={() => { abortRef.current?.abort(); setScanning(false); setSlow(false) }}
-                className="px-5 py-2.5 rounded-full text-sm font-medium"
+                className="px-5 min-h-[48px] rounded-full text-sm font-medium"
                 style={{ backgroundColor: 'var(--color-surface-container-high)', color: 'var(--color-on-surface)' }}
               >
                 취소
@@ -203,7 +203,7 @@ export default function ScanPage({ onRegistered }: Props) {
 
       <button
         className="w-full mt-6 py-4 rounded-full text-base font-semibold text-white disabled:opacity-50"
-        style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-container))' }}
+        style={{ backgroundColor: 'var(--color-primary)' }}
         onClick={() => fileInputRef.current?.click()}
         disabled={scanning}
       >

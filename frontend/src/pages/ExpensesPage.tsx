@@ -173,8 +173,8 @@ export default function ExpensesPage() {
       {/* 예산 프로그레스 */}
       {budget && budget.monthly_budget && budget.monthly_budget > 0 && (
         <div className="bg-surface-container-lowest rounded-[2rem] p-6">
-          <div className="flex justify-between items-baseline mb-3">
-            <span className="text-sm font-semibold text-on-surface-variant">이번 달 식재료 예산</span>
+          <div className="flex justify-between items-baseline gap-3 mb-3">
+            <span className="text-sm font-semibold text-on-surface-variant shrink-0">이번 달 식재료 예산</span>
             <span className="text-sm text-on-surface">
               <strong className="text-lg font-headline">{formatPrice(budget.spent_this_month)}</strong>
               <span className="text-on-surface-variant"> / {formatPrice(budget.monthly_budget)}</span>
@@ -203,7 +203,7 @@ export default function ExpensesPage() {
       <div className="flex gap-2">
         <button
           onClick={() => setTab('overview')}
-          className={`px-6 py-2 rounded-xl text-sm font-semibold transition-all ${
+          className={`px-6 min-h-[48px] rounded-xl text-sm font-semibold transition-all ${
             tab === 'overview' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant'
           }`}
         >
@@ -211,7 +211,7 @@ export default function ExpensesPage() {
         </button>
         <button
           onClick={() => { setTab('item'); if (!searchName.trim()) loadAllItemNames() }}
-          className={`px-6 py-2 rounded-xl text-sm font-semibold transition-all ${
+          className={`px-6 min-h-[48px] rounded-xl text-sm font-semibold transition-all ${
             tab === 'item' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant'
           }`}
         >
@@ -223,8 +223,8 @@ export default function ExpensesPage() {
         <>
           {/* 월별 지출 요약 */}
           <div className="bg-surface-container-lowest rounded-[2rem] p-6">
-            <div className="flex justify-between items-baseline mb-4">
-              <h3 className="text-sm font-semibold text-on-surface-variant">월별 식재료 지출</h3>
+            <div className="flex justify-between items-baseline gap-3 mb-4">
+              <h3 className="text-sm font-semibold text-on-surface-variant min-w-0 truncate">월별 식재료 지출</h3>
               {monthDelta !== null && (
                 <span className={`text-xs font-bold ${monthDelta > 0 ? 'text-tertiary' : 'text-primary'}`}>
                   지난달 대비 {monthDelta > 0 ? '+' : ''}{monthDelta}%
@@ -259,7 +259,7 @@ export default function ExpensesPage() {
               />
               <button
                 onClick={saveBudget}
-                className="bg-gradient-to-r from-primary to-primary-container text-white px-5 py-3 rounded-full font-medium active:scale-95 transition-transform whitespace-nowrap"
+                className="bg-primary text-on-primary px-5 py-3 rounded-full font-medium active:scale-95 transition-transform whitespace-nowrap"
               >
                 저장
               </button>
@@ -361,12 +361,14 @@ export default function ExpensesPage() {
               <h3 className="text-sm font-semibold text-on-surface-variant mb-4">매장별 가격 비교</h3>
               <div className="space-y-2">
                 {stores.map((s, i) => (
-                  <div key={i} className="flex items-center justify-between py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined text-on-surface-variant">store</span>
-                      <span className="font-medium text-on-surface">{s.store_name}</span>
+                  <div key={i} className="flex items-center justify-between gap-3 py-3">
+                    {/* min-w-0 이 없으면 매장명(영수증 OCR 이라 길 수 있다)이 줄을
+                        넘겨 페이지 전체가 가로로 밀린다. */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="material-symbols-outlined text-on-surface-variant shrink-0">store</span>
+                      <span className="font-medium text-on-surface truncate">{s.store_name}</span>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <span className="font-bold text-on-surface">{s.latest_price.toLocaleString()}원</span>
                       <span className="text-xs text-on-surface-variant ml-2">{s.latest_date}</span>
                     </div>

@@ -93,7 +93,7 @@ export default function RecipeDetailModal({ recipe, onClose }: Props) {
                   <div key={i} className="flex gap-3">
                     <span
                       className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                      style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-container))' }}
+                      style={{ backgroundColor: 'var(--color-primary)' }}
                     >
                       {i + 1}
                     </span>

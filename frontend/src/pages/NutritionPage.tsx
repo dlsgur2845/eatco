@@ -154,7 +154,7 @@ export default function NutritionPage() {
                   key={ing.id}
                   onClick={() => toggle(ing)}
                   aria-pressed={on}
-                  className={`px-4 py-2.5 rounded-full text-sm font-medium transition-transform active:scale-95 ${
+                  className={`px-4 min-h-[48px] rounded-full text-sm font-medium transition-transform active:scale-95 ${
                     on ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface'
                   }`}
                 >
@@ -194,7 +194,7 @@ export default function NutritionPage() {
             onClick={calculate}
             disabled={calculating}
             className="w-full mt-6 py-4 rounded-full text-base font-semibold text-white disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-container))' }}
+            style={{ backgroundColor: 'var(--color-primary)' }}
           >
             {calculating ? '계산 중...' : '영양 계산하기'}
           </button>

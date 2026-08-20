@@ -142,7 +142,7 @@ export default function WhatsNew() {
               <div className="flex items-center gap-3 mb-2">
                 {idx === 0 ? (
                   <div className="w-10 h-10 rounded-full flex items-center justify-center"
-                    style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-container))' }}>
+                    style={{ backgroundColor: 'var(--color-primary)' }}>
                     <span className="material-symbols-outlined text-white text-xl">auto_awesome</span>
                   </div>
                 ) : (
@@ -201,7 +201,7 @@ export default function WhatsNew() {
           <button
             onClick={dismiss}
             className="w-full py-3.5 rounded-full font-bold text-white active:scale-95 transition-transform"
-            style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-container))' }}
+            style={{ backgroundColor: 'var(--color-primary)' }}
           >
             확인했어요
           </button>
