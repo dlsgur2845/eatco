@@ -14,5 +14,18 @@
     "binding": "ASSETS",
     // /api/* 는 자산보다 Worker 가 먼저 처리한다. 나머지는 자산 우선 + SPA 폴백.
     "run_worker_first": ["/api/*"]
-  }
+  },
+
+  "d1_databases": [
+    { "binding": "DB", "database_name": "eatco", "database_id": "3b40ea8f-e4fd-41d3-9b97-6ce05a27944f" }
+  ],
+
+  "r2_buckets": [
+    { "binding": "UPLOADS", "bucket_name": "eatco-uploads" }
+  ],
+
+  // 소비기한 알림. 예전 APScheduler 는 15분 간격 인메모리라 배포/재시작 때
+  // 그 창의 알림이 조용히 유실됐다. 매시 정각 + DB 기준 윈도우로 바꾸면
+  // 한 번 걸러도 다음 실행이 따라잡는다 (expiry 알림은 이미 멱등).
+  "triggers": { "crons": ["0 * * * *"] }
 }
