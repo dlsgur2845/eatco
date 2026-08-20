@@ -33,3 +33,6 @@ postgres_data/
 .gstack/
 test.png
 test.jpg
+
+# Cloudflare
+.wrangler/
