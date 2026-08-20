@@ -244,7 +244,24 @@ export default function CalendarPage() {
   // 첫 로드와 재조회를 구분한다. 주/월을 토글할 때마다 전체를 스켈레톤으로
   // 갈아치우면 제목도 토글도 사라져서 화면이 통째로 깜빡인다.
   const booted = useRef(false)
-  const [me, setMe] = useState<User | null>(null)
+  /**
+   * 내 신원. AuthGuard 가 앱에 들어올 때 /auth/me 를 받아 localStorage 에
+   * 넣어둔다. 여기서 또 부르면 주를 넘길 때마다 왕복이 하나씩 더 붙는다.
+   *
+   * 실측(iPhone 390x844): /auth/me 408ms, /api/calendar 243ms.
+   * Promise.all 로 둘을 기다려서 화면이 426ms 걸렸는데, 정작 느린 쪽이
+   * 안 써도 되는 /auth/me 였다.
+   *
+   * 쓰는 곳은 댓글 삭제 버튼 하나뿐(cm.created_by === me.id)이고, 없으면
+   * 버튼이 안 보일 뿐이다. 삭제 권한은 서버가 따로 검사한다.
+   */
+  const me = useMemo<User | null>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || 'null')
+    } catch {
+      return null
+    }
+  }, [])
   const [adding, setAdding] = useState<{ date: string; slot: MealSlot } | null>(null)
   const [openId, setOpenId] = useState<string | null>(deepLinkId ?? null)
   // 월 보기에서 펼쳐 놓은 날짜. 폰 화면 격자 칸에는 메뉴 이름이 안 들어간다.
@@ -269,12 +286,10 @@ export default function CalendarPage() {
     // D1 조회가 0.2초대라 스켈레톤이 깜빡였다 사라지는 게 더 거슬린다.
     if (!booted.current) setState('loading')
     try {
-      const [p, u] = await Promise.all([
-        api.get<MealPlan[]>('/calendar', { params: { from: anchor, to: rangeEnd } }),
-        api.get<User>('/auth/me'),
-      ])
+      const p = await api.get<MealPlan[]>('/calendar', {
+        params: { from: anchor, to: rangeEnd },
+      })
       setPlans(p.data)
-      setMe(u.data)
       booted.current = true
       setState('ready')
 

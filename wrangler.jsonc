@@ -6,6 +6,16 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
 
+  // Worker 를 D1 옆(싱가포르)에서 돌린다.
+  //
+  // 기본값은 사용자 근처 엣지 실행인데, D1 주 인스턴스가 SIN 이라 요청마다
+  // 한국↔싱가포르를 왕복한다. 실측: SELECT 1 짜리 /api/health 가 522ms,
+  // D1 을 2번 부르는 /api/calendar 가 694ms. 쿼리 자체는 0.17ms 다.
+  //
+  // 예전에 이 설정을 켰다가 껐던 이유는 Gemini 지역차단이 악화돼서였는데,
+  // 지금은 Gemini 를 브라우저에서 직접 부르므로 해당되지 않는다.
+  "placement": { "mode": "smart" },
+
   "vars": {
     // Access 가 넣어주는 JWT 를 이 팀 도메인의 공개키로 직접 검증한다.
     // 헤더를 그대로 믿으면 Access 를 우회한 직접 요청이 아무 이메일이나 주장할 수 있다.
