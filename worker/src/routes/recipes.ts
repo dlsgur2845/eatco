@@ -1,0 +1,177 @@
+import { Hono } from 'hono'
+import { requireFamily } from '../lib/identity'
+import { todayKst, daysBetween } from '../lib/dates'
+import type { Env, Vars } from '../lib/types'
+
+const app = new Hono<{ Bindings: Env; Variables: Vars }>()
+
+/**
+ * 식품안전나라 COOKRCP01 기반 레시피 추천.
+ *
+ * Gemini 보충 생성은 뺐다 — 배포된 Worker 에서 Gemini 가 지역 차단되기 때문이다
+ * (영수증 스캔은 그래서 브라우저에서 직접 호출한다). 공공 API 만으로도
+ * 1,000여 개 레시피에서 냉장고 재료 매칭이 된다.
+ */
+
+interface Recipe {
+  name: string
+  category: string
+  cooking_method: string
+  calories: string
+  image_url: string
+  ingredients: string[]
+  manual_steps: string[]
+  tip: string
+}
+
+// 아이소레이트 수명 동안만 유지되는 캐시. 공공 API 는 하루 트래픽 제한이 있다.
+let recipeCache: { at: number; data: Recipe[] } | null = null
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000
+
+const PAREN = /\([^)]*\)/g
+const QUANTITY = /\s*[\d/.]+\s*(g|kg|ml|L|개|모|마리|줄기|큰술|작은술|쪽|cm|장|컵|봉지|포기).*$/
+const PREFIX = /^(다진|썬|채썬|간|삶은|데친|볶은|구운|찐|튀긴)\s*/
+
+function normalizeIngredient(text: string): string {
+  let t = text.trim()
+  t = t.replace(PAREN, '')
+  t = t.replace(QUANTITY, '')
+  t = t.replace(PREFIX, '')
+  t = t.replace(/\d+/g, '')
+  return t.replace(/^[\s,.]+|[\s,.]+$/g, '')
+}
+
+function extractIngredients(parts: string): string[] {
+  const out: string[] = []
+  for (let line of parts.replace(/\n/g, ',').split(',')) {
+    line = line.trim()
+    if (!line || line.length < 2) continue
+    if (line.endsWith(':') || line.startsWith('●') || line.startsWith('·')) {
+      line = line.replace(/^[●·]+/, '').replace(/:$/, '').trim()
+      if (line.length < 2) continue
+    }
+    const name = normalizeIngredient(line)
+    if (name && name.length >= 2) out.push(name)
+  }
+  return out
+}
+
+/** 단어 경계 + 접미사 매칭. "순두부" 는 "두부" 를 포함하지만 "삼겹살" 은 "돼지고기" 와 무관. */
+function isWordMatch(a: string, b: string): boolean {
+  if (a === b) return true
+  const aw = a.split(/\s+/).filter(Boolean)
+  const bw = b.split(/\s+/).filter(Boolean)
+  const bset = new Set(bw)
+  for (const w of aw) if (w.length >= 2 && bset.has(w)) return true
+  const aset = new Set(aw)
+  for (const w of bw) if (w.length >= 2 && aset.has(w)) return true
+  for (const x of aw) {
+    for (const y of bw) {
+      const [short, long] = x.length <= y.length ? [x, y] : [y, x]
+      if (short.length >= 2 && long.endsWith(short)) return true
+    }
+  }
+  return false
+}
+
+async function fetchRecipes(env: Env): Promise<Recipe[]> {
+  const now = Date.now()
+  if (recipeCache && now - recipeCache.at < CACHE_TTL_MS) return recipeCache.data
+  const key = env.RECIPE_API_KEY
+  if (!key) return []
+
+  const out: Recipe[] = []
+  // 총 1,146개. 1000개씩 2번이면 충분하다 (무료 티어 subrequest 50개 한도 안).
+  for (const [start, end] of [[1, 1000], [1001, 1200]]) {
+    const url = `https://openapi.foodsafetykorea.go.kr/api/${key}/COOKRCP01/json/${start}/${end}`
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(20_000) })
+      if (!res.ok) break
+      const json = (await res.json()) as { COOKRCP01?: { row?: Record<string, string>[] } }
+      for (const r of json.COOKRCP01?.row ?? []) {
+        const steps: string[] = []
+        for (let i = 1; i <= 20; i++) {
+          const s = r[`MANUAL${String(i).padStart(2, '0')}`]
+          if (s && s.trim()) steps.push(s.trim())
+        }
+        out.push({
+          name: r.RCP_NM ?? '',
+          category: r.RCP_PAT2 ?? '기타',
+          cooking_method: r.RCP_WAY2 ?? '기타',
+          calories: r.INFO_ENG ?? '',
+          image_url: r.ATT_FILE_NO_MK || r.ATT_FILE_NO_MAIN || '',
+          ingredients: extractIngredients(r.RCP_PARTS_DTLS ?? ''),
+          manual_steps: steps,
+          tip: r.RCP_NA_TIP ?? '',
+        })
+      }
+    } catch (e) {
+      console.warn('레시피 API 실패:', e)
+      break
+    }
+  }
+  if (out.length) recipeCache = { at: now, data: out }
+  return out
+}
+
+app.get('/recommend', async (c) => {
+  const familyId = requireFamily(c.get('user'))
+  const limit = Math.min(Number(c.req.query('limit') || 6) || 6, 20)
+
+  const { results } = await c.env.DB.prepare(
+    'SELECT name, normalized_name, expiry_date FROM ingredients WHERE family_id = ?',
+  )
+    .bind(familyId)
+    .all<{ name: string; normalized_name: string | null; expiry_date: string }>()
+
+  const today = todayKst()
+  const fridge = (results ?? []).map((r) => (r.normalized_name || r.name).toLowerCase().trim())
+  const urgent = (results ?? [])
+    .filter((r) => daysBetween(today, r.expiry_date) <= 3)
+    .map((r) => (r.normalized_name || r.name).toLowerCase().trim())
+
+  if (!fridge.length) return c.json([])
+
+  const recipes = await fetchRecipes(c.env)
+  if (!recipes.length) return c.json([])
+
+  const scored = recipes.map((rec) => {
+    const matched: string[] = []
+    const missing: string[] = []
+    const urgentUsed: string[] = []
+    for (const ri of rec.ingredients) {
+      const r = ri.toLowerCase().trim()
+      const hit = fridge.find((f) => isWordMatch(r, f))
+      if (hit) {
+        matched.push(ri)
+        if (urgent.includes(hit)) urgentUsed.push(ri)
+      } else {
+        missing.push(ri)
+      }
+    }
+    const total = rec.ingredients.length || 1
+    // 한 레시피가 같은 재료를 여러 줄에 적는 경우가 흔하다(양념/고명 등).
+    // 화면에 "두부, 양파, 두부, 양파" 로 보이지 않게 중복을 제거한다.
+    const uniq = (xs: string[]) => [...new Set(xs)]
+    const matchedU = uniq(matched)
+    return {
+      ...rec,
+      match_count: matchedU.length,
+      total_ingredients: total,
+      match_ratio: matched.length / total,
+      matched_items: matchedU,
+      missing_items: uniq(missing),
+      urgent_used: uniq(urgentUsed),
+    }
+  })
+
+  scored.sort(
+    (a, b) =>
+      b.urgent_used.length - a.urgent_used.length ||
+      b.match_ratio - a.match_ratio ||
+      b.match_count - a.match_count,
+  )
+  return c.json(scored.filter((s) => s.match_count > 0).slice(0, limit))
+})
+
+export default app
