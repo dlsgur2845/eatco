@@ -5,11 +5,14 @@ import type { ScannedItem } from '../../api/scan'
 interface Props {
   items: ScannedItem[]
   storeName?: string | null
+  /** 등록 실패 메시지. 모달 **안**에서 보여줘야 한다 —
+   *  밖에 두면 이 모달(z-100) 뒤로 가려서 사용자 눈에 아무 일도 안 일어난 것처럼 보인다. */
+  error?: string | null
   onConfirm: (items: ScannedItem[]) => void
   onClose: () => void
 }
 
-export default function ResultsModal({ items: initialItems, storeName, onConfirm, onClose }: Props) {
+export default function ResultsModal({ items: initialItems, storeName, error, onConfirm, onClose }: Props) {
   const [items, setItems] = useState<ScannedItem[]>(initialItems)
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
@@ -220,6 +223,15 @@ export default function ResultsModal({ items: initialItems, storeName, onConfirm
         {/* 등록 버튼 (하단 고정) */}
         {items.length > 0 && (
           <div className="flex-shrink-0 px-5 pt-4 pb-4" style={{ backgroundColor: 'var(--color-surface-container-lowest)' }}>
+            {error && (
+              <p
+                role="alert"
+                className="mb-3 px-4 py-3 rounded-xl text-sm text-center"
+                style={{ backgroundColor: 'var(--color-error-container)', color: 'var(--color-error)' }}
+              >
+                {error}
+              </p>
+            )}
             <button
               className="w-full py-4 rounded-full text-base font-semibold text-white disabled:opacity-50"
               style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-container))' }}

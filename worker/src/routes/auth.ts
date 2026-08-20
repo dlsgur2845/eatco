@@ -176,6 +176,28 @@ app.post('/family/leave', async (c) => {
   return c.json({ left: true })
 })
 
+app.post('/family/kick/:id', async (c) => {
+  const user = c.get('user')
+  const famId = user.family_id
+  if (!famId) throw new ApiError(400, '가족 그룹에 속해 있지 않습니다.')
+
+  const fam = await c.env.DB.prepare('SELECT master_id FROM families WHERE id = ?')
+    .bind(famId)
+    .first<{ master_id: string | null }>()
+  if (fam?.master_id !== user.id) throw new ApiError(403, '가족 마스터만 내보낼 수 있습니다.')
+
+  const targetId = c.req.param('id')
+  if (targetId === user.id) throw new ApiError(422, '자기 자신은 내보낼 수 없습니다.')
+
+  const res = await c.env.DB.prepare(
+    'UPDATE users SET family_id = NULL WHERE id = ? AND family_id = ?',
+  )
+    .bind(targetId, famId)
+    .run()
+  if (!res.meta.changes) throw new ApiError(404, '해당 구성원을 찾을 수 없습니다.')
+  return c.json({ kicked: true })
+})
+
 // 와일드카드는 반드시 구체 경로들보다 뒤에 둔다.
 // 먼저 등록하면 /family/members 나 /family/settings 를 :id 로 삼켜버린다.
 app.get('/family/:id', async (c) => {

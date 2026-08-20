@@ -105,9 +105,15 @@ export default function WhatsNew() {
 
   useEffect(() => {
     const seen = localStorage.getItem(STORAGE_KEY)
-    if (seen !== CURRENT_VERSION) {
-      setShow(true)
+    // 첫 실행 분기가 없어서, 새로 가입한 가족 구성원이 앱을 열자마자
+    // "CORS 보안 강화", "JWT/IDOR", "커넥션 풀 최적화" 같은 엔지니어링 체인지로그를
+    // 전체 화면 차단 모달로 마주했다. 처음 온 사람에게 보여줄 내용이 아니다.
+    // 처음이면 조용히 현재 버전만 기록하고 넘어간다.
+    if (seen === null) {
+      localStorage.setItem(STORAGE_KEY, CURRENT_VERSION)
+      return
     }
+    if (seen !== CURRENT_VERSION) setShow(true)
   }, [])
 
   const dismiss = () => {

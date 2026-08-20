@@ -16,14 +16,6 @@ export function formatQuantity(ing: Pick<Ingredient, 'amount_value' | 'unit' | '
 }
 
 /** 수량 재입력이 필요한 row 인지. */
-export function needsQuantityCleanup(
-  ing: Pick<Ingredient, 'amount_value' | 'unit' | 'quantity'>,
-): boolean {
-  if (ing.amount_value != null && ing.unit) return false
-  // legacy 문자열도 없으면 아예 수량 미지정 — cleanup 대상
-  return true
-}
-
 export function stripTrailingZero(n: number): string {
   if (!Number.isFinite(n)) return '0'
   const rounded = Math.round(n * 1000) / 1000

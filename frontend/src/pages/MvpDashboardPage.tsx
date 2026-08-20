@@ -4,8 +4,6 @@ import { logEvent } from '../api/events'
 import { getRecommendations, type Recipe } from '../api/recipes'
 import { deleteItem, getItems, updateItem, type DashboardItem } from '../api/scan'
 import RecipeCard from '../components/recipe/RecipeCard'
-import { QuantityCleanupBanner } from '../components/ingredients/QuantityCleanupBanner'
-import { CookingStatsCard } from '../components/cooking/CookingStatsCard'
 
 interface InflationAlert { name: string; current_price: number; old_price: number; change_pct: number }
 interface BudgetInfo { monthly_budget: number | null; spent_this_month: number }
@@ -132,8 +130,6 @@ export default function MvpDashboardPage() {
 
   return (
     <div className="">
-      <QuantityCleanupBanner />
-      <CookingStatsCard />
       {/* 헤더 */}
       <h1
         className="text-2xl font-bold mb-1"

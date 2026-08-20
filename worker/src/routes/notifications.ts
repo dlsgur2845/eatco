@@ -33,7 +33,25 @@ logs.get('/unread-count', async (c) => {
   return c.json({ count: row?.count ?? 0 })
 })
 
-logs.post('/read-all', async (c) => {
+/**
+ * 프론트(`NotificationsPage.tsx:71`)는 PUT /:id/read 를 부르는데 라우트가 없었고,
+ * `:82` 의 read-all 은 PUT 인데 여기는 POST 였다. 둘 다 `.catch(()=>{})` 로 삼켜져서
+ * **안 읽은 뱃지가 영원히 지워지지 않았다.** 소비기한 알림이 이 앱의 존재 이유인데
+ * 뱃지가 무의미해지면 아무도 알림을 열지 않는다.
+ * 메서드는 양쪽 다 받는다 — 프론트를 고쳐도 구버전 캐시가 남을 수 있다.
+ */
+logs.put('/:id/read', async (c) => {
+  const familyId = requireFamily(c.get('user'))
+  const res = await c.env.DB.prepare(
+    'UPDATE notification_logs SET is_read = 1 WHERE id = ? AND family_id = ?',
+  )
+    .bind(c.req.param('id'), familyId)
+    .run()
+  if (!res.meta.changes) throw new ApiError(404, '알림을 찾을 수 없습니다.')
+  return c.json({ read: true })
+})
+
+logs.on(['POST', 'PUT'], '/read-all', async (c) => {
   const familyId = requireFamily(c.get('user'))
   const res = await c.env.DB.prepare(
     'UPDATE notification_logs SET is_read = 1 WHERE family_id = ? AND is_read = 0',

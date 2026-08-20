@@ -11,8 +11,10 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: '/favicon.svg',
-      badge: '/favicon.svg',
+      // Android Chrome 은 SVG 알림 아이콘을 거부한다 (아이콘 없이 뜨거나 드롭됨).
+      // 소비기한 알림이 이 앱의 존재 이유라 여기서 조용히 실패하면 안 된다.
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
       data: { url: data.url || '/' },
       tag: 'eatco-notification',
       renotify: true,

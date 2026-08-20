@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import api from '../api/client'
 import { QuantityInput } from '../components/ingredients/QuantityInput'
-import { QuantityCleanupBanner } from '../components/ingredients/QuantityCleanupBanner'
 import { formatQuantity } from '../lib/format'
 import type { Category, Ingredient, IngredientCreate, IngredientUnit, StorageMethod } from '../types'
 
@@ -559,7 +558,6 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-8">
-      <QuantityCleanupBanner />
       {/* Title */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>

@@ -19,6 +19,7 @@ export default function ScanPage({ onRegistered }: Props) {
   const [storeName, setStoreName] = useState<string | null>(null)
   const [showResults, setShowResults] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [registerError, setRegisterError] = useState<string | null>(null)
 
   const handleCapture = useCallback(async (file: File) => {
     setError(null)
@@ -71,6 +72,7 @@ export default function ScanPage({ onRegistered }: Props) {
   }
 
   const handleRegister = async (finalItems: ScannedItem[]) => {
+    setRegisterError(null)
     try {
       await registerItems(finalItems, storeName)
       logEvent('register', { items_count: finalItems.length, store: storeName })
@@ -78,7 +80,11 @@ export default function ScanPage({ onRegistered }: Props) {
       setItems([])
       onRegistered()
     } catch {
-      setError('추가하지 못했어요. 다시 시도해주세요.')
+      // 예전에는 setError 만 하고 showResults 를 유지해서, 에러 배너가
+      // z-[100] 모달 **뒤에** 렌더됐다. 사용자 눈에는 아무 일도 안 일어난 것처럼
+      // 보였고 버튼만 다시 활성화돼서 계속 눌렀다 (매 탭이 실제 POST).
+      // 모달 안에서 보여준다.
+      setRegisterError('추가하지 못했어요. 다시 시도해주세요.')
     }
   }
 
@@ -179,6 +185,7 @@ export default function ScanPage({ onRegistered }: Props) {
         <ResultsModal
           items={items}
           storeName={storeName}
+          error={registerError}
           onConfirm={handleRegister}
           onClose={() => setShowResults(false)}
         />

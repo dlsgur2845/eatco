@@ -29,7 +29,7 @@ export default function TopAppBar() {
       /* ignore */
     }
     localStorage.removeItem('user')
-    window.location.href = '/login'
+    navigate('/login', { replace: true })
   }
 
   return (
@@ -40,7 +40,7 @@ export default function TopAppBar() {
       <div className="flex justify-between items-center px-6 py-4 w-full max-w-screen-xl mx-auto">
         <div className="flex items-center gap-3">
           <span className="material-symbols-outlined text-primary">restaurant_menu</span>
-          <h1 className="font-headline font-bold text-xl text-primary tracking-tight">Eatco</h1>
+          <span className="font-headline font-bold text-xl text-primary tracking-tight">Eatco</span>
         </div>
         {user && (
           <div className="flex items-center gap-2">
@@ -48,21 +48,11 @@ export default function TopAppBar() {
               {user.nickname}
             </span>
 
-            {/* 요리 기록 */}
-            <button
-              onClick={() => navigate('/cooking-logs')}
-              className="p-2 rounded-full hover:bg-surface-container-high transition-colors"
-              title="요리 기록"
-            >
-              <span className="material-symbols-outlined text-on-surface-variant text-xl">
-                restaurant
-              </span>
-            </button>
-
             {/* 알림 아이콘 */}
             <button
               onClick={() => navigate('/notifications')}
               className="relative p-2 rounded-full hover:bg-surface-container-high transition-colors"
+              aria-label="알림"
             >
               <span className="material-symbols-outlined text-on-surface-variant text-xl">
                 notifications
@@ -78,6 +68,7 @@ export default function TopAppBar() {
             <button
               onClick={handleLogout}
               className="text-on-surface-variant hover:text-tertiary transition-colors p-2 rounded-full hover:bg-surface-container-high"
+              aria-label="로그아웃"
             >
               <span className="material-symbols-outlined text-xl">logout</span>
             </button>

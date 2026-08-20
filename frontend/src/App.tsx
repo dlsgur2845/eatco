@@ -10,10 +10,7 @@ import MvpDashboardPage from './pages/MvpDashboardPage'
 import NotificationsPage from './pages/NotificationsPage'
 import ScanPage from './pages/ScanPage'
 import ExpensesPage from './pages/ExpensesPage'
-import MyRecipesPage from './pages/MyRecipesPage'
 import SettingsPage from './pages/SettingsPage'
-import QuantityCleanupPage from './pages/QuantityCleanupPage'
-import CookingLogPage from './pages/CookingLogPage'
 
 // 등록 성공은 앱에서 가장 기분 좋은 순간인데, window.location.href 는 전체
 // 페이지 리로드라 스탠드얼론 PWA 에서 흰 화면 깜빡임 + 콜드 부팅 + 전체 재조회가 났다.
@@ -82,12 +79,9 @@ export default function App() {
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/scan" element={<ScanRoute />} />
             <Route path="/expenses" element={<ExpensesPage />} />
-            <Route path="/my-recipes" element={<MyRecipesPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/family" element={<FamilyPage />} />
-            <Route path="/quantity-cleanup" element={<QuantityCleanupPage />} />
-            <Route path="/cooking-logs" element={<CookingLogPage />} />
           </Route>
         </Route>
 
