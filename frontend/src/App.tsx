@@ -9,6 +9,7 @@ import InventoryPage from './pages/InventoryPage'
 import MvpDashboardPage from './pages/MvpDashboardPage'
 import NotificationsPage from './pages/NotificationsPage'
 import ScanPage from './pages/ScanPage'
+import NutritionPage from './pages/NutritionPage'
 import ExpensesPage from './pages/ExpensesPage'
 import SettingsPage from './pages/SettingsPage'
 
@@ -79,6 +80,7 @@ export default function App() {
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/scan" element={<ScanRoute />} />
             <Route path="/expenses" element={<ExpensesPage />} />
+            <Route path="/nutrition" element={<NutritionPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/family" element={<FamilyPage />} />

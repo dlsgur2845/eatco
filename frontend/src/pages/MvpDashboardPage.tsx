@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { freshnessColor, daysLabel as fmtDays } from '../lib/freshness'
 import api from '../api/client'
 import { logEvent } from '../api/events'
@@ -193,8 +194,8 @@ export default function MvpDashboardPage() {
       {/* 요약 카드 */}
       {items.length > 0 && (
         <div className="flex gap-3 mb-6">
-          <StatCard count={urgent.length} label="오늘 써야 해요" color="var(--color-tertiary-container)" bgColor="color-mix(in srgb, var(--color-tertiary-container) 10%, white)" />
-          <StatCard count={soon.length} label="3일 이내" color="var(--color-secondary-container)" bgColor="color-mix(in srgb, var(--color-secondary-container) 15%, white)" />
+          <StatCard count={urgent.length} label="오늘 써야 해요" color="var(--color-tertiary)" bgColor="color-mix(in srgb, var(--color-tertiary-container) 10%, white)" />
+          <StatCard count={soon.length} label="3일 이내" color="var(--color-secondary)" bgColor="color-mix(in srgb, var(--color-secondary-container) 15%, white)" />
           <StatCard count={fresh.length} label="여유 있어요" color="var(--color-primary)" bgColor="color-mix(in srgb, var(--color-primary) 10%, white)" />
         </div>
       )}
@@ -237,6 +238,21 @@ export default function MvpDashboardPage() {
         </>
       ) : null}
 
+      {/* 요리 영양 계산 진입 */}
+      {items.length > 0 && (
+        <Link
+          to="/nutrition"
+          className="flex items-center gap-4 p-5 mb-6 rounded-2xl bg-surface-container-low active:scale-[0.98] transition-transform"
+        >
+          <span className="material-symbols-outlined text-primary">local_fire_department</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-on-surface">요리 영양 계산</p>
+            <p className="text-xs text-on-surface-variant">쓸 재료를 고르면 칼로리·탄단지를 합쳐서 보여줘요</p>
+          </div>
+          <span className="material-symbols-outlined text-outline">chevron_right</span>
+        </Link>
+      )}
+
       {/* 오늘 써야 할 식재료 */}
       {urgent.length > 0 && (
         <Section title="오늘 써야 할 식재료">
@@ -275,7 +291,7 @@ export default function MvpDashboardPage() {
           </span>
           <button
             className="text-sm font-semibold ml-4"
-            style={{ color: 'var(--color-primary-container)' }}
+            style={{ color: 'var(--color-primary)' }}
             onClick={handleUndo}
           >
             되돌리기

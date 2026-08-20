@@ -15,6 +15,7 @@ import expenses from './routes/expenses'
 import events from './routes/events'
 import notifications, { logs as notificationLogs } from './routes/notifications'
 import recipes from './routes/recipes'
+import nutrition from './routes/nutrition'
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>()
 app.onError(onError)
@@ -70,6 +71,7 @@ app.route('/api/events', events)
 app.route('/api/notifications', notifications)
 app.route('/api/notification-logs', notificationLogs)
 app.route('/api/recipes', recipes)
+app.route('/api/nutrition', nutrition)
 
 // 매칭 안 된 /api/* 는 HTML 대신 404 JSON. 프론트가 파싱 에러로 죽지 않게.
 app.all('/api/*', (c) => c.json({ detail: 'Not Found' }, 404))
