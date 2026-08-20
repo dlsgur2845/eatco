@@ -85,7 +85,7 @@ export default function LoginPage() {
               <p className="font-medium text-on-surface text-sm">다른 기기에서 로그인되어 세션이 만료되었습니다.</p>
               <p className="text-on-surface-variant text-xs mt-1">다시 로그인해 주세요.</p>
             </div>
-            <button onClick={() => setShowExpiredBanner(false)} className="text-on-surface-variant hover:text-on-surface p-1">
+            <button aria-label="알림 닫기" onClick={() => setShowExpiredBanner(false)} className="text-on-surface-variant hover:text-on-surface p-1">
               <span className="material-symbols-outlined text-sm">close</span>
             </button>
           </div>
@@ -106,7 +106,7 @@ export default function LoginPage() {
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   onKeyDown={handleKeyDown}
-                  className="w-full bg-surface-container-lowest border-none rounded-xl px-4 py-4 text-on-surface focus:ring-2 focus:ring-primary-container transition-all placeholder:text-outline-variant"
+                  className="w-full bg-surface-container-lowest border-none rounded-xl px-4 py-4 text-on-surface focus:ring-2 focus:ring-primary-container transition-all placeholder:text-outline"
                   placeholder="example@pantry.com"
                 />
               </div>
@@ -122,7 +122,7 @@ export default function LoginPage() {
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                   onKeyDown={handleKeyDown}
-                  className="w-full bg-surface-container-lowest border-none rounded-xl px-4 py-4 text-on-surface focus:ring-2 focus:ring-primary-container transition-all placeholder:text-outline-variant"
+                  className="w-full bg-surface-container-lowest border-none rounded-xl px-4 py-4 text-on-surface focus:ring-2 focus:ring-primary-container transition-all placeholder:text-outline"
                   placeholder="••••••••"
                 />
               </div>

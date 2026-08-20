@@ -24,6 +24,9 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [hasMore, setHasMore] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
+  // 로딩/오류/비어있음을 구분한다. 예전에는 catch 가 silent 라서 백엔드가 죽어도
+  // "아직 알림이 없습니다" 를 띄웠다 — 문제 없다고 거짓말하는 화면이었다.
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
 
   const PAGE_SIZE = 20
 
@@ -51,14 +54,21 @@ export default function NotificationsPage() {
         setNotifications(items)
       }
       setHasMore(offset + PAGE_SIZE < total)
+      setState('ready')
     } catch {
-      // silent
+      // 첫 로드 실패는 오류 화면. 더보기 실패는 이미 보고 있는 목록을 지우지 않는다.
+      if (!append) setState('error')
     }
   }
 
   useEffect(() => {
     fetchNotifications(0, false)
   }, [])
+
+  const retry = () => {
+    setState('loading')
+    fetchNotifications(0, false)
+  }
 
   const loadMore = async () => {
     setLoadingMore(true)
@@ -122,7 +132,24 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      {notifications.length === 0 ? (
+      {state === 'loading' ? (
+        <div aria-busy="true" className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-24 rounded-xl bg-surface-container-high animate-pulse" />
+          ))}
+        </div>
+      ) : state === 'error' ? (
+        <div className="text-center py-20" role="status">
+          <span className="material-symbols-outlined text-tertiary text-5xl mb-4 block">error</span>
+          <p className="text-on-surface-variant mb-6">알림을 불러오지 못했어요.</p>
+          <button
+            onClick={retry}
+            className="min-h-[48px] px-6 rounded-full bg-on-surface text-surface font-bold active:scale-95 transition-transform"
+          >
+            다시 시도
+          </button>
+        </div>
+      ) : notifications.length === 0 ? (
         <div className="text-center py-20">
           <span className="material-symbols-outlined text-outline-variant text-6xl mb-4 block">
             notifications_off

@@ -127,7 +127,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
       <div
@@ -139,7 +139,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
       >
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-headline font-bold text-xl text-on-surface">식재료 등록</h3>
-          <button onClick={onClose} className="p-2 hover:bg-surface-container-high rounded-full transition-colors">
+          <button aria-label="닫기" onClick={onClose} className="p-2 hover:bg-surface-container-high rounded-full transition-colors">
             <span className="material-symbols-outlined text-on-surface-variant">close</span>
           </button>
         </div>
@@ -155,7 +155,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
               onChange={(e) => handleNameChange(e.target.value)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
               onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-              className="w-full border-none p-0 text-lg font-medium bg-transparent focus:ring-0 placeholder:text-surface-container-highest"
+              className="w-full border-none p-0 text-lg font-medium bg-transparent focus:ring-0 placeholder:text-outline"
               placeholder="예: 우유, 고등어, 삼겹살..."
               autoComplete="off"
             />
@@ -279,7 +279,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
                 type="number"
                 value={form.price ?? ''}
                 onChange={(e) => setForm({ ...form, price: e.target.value ? parseInt(e.target.value) : undefined })}
-                className="w-full border-none p-0 text-base font-medium bg-transparent focus:ring-0 placeholder:text-surface-container-highest"
+                className="w-full border-none p-0 text-base font-medium bg-transparent focus:ring-0 placeholder:text-outline"
                 placeholder="예: 12900"
               />
             </div>
@@ -289,7 +289,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
                 type="text"
                 value={form.store_name ?? ''}
                 onChange={(e) => setForm({ ...form, store_name: e.target.value || undefined })}
-                className="w-full border-none p-0 text-base font-medium bg-transparent focus:ring-0 placeholder:text-surface-container-highest"
+                className="w-full border-none p-0 text-base font-medium bg-transparent focus:ring-0 placeholder:text-outline"
                 placeholder="예: 이마트, 쿠팡"
               />
             </div>
@@ -365,7 +365,7 @@ function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; 
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm" onClick={onClose} />
       <div
         ref={panelRef}
         tabIndex={-1}
@@ -375,7 +375,7 @@ function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; 
       >
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-headline font-bold text-xl text-on-surface">식재료 수정</h3>
-          <button onClick={onClose} className="p-2 hover:bg-surface-container-high rounded-full transition-colors">
+          <button aria-label="닫기" onClick={onClose} className="p-2 hover:bg-surface-container-high rounded-full transition-colors">
             <span className="material-symbols-outlined text-on-surface-variant">close</span>
           </button>
         </div>
@@ -660,7 +660,7 @@ export default function InventoryPage() {
 
       {pendingDelete && (
         <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setPendingDelete(null)} />
+          <div className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm" onClick={() => setPendingDelete(null)} />
           <div
             role="dialog"
             aria-modal="true"

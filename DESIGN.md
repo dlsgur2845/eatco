@@ -54,11 +54,29 @@ surface 위 색 있는 텍스트가 필요하면 `secondary` / `tertiary` / `pri
 써놓고 BottomNav 한 곳만 고쳐서, 홈 화면의 가장 큰 숫자 3개가 2.05:1 / 2.65:1 로
 남아 있었다. 문서에 규칙을 쓰면 코드를 전수 검사한다:
 
-    grep -rn -- "-container)" --include='*.tsx' src \
-      | grep -E "color:|color=\"" | grep -v "backgroundColor\|bgColor=\|linear-gradient\|fill=\|stroke="
+    find frontend/src -name '*.tsx' -print0 \
+      | xargs -0 grep -noE "text-[a-z-]+-container[a-z-]*" \
+      | grep -vE ":text-on-"
 
-(같은 줄에 배경 지정이 섞여 있으면 단순 검색이 놓친다. 위 필터가 그걸 거른다.)
-`outline #6f7a6b` 는 4.29:1 로 본문에는 미달이다. 보조 텍스트에만 쓰고 중요한 정보에는 쓰지 않는다.
+**감사 명령은 세 번 틀렸다. 고친 이유를 남긴다.**
+
+1. `--include='*.tsx'` 는 이 저장소 환경(`grep` 이 ugrep 으로 별칭됨)에서
+   *"No such file or directory"* 경고만 내고 **아무 파일도 읽지 않은 채 0건**을
+   반환했다. 규칙이 지켜져서 0건인지, 검사가 안 돌아서 0건인지 구분되지 않는다.
+   `find | xargs` 로 대상을 명시한다.
+2. 원래 명령은 인라인 `color:` / `color="` 만 봤다. 이 코드베이스는 색을 거의 전부
+   Tailwind 클래스(`text-*-container`)로 쓴다. 즉 **실제 표기법을 검사하지 않고 있었다.**
+   이 구멍으로 `placeholder:text-surface-container-highest` 4곳(`#dfe3e0` on `#ffffff`
+   = **1.28:1**)이 통과했다. 입력 힌트("예: 우유, 고등어, 삼겹살...")가 안 보여서
+   빈 칸처럼 보였다.
+3. 줄 단위 `grep -v` 는 **한 줄에 정상 토큰과 위반이 같이 있으면 위반을 가린다.**
+   `bg-primary-container text-on-primary-container text-secondary-container` 같은 줄이
+   `text-on-` 제외 필터에 통째로 걸려 사라진다. `-o` 로 토큰만 뽑아 개별 판정한다.
+
+`outline #6f7a6b` 는 흰 배경에서 4.49:1, `surface` 위에서 4.29:1 이다. 본문에는 아슬아슬하니
+**placeholder 와 보조 텍스트 전용**으로 쓰고 중요한 정보에는 쓰지 않는다.
+`outline-variant #becab9` 는 흰 배경에서 **1.70:1** 이다. **텍스트로 쓰지 않는다** —
+구분선과 테두리 전용이다.
 
 색만으로 긴급도를 전달하지 않는다. 색과 함께 형태/문구(D-3, D-DAY)를 같이 쓴다.
 

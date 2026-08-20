@@ -127,7 +127,7 @@ export default function WhatsNew() {
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={dismiss} />
+      <div className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm" onClick={dismiss} />
       <div ref={panelRef}
         tabIndex={-1}
         role="dialog"

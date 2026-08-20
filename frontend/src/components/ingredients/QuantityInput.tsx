@@ -46,7 +46,7 @@ export function QuantityInput({
             }
           }}
           disabled={disabled}
-          className="flex-1 min-w-0 border-none p-0 text-base font-medium bg-transparent focus:ring-0 placeholder:text-surface-container-highest"
+          className="flex-1 min-w-0 border-none p-0 text-base font-medium bg-transparent focus:ring-0 placeholder:text-outline"
           placeholder="숫자"
         />
         <select
