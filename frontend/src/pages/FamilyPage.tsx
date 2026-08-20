@@ -20,6 +20,7 @@ function FamilyManageView({
   const [joinError, setJoinError] = useState('')
   const [showJoin, setShowJoin] = useState(false)
   const [localFamily, setLocalFamily] = useState(family)
+  const [settingError, setSettingError] = useState('')
 
   // 외부에서 family가 변경되면 동기화
   useEffect(() => {
@@ -48,12 +49,16 @@ function FamilyManageView({
 
   const toggleSetting = async (key: 'allow_shared_edit') => {
     try {
-      const res = await api.put<Family>('/auth/family/settings', {
+      // 백엔드는 PATCH 다. PUT 으로 보내던 동안 404 였고, 아래 catch 가
+      // 조용히 삼켜서 토글이 되돌아가는 것처럼만 보였다.
+      const res = await api.patch<Family>('/auth/family/settings', {
         [key]: !localFamily[key],
       })
-      setLocalFamily(res.data)
+      // settings 응답에는 members 가 없다. 기존 목록을 유지한다.
+      setLocalFamily((prev) => ({ ...prev, ...res.data, members: prev.members }))
     } catch {
-      /* ignore */
+      setSettingError('설정을 저장하지 못했어요. 잠시 후 다시 시도해주세요.')
+      setTimeout(() => setSettingError(''), 3000)
     }
   }
 
@@ -197,7 +202,7 @@ function FamilyManageView({
                   required
                   value={joinCode}
                   onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                  className="w-full bg-surface-container-lowest border-none rounded-xl px-6 py-4 text-center text-2xl font-mono tracking-widest focus:ring-2 focus:ring-primary-container placeholder:text-outline-variant"
+                  className="w-full bg-surface-container-lowest border-none rounded-xl px-6 py-4 text-center text-2xl font-mono tracking-widest focus:ring-2 focus:ring-primary-container placeholder:text-outline"
                   placeholder="CODE-1234"
                 />
                 {joinError && <p className="text-tertiary text-sm">{joinError}</p>}
@@ -288,6 +293,12 @@ function FamilyManageView({
                   <div className="w-4 h-4 bg-white rounded-full" />
                 </button>
               </div>
+
+              {settingError && (
+                <p role="status" className="text-xs text-error">
+                  {settingError}
+                </p>
+              )}
 
               {/* 알림 설정 안내 */}
               <div className="flex items-center gap-3 p-4 bg-surface-container-lowest rounded-xl">

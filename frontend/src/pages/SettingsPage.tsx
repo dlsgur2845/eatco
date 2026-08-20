@@ -152,6 +152,18 @@ export default function SettingsPage() {
             </div>
             <span className="material-symbols-outlined text-outline text-sm">chevron_right</span>
           </Link>
+          {user?.role === 'admin' && (
+            <Link
+              to="/admin"
+              className="flex items-center justify-between p-5 hover:bg-primary/5 transition-colors"
+            >
+              <div className="flex items-center gap-4">
+                <span className="material-symbols-outlined text-primary">shield_person</span>
+                <span className="font-medium">관리자</span>
+              </div>
+              <span className="material-symbols-outlined text-outline text-sm">chevron_right</span>
+            </Link>
+          )}
           <div className="flex items-center justify-between p-5">
             <div className="flex items-center gap-4">
               <span className="material-symbols-outlined text-outline">info</span>

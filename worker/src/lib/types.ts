@@ -22,11 +22,15 @@ export interface Env {
   DEV_EMAIL?: string
 }
 
+export type Role = 'admin' | 'member'
+
 export interface User {
   id: string
   email: string
   nickname: string
   family_id: string | null
+  /** 'admin' 은 /api/admin/* 접근권. 제일 먼저 가입한 사용자가 관리자 1호다. */
+  role: Role
 }
 
 export type Vars = { user: User }

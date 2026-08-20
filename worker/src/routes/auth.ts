@@ -5,6 +5,7 @@ import type { Env, Vars } from '../lib/types'
 import { hashPassword, verifyPassword } from '../lib/password'
 import { createSession, sessionCookie, clearCookie } from '../lib/session'
 import { uniqueInviteCode, notificationSettingStatements, createSoloFamily } from '../lib/family'
+import { roleForNewUser } from '../lib/identity'
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>()
 
@@ -34,10 +35,12 @@ publicAuth.post('/register', async (c) => {
   if (dup) throw new ApiError(409, '이미 가입된 이메일입니다.')
 
   const id = crypto.randomUUID()
+  // 첫 가입자는 관리자 1호. 판정은 INSERT 직전에 한다.
+  const role = await roleForNewUser(c.env.DB)
   await c.env.DB.prepare(
-    'INSERT INTO users (id, email, nickname, hashed_password, family_id, created_at) VALUES (?, ?, ?, ?, NULL, ?)',
+    'INSERT INTO users (id, email, nickname, hashed_password, family_id, created_at, role) VALUES (?, ?, ?, ?, NULL, ?, ?)',
   )
-    .bind(id, email, nickname.slice(0, 50), await hashPassword(password), nowIso())
+    .bind(id, email, nickname.slice(0, 50), await hashPassword(password), nowIso(), role)
     .run()
 
   // 기존 FastAPI register 와 동일하게 1인 가족을 같이 만든다.
@@ -46,7 +49,7 @@ publicAuth.post('/register', async (c) => {
   const familyId = await createSoloFamily(c.env.DB, id, nickname.slice(0, 50))
 
   c.header('Set-Cookie', sessionCookie(await createSession(c.env, id)))
-  return c.json({ id, email, nickname, family_id: familyId }, 201)
+  return c.json({ id, email, nickname, family_id: familyId, role }, 201)
 })
 
 publicAuth.post('/login', async (c) => {
@@ -55,16 +58,16 @@ publicAuth.post('/login', async (c) => {
   const password = String(b.password ?? '')
 
   const user = await c.env.DB
-    .prepare('SELECT id, email, nickname, family_id, hashed_password FROM users WHERE email = ?')
+    .prepare('SELECT id, email, nickname, family_id, role, hashed_password FROM users WHERE email = ?')
     .bind(email)
-    .first<{ id: string; email: string; nickname: string; family_id: string | null; hashed_password: string }>()
+    .first<{ id: string; email: string; nickname: string; family_id: string | null; role: 'admin' | 'member'; hashed_password: string }>()
 
   // 이메일 존재 여부를 메시지로 구분하지 않는다 (사용자 열거 방지).
   const ok = user ? await verifyPassword(password, user.hashed_password) : false
   if (!user || !ok) throw new ApiError(401, '이메일 또는 비밀번호가 올바르지 않습니다.')
 
   c.header('Set-Cookie', sessionCookie(await createSession(c.env, user.id)))
-  return c.json({ id: user.id, email: user.email, nickname: user.nickname, family_id: user.family_id })
+  return c.json({ id: user.id, email: user.email, nickname: user.nickname, family_id: user.family_id, role: user.role })
 })
 
 publicAuth.post('/logout', (c) => {
@@ -145,7 +148,7 @@ app.get('/family/members', async (c) => {
   const user = c.get('user')
   if (!user.family_id) return c.json([])
   const rows = await c.env.DB.prepare(
-    'SELECT id, email, nickname, created_at FROM users WHERE family_id = ? ORDER BY created_at ASC',
+    'SELECT id, email, nickname, role, created_at FROM users WHERE family_id = ? ORDER BY created_at ASC',
   )
     .bind(user.family_id)
     .all()
@@ -211,7 +214,16 @@ app.get('/family/:id', async (c) => {
     .bind(id)
     .first()
   if (!fam) throw new ApiError(404, '가족을 찾을 수 없습니다.')
-  return c.json(fam)
+
+  // members 를 같이 준다. FamilyPage 가 family.members.map 을 도는데 이 키가
+  // 없어서 가족 화면이 통째로 흰 화면이었다. 별도 호출로 나누면 화면이
+  // 두 번 껌뻑이고, 어차피 같은 가족 한 건이라 여기서 합쳐 보낸다.
+  const members = await c.env.DB.prepare(
+    'SELECT id, email, nickname, role, created_at FROM users WHERE family_id = ? ORDER BY created_at ASC',
+  )
+    .bind(id)
+    .all()
+  return c.json({ ...fam, members: members.results ?? [] })
 })
 
 export default app

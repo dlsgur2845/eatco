@@ -12,6 +12,7 @@ import ScanPage from './pages/ScanPage'
 import NutritionPage from './pages/NutritionPage'
 import ExpensesPage from './pages/ExpensesPage'
 import SettingsPage from './pages/SettingsPage'
+import AdminPage from './pages/AdminPage'
 
 // 등록 성공은 앱에서 가장 기분 좋은 순간인데, window.location.href 는 전체
 // 페이지 리로드라 스탠드얼론 PWA 에서 흰 화면 깜빡임 + 콜드 부팅 + 전체 재조회가 났다.
@@ -84,6 +85,9 @@ export default function App() {
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/family" element={<FamilyPage />} />
+            {/* 진짜 게이트는 서버(/api/admin/*)다. 이 라우트는 숨기지 않고,
+                관리자가 아니면 AdminPage 가 안내 화면을 띄운다. */}
+            <Route path="/admin" element={<AdminPage />} />
           </Route>
         </Route>
 

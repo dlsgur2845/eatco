@@ -67,12 +67,16 @@ export interface CookingLogCreate {
   }[]
 }
 
+export type Role = 'admin' | 'member'
+
 export interface User {
   id: string
   email: string
   nickname: string
   family_id: string | null
   created_at: string
+  /** 'admin' 이면 /admin 접근 가능. 서버가 진짜 게이트고 이건 메뉴 표시용이다. */
+  role: Role
 }
 
 export interface Family {
@@ -128,4 +132,42 @@ export interface IngredientCreate {
   image_url?: string
   price?: number
   store_name?: string
+}
+
+
+/* ── 관리자 화면 ─────────────────────────────────────────── */
+
+export interface AdminStats {
+  users: number
+  admins: number
+  families: number
+  ingredients: number
+  usage_events: number
+  nutrition_cache: number
+}
+
+export interface AdminUser {
+  id: string
+  email: string
+  nickname: string
+  role: Role
+  created_at: string
+  family_id: string | null
+  family_name: string | null
+  /** SQLite 는 불리언이 없다. 0/1 로 온다. */
+  is_family_master: number | null
+  ingredient_count: number
+}
+
+export interface AdminFamily {
+  id: string
+  name: string
+  invite_code: string
+  allow_shared_edit: number
+  monthly_budget: number | null
+  created_at: string
+  master_id: string | null
+  master_nickname: string | null
+  member_count: number
+  ingredient_count: number
 }

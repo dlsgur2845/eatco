@@ -111,10 +111,22 @@ export async function verifyAccessJwt(
   return claims
 }
 
+/**
+ * 새로 만들어질 계정의 역할.
+ *
+ * "제일 처음 가입한 사용자가 관리자 1호" — users 테이블이 비어 있으면 admin.
+ * 가입 경로가 두 개(비밀번호 register, Access resolveUser)라서 한 곳에 둔다.
+ * 한쪽에만 넣으면 Access 로 먼저 들어온 사람이 영영 관리자가 되지 못한다.
+ */
+export async function roleForNewUser(db: D1Database): Promise<'admin' | 'member'> {
+  const row = await db.prepare('SELECT COUNT(*) AS n FROM users').first<{ n: number }>()
+  return (row?.n ?? 0) === 0 ? 'admin' : 'member'
+}
+
 /** 이메일로 사용자 행을 찾고, 없으면 만든다. Access 가 이미 허용한 사람이다. */
 export async function resolveUser(db: D1Database, email: string): Promise<User> {
   const found = await db
-    .prepare('SELECT id, email, nickname, family_id FROM users WHERE email = ?')
+    .prepare('SELECT id, email, nickname, family_id, role FROM users WHERE email = ?')
     .bind(email)
     .first<User>()
   if (found) return found
@@ -122,15 +134,16 @@ export async function resolveUser(db: D1Database, email: string): Promise<User> 
   const id = crypto.randomUUID()
   // 닉네임 기본값은 이메일 로컬파트. 설정에서 바꿀 수 있다.
   const nickname = email.split('@')[0].slice(0, 50)
+  const role = await roleForNewUser(db)
   // hashed_password 는 스키마상 NOT NULL 이지만 Access 로 전환해서 쓰지 않는다.
   // 0002 마이그레이션에서 nullable 로 바꾸기 전까지 빈 문자열을 넣는다.
   await db
     .prepare(
-      'INSERT INTO users (id, email, nickname, hashed_password, family_id, created_at) VALUES (?, ?, ?, ?, NULL, ?)',
+      'INSERT INTO users (id, email, nickname, hashed_password, family_id, created_at, role) VALUES (?, ?, ?, ?, NULL, ?, ?)',
     )
-    .bind(id, email, nickname, '', nowIso())
+    .bind(id, email, nickname, '', nowIso(), role)
     .run()
-  return { id, email, nickname, family_id: null }
+  return { id, email, nickname, family_id: null, role }
 }
 
 export const requireUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> = async (c, next) => {
@@ -154,7 +167,7 @@ export const requireUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> 
     const uid = await readSession(env, sess)
     if (uid) {
       const user = await env.DB
-        .prepare('SELECT id, email, nickname, family_id FROM users WHERE id = ?')
+        .prepare('SELECT id, email, nickname, family_id, role FROM users WHERE id = ?')
         .bind(uid)
         .first<User>()
       if (user) {
