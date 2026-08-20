@@ -148,13 +148,26 @@ export default function ResultsModal({ items: initialItems, storeName, error, on
                   </div>
                 ) : (
                   <>
-                    <p
-                      className="text-sm font-medium truncate cursor-pointer"
-                      style={{ color: 'var(--color-on-surface)' }}
-                      onClick={() => handleEditStart(idx)}
-                    >
-                      {item.name}
-                    </p>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p
+                        className="text-sm font-medium truncate cursor-pointer min-w-0"
+                        style={{ color: 'var(--color-on-surface)' }}
+                        onClick={() => handleEditStart(idx)}
+                      >
+                        {item.name}
+                      </p>
+                      {/* 여러 장을 겹쳐 찍으면 같은 항목이 두 번 잡힌다. 합쳐서
+                          한 줄로 보여주되 몇 장에서 나왔는지는 밝힌다 —
+                          진짜로 두 개를 산 경우일 수도 있어서다. */}
+                      {(item.duplicate_count ?? 1) > 1 && (
+                        <span
+                          className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full"
+                          style={{ backgroundColor: 'var(--color-surface-container-high)', color: 'var(--color-on-surface-variant)' }}
+                        >
+                          {item.duplicate_count}장 중복
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <input
                         className="w-20 text-xs px-2 py-0.5 rounded-md outline-none"

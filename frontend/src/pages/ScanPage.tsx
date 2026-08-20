@@ -1,11 +1,11 @@
 import { useCallback, useRef, useState } from 'react'
 import ScanLoader from '../components/motion/ScanLoader'
 import { logEvent } from '../api/events'
-import { analyzeReceipt, registerItems, type ScannedItem } from '../api/scan'
+import { MAX_SCAN_IMAGES, analyzeReceipts, registerItems, type ScannedItem } from '../api/scan'
 import { downscaleImage } from '../lib/image'
 import ResultsModal from '../components/scan/ResultsModal'
 
-const PROGRESS_STEPS = ['영수증을 읽고 있어요...', '식재료를 찾고 있어요...', '소비기한을 계산하고 있어요...']
+const PROGRESS_STEPS = ['사진을 읽고 있어요...', '식재료를 찾고 있어요...', '소비기한을 계산하고 있어요...']
 
 interface Props {
   onRegistered: () => void
@@ -23,14 +23,18 @@ export default function ScanPage({ onRegistered }: Props) {
   const [registerError, setRegisterError] = useState<string | null>(null)
   const [slow, setSlow] = useState(false)
   const [registeredCount, setRegisteredCount] = useState<number | null>(null)
+  const [shotProgress, setShotProgress] = useState<{ done: number; total: number } | null>(null)
+  const [partial, setPartial] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  const handleCapture = useCallback(async (file: File) => {
+  const handleCapture = useCallback(async (files: File[]) => {
     setError(null)
     setScanning(true)
     setProgressStep(0)
 
     setSlow(false)
+    setPartial(null)
+    setShotProgress(files.length > 1 ? { done: 0, total: files.length } : null)
     abortRef.current = new AbortController()
     const interval = setInterval(() => {
       setProgressStep(prev => Math.min(prev + 1, PROGRESS_STEPS.length - 1))
@@ -40,15 +44,27 @@ export default function ScanPage({ onRegistered }: Props) {
 
     try {
       // 업로드 전에 줄인다. 원본 그대로 보내면 업로드가 느리고 토큰만 늘어난다.
-      const prepared = await downscaleImage(file)
-      const result = await analyzeReceipt(prepared)
+      const prepared = await Promise.all(files.map((f) => downscaleImage(f)))
+      const result = await analyzeReceipts(prepared, (done, total) =>
+        setShotProgress({ done, total }),
+      )
       clearInterval(interval)
       clearTimeout(slowTimer)
 
-      logEvent('scan', { source: 'receipt', items_count: result.total })
+      logEvent('scan', { source: 'photo', shots: result.attempted, items_count: result.total })
+
+      // 일부만 실패했으면 성공한 것은 살리고 사실만 알린다. 사진 찍고
+      // 기다린 결과를 전부 버리게 하면 안 된다.
+      if (result.failed > 0 && result.succeeded > 0) {
+        setPartial(result.attempted + '장 중 ' + result.failed + '장을 읽지 못했어요. 나머지 결과예요.')
+      }
 
       if (result.total === 0) {
-        setError('식재료를 찾지 못했어요. 영수증이 잘 보이게 다시 찍어주세요.')
+        setError(
+          result.succeeded === 0
+            ? '사진을 읽지 못했어요. 다시 시도해주세요.'
+            : '식재료를 찾지 못했어요. 글자가 잘 보이게 다시 찍어주세요.',
+        )
         setScanning(false)
         return
       }
@@ -75,12 +91,18 @@ export default function ScanPage({ onRegistered }: Props) {
       setScanning(false)
       setProgressStep(0)
       setSlow(false)
+      setShotProgress(null)
     }
   }, [])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) handleCapture(file)
+    const picked = Array.from(e.target.files ?? [])
+    if (picked.length) {
+      if (picked.length > MAX_SCAN_IMAGES) {
+        setError('한 번에 ' + MAX_SCAN_IMAGES + '장까지 읽을 수 있어요. 앞의 ' + MAX_SCAN_IMAGES + '장만 읽을게요.')
+      }
+      handleCapture(picked.slice(0, MAX_SCAN_IMAGES))
+    }
     e.target.value = ''
   }
 
@@ -118,7 +140,7 @@ export default function ScanPage({ onRegistered }: Props) {
         식재료 등록
       </h1>
       <p className="text-sm mb-8" style={{ color: 'var(--color-on-surface-variant)' }}>
-        영수증을 찍으면 자동으로 등록됩니다
+        영수증이나 주문내역을 찍으면 자동으로 등록돼요
       </p>
 
       {registeredCount !== null && (
@@ -144,7 +166,13 @@ export default function ScanPage({ onRegistered }: Props) {
               가짜 퍼센트가 2.4초에 100% 로 멈춰서 사용자가 스캔을 취소했다.
               대신 "지금 읽고 있다"를 보여준다. canvas 를 못 쓰는 기기에서는
               ScanLoader 가 알아서 기존 불확정 막대로 되돌아간다. */}
-          <ScanLoader label={PROGRESS_STEPS[progressStep]} />
+          <ScanLoader
+            label={
+              shotProgress && shotProgress.total > 1
+                ? shotProgress.total + '장 중 ' + shotProgress.done + '장 읽었어요'
+                : PROGRESS_STEPS[progressStep]
+            }
+          />
           {slow && (
             <div className="flex flex-col items-center gap-3">
               <p className="text-xs" style={{ color: 'var(--color-on-surface-variant)' }}>
@@ -173,6 +201,16 @@ export default function ScanPage({ onRegistered }: Props) {
         </div>
       )}
 
+      {partial && (
+        <div
+          role="status"
+          className="w-full mt-4 px-4 py-3 rounded-xl text-sm"
+          style={{ backgroundColor: 'var(--color-surface-container-high)', color: 'var(--color-on-surface)' }}
+        >
+          {partial}
+        </div>
+      )}
+
       {error && (
         <div
           className="w-full mt-4 px-4 py-3 rounded-xl text-sm"
@@ -197,6 +235,7 @@ export default function ScanPage({ onRegistered }: Props) {
         ref={galleryInputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp"
+        multiple
         className="hidden"
         onChange={handleFileChange}
       />
@@ -216,11 +255,11 @@ export default function ScanPage({ onRegistered }: Props) {
         onClick={() => galleryInputRef.current?.click()}
         disabled={scanning}
       >
-        앨범에서 선택
+        앨범에서 선택 (최대 {MAX_SCAN_IMAGES}장)
       </button>
 
       <p className="mt-3 text-xs" style={{ color: 'var(--color-outline)' }}>
-        대형마트, 편의점 영수증 대부분 인식 가능해요
+        마트 영수증과 쿠팡·마켓컬리 같은 주문내역 화면도 읽어요
       </p>
 
       {showResults && (

@@ -11,6 +11,8 @@ export interface ScannedItem {
   auto_matched: boolean
   quantity: string | null
   price: number | null
+  /** 여러 장에서 같은 항목이 나왔을 때 몇 장에서 나왔는지. 1이면 표시하지 않는다. */
+  duplicate_count?: number
 }
 
 export interface ScanResponse {
@@ -188,4 +190,105 @@ export async function updateItem(itemId: string, data: { quantity?: string; name
 
 export async function deleteItem(itemId: string): Promise<void> {
   await api.delete(`/scan/items/${itemId}`)
+}
+
+
+/* ──────────────────────────────────────────────
+   여러 장 한 번에
+
+   온라인 주문내역은 한 화면에 다 안 들어와서 스크롤하며 여러 장을 찍게 된다.
+   ────────────────────────────────────────────── */
+
+/** Gemini 무료 한도가 분당 20회다. 5장이면 연속 두 번 스캔해도 안전하다. */
+export const MAX_SCAN_IMAGES = 5
+
+export interface MultiScanResult extends ScanResponse {
+  attempted: number
+  succeeded: number
+  failed: number
+}
+
+/** 중복 판정 키. 이름의 공백·대소문자 차이는 같은 것으로 본다. */
+function dedupeKey(it: ScannedItem): string {
+  const name = (it.normalized_name || it.name).replace(/\s+/g, '').toLowerCase()
+  return `${name}|${it.price ?? ''}`
+}
+
+/**
+ * 여러 장을 동시에 보낸다.
+ *
+ * 순차로 돌리면 5장에 45초다(장당 실측 9초대). 동시에 보내면 12초대로 끝난다.
+ * allSettled 를 쓰는 이유: 5장 중 1장이 흐려서 실패해도 나머지 4장 결과는
+ * 살려야 한다. 사진 찍고 기다린 걸 전부 버리게 하면 안 된다.
+ *
+ * onProgress 는 "몇 장 끝났는지" 를 알려준다. 진행률이 아니라 완료 개수다 —
+ * 각 장이 얼마나 남았는지는 알 수 없으므로 거짓말하지 않는다.
+ */
+export async function analyzeReceipts(
+  files: File[],
+  onProgress?: (done: number, total: number) => void,
+): Promise<MultiScanResult> {
+  const list = files.slice(0, MAX_SCAN_IMAGES)
+  let done = 0
+
+  const settled = await Promise.allSettled(
+    list.map((f) =>
+      analyzeReceipt(f).finally(() => {
+        done += 1
+        onProgress?.(done, list.length)
+      }),
+    ),
+  )
+
+  const ok = settled.map((r) => (r.status === 'fulfilled' ? r.value : null))
+  return mergeScans(ok)
+}
+
+/**
+ * 장별 결과를 하나로 합친다. null 은 실패한 장이다.
+ *
+ * 같은 장 안의 중복은 세지 않는다 — Gemini 가 이미 한 번만 넣도록 지시받았고,
+ * 진짜로 두 개를 산 경우일 수 있다. **다른 장**에서 같은 항목이 나올 때만
+ * 겹쳐 찍은 것으로 보고 합친다.
+ */
+export function mergeScans(results: (ScanResponse | null)[]): MultiScanResult {
+  const merged: ScannedItem[] = []
+  const seen = new Map<string, { item: ScannedItem; sources: Set<number> }>()
+  let storeName: string | null = null
+  let succeeded = 0
+
+  results.forEach((r, idx) => {
+    if (!r) return
+    succeeded += 1
+    if (!storeName && r.store_name) storeName = r.store_name
+
+    const inThisShot = new Set<string>()
+    for (const item of r.items) {
+      const k = dedupeKey(item)
+      const hit = seen.get(k)
+      if (hit) {
+        // 같은 장 안에서 또 나온 것은 별개 항목으로 둔다.
+        if (inThisShot.has(k)) {
+          merged.push({ ...item })
+          continue
+        }
+        hit.sources.add(idx)
+        hit.item.duplicate_count = hit.sources.size
+      } else {
+        const copy = { ...item }
+        seen.set(k, { item: copy, sources: new Set([idx]) })
+        merged.push(copy)
+      }
+      inThisShot.add(k)
+    }
+  })
+
+  return {
+    items: merged,
+    total: merged.length,
+    store_name: storeName,
+    attempted: results.length,
+    succeeded,
+    failed: results.length - succeeded,
+  }
 }
