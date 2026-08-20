@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import api from '../api/client'
 import MealDetailModal from '../components/calendar/MealDetailModal'
 import Reveal from '../components/motion/Reveal'
 import { useModal } from '../hooks/useModal'
+import { useReducedMotion } from '../hooks/useReducedMotion'
 import { MEAL_SLOTS, MEAL_SLOT_LABEL, type MealPlan, type MealSlot, type User } from '../types'
 
 /* ──────────────────────────────────────────────
@@ -51,6 +52,24 @@ function shiftMonth(date: string, months: number): string {
 function gridIndex(date: string): number {
   const dow = new Date(date + 'T00:00:00Z').getUTCDay()
   return dow === 0 ? 6 : dow - 1
+}
+
+/**
+ * 문서 기준 세로 위치. **transform 에 영향받지 않는다.**
+ *
+ * getBoundingClientRect 를 쓰면 등장 애니메이션(Reveal 이 부모 div 를
+ * translateY 로 8px 움직인다)이 도는 동안 잰 값이 그만큼 어긋난다.
+ * 실측에서 목표 88px 대신 80px, 심할 땐 12px 에 멈췄다.
+ * offsetTop 은 레이아웃 값이라 애니메이션 중에도 확정적이다.
+ */
+function docTop(el: HTMLElement): number {
+  let y = 0
+  let n: HTMLElement | null = el
+  while (n) {
+    y += n.offsetTop
+    n = n.offsetParent as HTMLElement | null
+  }
+  return y
 }
 
 const DOW = ['월', '화', '수', '목', '금', '토', '일']
@@ -222,11 +241,22 @@ export default function CalendarPage() {
   const [anchor, setAnchor] = useState(() => weekStart(kstToday()))
   const [plans, setPlans] = useState<MealPlan[]>([])
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
+  // 첫 로드와 재조회를 구분한다. 주/월을 토글할 때마다 전체를 스켈레톤으로
+  // 갈아치우면 제목도 토글도 사라져서 화면이 통째로 깜빡인다.
+  const booted = useRef(false)
   const [me, setMe] = useState<User | null>(null)
   const [adding, setAdding] = useState<{ date: string; slot: MealSlot } | null>(null)
   const [openId, setOpenId] = useState<string | null>(deepLinkId ?? null)
   // 월 보기에서 펼쳐 놓은 날짜. 폰 화면 격자 칸에는 메뉴 이름이 안 들어간다.
   const [expanded, setExpanded] = useState<string | null>(null)
+
+  const reduced = useReducedMotion()
+  const todayRef = useRef<HTMLElement | null>(null)
+  const expandedRef = useRef<HTMLElement | null>(null)
+  // 어떤 주까지 스크롤을 맞춰줬는지. 식단을 추가해서 목록이 새로고침될 때마다
+  // 화면을 잡아채면 안 된다 — 사용자가 보던 자리를 뺏는다.
+  const scrolledFor = useRef<string | null>(null)
+  const viewRef = useRef<View>('week')
 
   const days = useMemo(() => {
     const n = view === 'week' ? 7 : daysInMonth(anchor)
@@ -235,7 +265,9 @@ export default function CalendarPage() {
   const rangeEnd = days[days.length - 1]
 
   const load = useCallback(async () => {
-    setState('loading')
+    // 이미 한 번 보여준 뒤라면 이전 데이터를 그대로 두고 조용히 바꿔 끼운다.
+    // D1 조회가 0.2초대라 스켈레톤이 깜빡였다 사라지는 게 더 거슬린다.
+    if (!booted.current) setState('loading')
     try {
       const [p, u] = await Promise.all([
         api.get<MealPlan[]>('/calendar', { params: { from: anchor, to: rangeEnd } }),
@@ -243,7 +275,40 @@ export default function CalendarPage() {
       ])
       setPlans(p.data)
       setMe(u.data)
+      booted.current = true
       setState('ready')
+
+      // 오늘로 내려주는 일을 여기서 한다.
+      //
+      // useEffect 의존성으로 맞추려다 여러 번 어긋났다. anchor 는 클릭 즉시
+      // 바뀌는데 데이터는 나중에 오고, 그 사이에 위치를 재면 이전 기간의
+      // 레이아웃을 기준으로 삼는다(실측 68px 오차). 여기서는 기간과 데이터가
+      // 반드시 일치한다.
+      //
+      // 하루 카드가 224px 이고 상단바(79px)·하단바(94px)를 빼면 한 화면에
+      // 3일뿐이다. 주 전체는 1690px. 수요일만 돼도 오늘이 화면 밖이다.
+      // 이번 주가 아니면 건드리지 않는다 — 지난 주를 보러 간 사람을 오늘로
+      // 끌고 오면 안 된다.
+      const key = 'week:' + anchor
+      if (
+        viewRef.current === 'week' &&
+        today >= anchor &&
+        today <= rangeEnd &&
+        scrolledFor.current !== key
+      ) {
+        scrolledFor.current = key
+        // 두 프레임 기다린다. 첫 프레임에 DOM 이 붙고 두 번째에 레이아웃이
+        // 확정된다. 위치는 docTop(offsetTop 누적)으로 재서 등장 애니메이션의
+        // transform 에 영향받지 않게 한다.
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            const node = todayRef.current
+            if (!node || scrolledFor.current !== key) return
+            const margin = parseFloat(getComputedStyle(node).scrollMarginTop) || 0
+            window.scrollTo({ top: Math.max(0, docTop(node) - margin), behavior: 'auto' })
+          }),
+        )
+      }
     } catch (e: any) {
       if (e?.response?.status === 401) {
         navigate('/login')
@@ -251,11 +316,35 @@ export default function CalendarPage() {
       }
       setState('error')
     }
-  }, [anchor, rangeEnd, navigate])
+  }, [anchor, rangeEnd, navigate, today])
+
+  useEffect(() => {
+    viewRef.current = view
+  }, [view])
 
   useEffect(() => {
     load()
   }, [load])
+
+  /**
+   * 월 보기에서 날짜를 누르면 펼쳐진 패널이 화면 밖일 수 있다.
+   *
+   * **정말 안 보일 때만** 움직인다. 이미 일부라도 보이는데 스크롤하면
+   * 주별/월별 토글과 월 라벨이 화면 위로 밀려나서, 날짜 하나 눌렀을 뿐인데
+   * 어느 보기에 있는지 모르게 된다.
+   */
+  useEffect(() => {
+    if (view !== 'month' || !expanded) return
+    requestAnimationFrame(() => {
+      const el = expandedRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      // 하단 네비(94px)에 가려지는 부분도 '안 보이는' 것으로 친다.
+      const fold = window.innerHeight - 94
+      if (r.top < fold - 80) return
+      el.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' })
+    })
+  }, [view, expanded, reduced])
 
   const byCell = useMemo(() => {
     const m = new Map<string, MealPlan[]>()
@@ -281,12 +370,30 @@ export default function CalendarPage() {
     setAnchor(next === 'month' ? monthStart(anchor) : weekStart(anchor))
     setExpanded(null)
     setView(next)
+    // 주 보기로 돌아오면 다시 오늘로 맞춰준다.
+    scrolledFor.current = null
+    // 월 보기는 주 보기보다 훨씬 짧다. 스크롤을 유지하면 빈 화면이 뜬다.
+    window.scrollTo({ top: 0, behavior: 'auto' })
   }
 
-  const goPrev = () => setAnchor(view === 'week' ? shift(anchor, -7) : shiftMonth(anchor, -1))
-  const goNext = () => setAnchor(view === 'week' ? shift(anchor, 7) : shiftMonth(anchor, 1))
+  /**
+   * 기간 이동. 맨 위로 되돌린다.
+   *
+   * 스크롤을 그대로 두면 지난 주로 갔을 때 그 주의 금·토·일부터 보인다.
+   * 이유 없는 위치다. 새 주는 월요일부터 보여준다 — 그 주에 오늘이 있으면
+   * 아래 효과가 다시 오늘로 내려준다.
+   */
+  const jump = (nextAnchor: string) => {
+    setAnchor(nextAnchor)
+    // 가드를 푼다. 안 풀면 지난 주에 갔다 이번 주로 돌아왔을 때
+    // "이 주는 이미 맞춰줬다" 로 판단해서 오늘로 안 내려간다.
+    scrolledFor.current = null
+    window.scrollTo({ top: 0, behavior: 'auto' })
+  }
+  const goPrev = () => jump(view === 'week' ? shift(anchor, -7) : shiftMonth(anchor, -1))
+  const goNext = () => jump(view === 'week' ? shift(anchor, 7) : shiftMonth(anchor, 1))
   const goToday = () => {
-    setAnchor(view === 'week' ? weekStart(today) : monthStart(today))
+    jump(view === 'week' ? weekStart(today) : monthStart(today))
     setExpanded(view === 'month' ? today : null)
   }
 
@@ -296,34 +403,6 @@ export default function CalendarPage() {
   }
 
   /* ── 상태별 화면 ── */
-
-  if (state === 'loading') {
-    return (
-      <div aria-busy="true" className="space-y-4">
-        <div className="h-10 w-40 rounded-xl bg-surface-container-high animate-pulse" />
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-32 rounded-2xl bg-surface-container-high animate-pulse" />
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  if (state === 'error') {
-    return (
-      <div className="text-center py-20" role="status">
-        <span className="material-symbols-outlined text-tertiary text-5xl mb-4 block">error</span>
-        <p className="text-on-surface-variant mb-6">식단을 불러오지 못했어요.</p>
-        <button
-          onClick={load}
-          className="min-h-[48px] px-6 inline-flex items-center justify-center rounded-full bg-on-surface text-surface font-bold active:scale-95 transition-transform"
-        >
-          다시 시도
-        </button>
-      </div>
-    )
-  }
 
   const label =
     view === 'week'
@@ -382,6 +461,25 @@ export default function CalendarPage() {
         </button>
       </div>
 
+      {state === 'loading' ? (
+        <div aria-busy="true" className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-32 rounded-2xl bg-surface-container-high animate-pulse" />
+          ))}
+        </div>
+      ) : state === 'error' ? (
+        <div className="text-center py-20" role="status">
+          <span className="material-symbols-outlined text-tertiary text-5xl mb-4 block">error</span>
+          <p className="text-on-surface-variant mb-6">식단을 불러오지 못했어요.</p>
+          <button
+            onClick={load}
+            className="min-h-[48px] px-6 inline-flex items-center justify-center rounded-full bg-on-surface text-surface font-bold active:scale-95 transition-transform"
+          >
+            다시 시도
+          </button>
+        </div>
+      ) : (
+        <>
       {plans.length === 0 && (
         <p className="text-center text-sm text-on-surface-variant py-6">
           {view === 'week' ? '이번 주' : '이번 달'} 식단이 비어 있어요.{' '}
@@ -398,7 +496,8 @@ export default function CalendarPage() {
             return (
               <Reveal key={d} index={i}>
                 <section
-                  className={`rounded-2xl p-5 bg-surface-container-lowest ${
+                  ref={isToday ? todayRef : undefined}
+                  className={`scroll-anchor rounded-2xl p-5 bg-surface-container-lowest ${
                     isToday ? 'ring-2 ring-primary' : ''
                   } ${past && !isToday ? 'opacity-60' : ''}`}
                 >
@@ -465,7 +564,7 @@ export default function CalendarPage() {
           </div>
 
           {expanded && (
-            <section className="mt-3 rounded-2xl p-5 bg-surface-container-lowest">
+            <section ref={expandedRef} className="scroll-anchor mt-3 rounded-2xl p-5 bg-surface-container-lowest">
               <div className="flex items-baseline gap-2 mb-3">
                 <span className="font-headline font-bold text-on-surface">
                   {Number(expanded.slice(5, 7))}월 {Number(expanded.slice(8))}일
@@ -487,6 +586,9 @@ export default function CalendarPage() {
               날짜를 누르면 그 날 식단이 펼쳐져요.
             </p>
           )}
+        </>
+      )}
+
         </>
       )}
 

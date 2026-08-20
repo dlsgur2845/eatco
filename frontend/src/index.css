@@ -180,3 +180,12 @@ body,
      hidden 은 스크롤 컨테이너를 만들어 sticky 기준을 바꿔버린다. */
   overflow-x: clip;
 }
+
+/* 스크롤 목표가 스티키 상단바 뒤로 숨지 않게.
+
+   상단바는 sticky top-0 이고 실측 79px + safe-area 다. scrollIntoView 는
+   스티키 요소를 모르기 때문에, 이걸 안 주면 오늘 날짜 카드의 제목이
+   상단바에 가려진 채로 멈춘다. */
+.scroll-anchor {
+  scroll-margin-top: calc(5.5rem + env(safe-area-inset-top));
+}
