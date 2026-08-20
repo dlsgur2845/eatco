@@ -17,17 +17,26 @@ function inviteCode(len = 8): string {
   return out
 }
 
-app.get('/me', async (c) => {
+app.get('/me', (c) => c.json(c.get('user')))
+
+app.patch('/family/settings', async (c) => {
   const user = c.get('user')
-  let family: unknown = null
-  if (user.family_id) {
-    family = await c.env.DB.prepare(
-      'SELECT id, name, invite_code, allow_shared_edit, monthly_budget, master_id FROM families WHERE id = ?',
-    )
-      .bind(user.family_id)
-      .first()
+  const famId = user.family_id
+  if (!famId) throw new ApiError(400, '가족 그룹에 속해 있지 않습니다.')
+  const b = await readJson<{ name: string; allow_shared_edit: boolean; monthly_budget: number | null }>(c.req)
+  const sets: string[] = []
+  const binds: unknown[] = []
+  if (b.name !== undefined) { sets.push('name = ?'); binds.push(String(b.name).slice(0, 100)) }
+  if (b.allow_shared_edit !== undefined) { sets.push('allow_shared_edit = ?'); binds.push(b.allow_shared_edit ? 1 : 0) }
+  if (b.monthly_budget !== undefined) {
+    sets.push('monthly_budget = ?')
+    binds.push(b.monthly_budget == null ? null : Math.trunc(Number(b.monthly_budget)))
   }
-  return c.json({ user, family })
+  if (!sets.length) throw new ApiError(422, '변경할 내용이 없습니다.')
+  binds.push(famId)
+  await c.env.DB.prepare(`UPDATE families SET ${sets.join(', ')} WHERE id = ?`).bind(...binds).run()
+  const fam = await c.env.DB.prepare('SELECT * FROM families WHERE id = ?').bind(famId).first()
+  return c.json(fam)
 })
 
 app.patch('/me', async (c) => {
@@ -131,5 +140,21 @@ function defaultNotificationSettings(db: D1Database, familyId: string) {
       .bind(crypto.randomUUID(), familyId, d, d <= 3 ? 1 : 0, '09:00'),
   )
 }
+
+// 와일드카드는 반드시 구체 경로들보다 뒤에 둔다.
+// 먼저 등록하면 /family/members 나 /family/settings 를 :id 로 삼켜버린다.
+app.get('/family/:id', async (c) => {
+  const user = c.get('user')
+  const id = c.req.param('id')
+  // 남의 가족 정보를 id 만 알면 볼 수 있으면 안 된다.
+  if (user.family_id !== id) throw new ApiError(403, '접근 권한이 없습니다.')
+  const fam = await c.env.DB.prepare(
+    'SELECT id, name, invite_code, allow_shared_edit, monthly_budget, master_id FROM families WHERE id = ?',
+  )
+    .bind(id)
+    .first()
+  if (!fam) throw new ApiError(404, '가족을 찾을 수 없습니다.')
+  return c.json(fam)
+})
 
 export default app

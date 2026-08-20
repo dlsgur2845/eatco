@@ -5,7 +5,7 @@ import { todayKst, hourKst, nowIso } from './lib/dates'
 import type { Env, Vars } from './lib/types'
 import { visionModels } from './lib/gemini'
 
-import family from './routes/family'
+import auth from './routes/auth'
 import ingredients from './routes/ingredients'
 import dashboard from './routes/dashboard'
 import storage from './routes/storage'
@@ -52,7 +52,7 @@ app.get('/api/health/ai', async (c) => {
 // ── 인증 필요 ─────────────────────────────────────────────────
 app.use('/api/*', requireUser)
 
-app.route('/api', family) // /api/me, /api/family...
+app.route('/api/auth', auth) // /api/auth/me, /api/auth/family...
 app.route('/api/ingredients', ingredients)
 app.route('/api/dashboard', dashboard)
 app.route('/api/storage-guide', storage)

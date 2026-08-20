@@ -3,7 +3,7 @@ import { ApiError, readJson } from '../lib/errors'
 import { requireFamily } from '../lib/identity'
 import { generateJson, visionModels, type InlineImage } from '../lib/gemini'
 import { RECEIPT_PROMPT } from '../data/receipt-prompt'
-import { todayKst, addDays, nowIso } from '../lib/dates'
+import { todayKst, addDays, nowIso, daysBetween } from '../lib/dates'
 import type { Env, Vars } from '../lib/types'
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>()
@@ -137,6 +137,75 @@ app.post('/register', async (c) => {
   // D1 batch 는 원자적이다. 일부만 들어가는 상태가 없다.
   await c.env.DB.batch(stmts)
   return c.json({ registered: stmts.length })
+})
+
+/**
+ * 브라우저가 Gemini 를 직접 호출하기 위한 설정.
+ *
+ * 왜 서버에서 안 부르는가: 배포된 Worker 에서 Gemini 가 지역 차단된다
+ * (프로덕션 10회 측정에서 9회 "User location is not supported").
+ * Worker egress 위치는 통제 불가, 지역 고정은 Enterprise 전용.
+ * 사용자의 폰은 한국에 있어서 직접 호출하면 문제가 없다.
+ *
+ * 키는 정적 번들에 넣지 않고 이 엔드포인트로만 내려준다.
+ * Access 인증을 통과한 가족만 받을 수 있다.
+ */
+app.get('/config', (c) => {
+  if (!c.env.GEMINI_API_KEY) throw new ApiError(503, 'AI 기능이 설정되지 않았습니다.')
+  return c.json({
+    api_key: c.env.GEMINI_API_KEY,
+    models: visionModels(c.env),
+    prompt: RECEIPT_PROMPT,
+    max_bytes: MAX_IMAGE_BYTES,
+  })
+})
+
+// ── 프론트가 쓰는 /scan/items 계약 (재고 화면) ──────────────────
+app.get('/items', async (c) => {
+  const familyId = requireFamily(c.get('user'))
+  const { results } = await c.env.DB.prepare(
+    'SELECT * FROM ingredients WHERE family_id = ? ORDER BY expiry_date ASC',
+  )
+    .bind(familyId)
+    .all<Record<string, unknown>>()
+  const today = todayKst()
+  return c.json(
+    (results ?? []).map((r) => ({
+      ...r,
+      storage_method: String(r.storage_method).toLowerCase(),
+      days_left: daysBetween(today, String(r.expiry_date)),
+    })),
+  )
+})
+
+app.patch('/items/:id', async (c) => {
+  const familyId = requireFamily(c.get('user'))
+  const b = await readJson<{ quantity: string; name: string; price: number; expiry_date: string }>(c.req)
+  const sets: string[] = []
+  const binds: unknown[] = []
+  if (b.name !== undefined) { sets.push('name = ?'); binds.push(String(b.name).slice(0, 200)) }
+  if (b.quantity !== undefined) { sets.push('quantity = ?'); binds.push(b.quantity == null ? null : String(b.quantity).slice(0, 50)) }
+  if (b.price !== undefined) { sets.push('price = ?'); binds.push(b.price == null ? null : Math.trunc(Number(b.price))) }
+  if (b.expiry_date !== undefined) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(b.expiry_date))) throw new ApiError(422, '소비기한이 올바르지 않습니다.')
+    sets.push('expiry_date = ?'); binds.push(String(b.expiry_date))
+  }
+  if (!sets.length) throw new ApiError(422, '변경할 내용이 없습니다.')
+  binds.push(c.req.param('id'), familyId)
+  const res = await c.env.DB.prepare(`UPDATE ingredients SET ${sets.join(', ')} WHERE id = ? AND family_id = ?`)
+    .bind(...binds)
+    .run()
+  if (!res.meta.changes) throw new ApiError(404, '식재료를 찾을 수 없습니다.')
+  return c.json({ updated: true })
+})
+
+app.delete('/items/:id', async (c) => {
+  const familyId = requireFamily(c.get('user'))
+  const res = await c.env.DB.prepare('DELETE FROM ingredients WHERE id = ? AND family_id = ?')
+    .bind(c.req.param('id'), familyId)
+    .run()
+  if (!res.meta.changes) throw new ApiError(404, '식재료를 찾을 수 없습니다.')
+  return c.json({ deleted: true })
 })
 
 export default app

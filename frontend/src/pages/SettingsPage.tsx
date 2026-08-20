@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import api from '../api/client'
 import NotificationCycleForm from '../components/settings/NotificationCycleForm'
 import PushTimeSelector from '../components/settings/PushTimeSelector'
@@ -7,7 +7,6 @@ import { usePushNotification } from '../hooks/usePushNotification'
 import type { NotificationSetting } from '../types'
 
 export default function SettingsPage() {
-  const navigate = useNavigate()
   const [settings, setSettings] = useState<NotificationSetting[]>([])
   const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null
   const { permission, subscribed, loading: pushLoading, subscribe, unsubscribe, isSupported, isIOS } =
@@ -34,12 +33,14 @@ export default function SettingsPage() {
 
   const handleLogout = async () => {
     try {
-      await api.post('/auth/logout')
+      // Access 세션을 끊는다. 앱 자체 세션은 없다.
+      window.location.href = '/cdn-cgi/access/logout'
+      return
     } catch {
       /* ignore */
     }
     localStorage.removeItem('user')
-    navigate('/login')
+    window.location.href = '/cdn-cgi/access/logout'
   }
 
   const pushTime = settings.length > 0 ? settings[0].push_time : '09:00'

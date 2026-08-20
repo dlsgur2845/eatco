@@ -24,12 +24,14 @@ export default function TopAppBar() {
 
   const handleLogout = async () => {
     try {
-      await api.post('/auth/logout')
+      // Access 세션을 끊는다. 앱 자체 세션은 없다.
+      window.location.href = '/cdn-cgi/access/logout'
+      return
     } catch {
       /* ignore */
     }
     localStorage.removeItem('user')
-    navigate('/login')
+    window.location.href = '/cdn-cgi/access/logout'
   }
 
   return (

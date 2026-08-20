@@ -10,21 +10,13 @@ const api = axios.create({
 })
 
 // 401 응답 시 로그인 페이지로 리다이렉트 (로그인/회원가입 API는 제외)
+// 401 은 Access 세션 만료다. 비밀번호 로그인 페이지가 없으므로
+// 리다이렉트 대신 저장된 신원만 비우고 호출부가 처리하게 둔다.
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const url = error.config?.url || ''
-    const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register')
-
-    if (error.response?.status === 401 && !isAuthEndpoint) {
+    if (error.response?.status === 401) {
       localStorage.removeItem('user')
-
-      // 세션 만료 메시지가 있으면 쿼리 파라미터로 전달
-      const detail = error.response?.data?.detail || ''
-      const params = detail.includes('다른 기기')
-        ? '?reason=session_expired'
-        : ''
-      window.location.href = `/login${params}`
     }
     return Promise.reject(error)
   },
