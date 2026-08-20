@@ -9,6 +9,7 @@ export interface Env {
   VAPID_PRIVATE_KEY?: string
   VAPID_CLAIM_EMAIL?: string
   RECIPE_API_KEY?: string
+  SECRET_KEY?: string
   DATA_GO_KR_API_KEY?: string
 
   // Vars

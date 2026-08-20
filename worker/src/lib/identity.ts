@@ -2,6 +2,7 @@ import type { MiddlewareHandler } from 'hono'
 import { ApiError } from './errors'
 import type { Env, User, Vars } from './types'
 import { nowIso } from './dates'
+import { readCookie, readSession } from './session'
 
 /**
  * Cloudflare Access 기반 신원 확인.
@@ -138,23 +139,38 @@ export const requireUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> 
     // 브라우저는 쿠키로도 들고 온다
     (c.req.header('Cookie') || '').match(/CF_Authorization=([^;]+)/)?.[1]
 
-  let email: string | undefined
-
+  // 1) Cloudflare Access 가 앞에 있으면 그 신원을 쓴다 (가장 강함).
   if (token && env.ACCESS_TEAM_DOMAIN) {
     const claims = await verifyAccessJwt(token, env.ACCESS_TEAM_DOMAIN, env.ACCESS_AUD)
-    email = claims.email
-  } else if (env.ALLOW_INSECURE_DEV === '1' && env.DEV_EMAIL) {
-    // 로컬 개발 전용 탈출구. 프로덕션에 이 변수를 두면 앱이 무방비가 된다.
-    email = env.DEV_EMAIL
+    const user = await resolveUser(env.DB, claims.email!)
+    c.set('user', user)
+    return next()
   }
 
-  if (!email) {
-    throw new ApiError(401, '로그인이 필요합니다.')
+  // 2) 앱 자체 세션 쿠키 (PBKDF2 100k + HMAC 서명 세션).
+  const sess = readCookie(c.req.header('Cookie'))
+  if (sess) {
+    const uid = await readSession(env, sess)
+    if (uid) {
+      const user = await env.DB
+        .prepare('SELECT id, email, nickname, family_id FROM users WHERE id = ?')
+        .bind(uid)
+        .first<User>()
+      if (user) {
+        c.set('user', user)
+        return next()
+      }
+    }
   }
 
-  const user = await resolveUser(env.DB, email)
-  c.set('user', user)
-  await next()
+  // 3) 로컬 개발 전용 탈출구. 프로덕션에 이 변수를 두면 앱이 무방비가 된다.
+  if (env.ALLOW_INSECURE_DEV === '1' && env.DEV_EMAIL) {
+    const user = await resolveUser(env.DB, env.DEV_EMAIL)
+    c.set('user', user)
+    return next()
+  }
+
+  throw new ApiError(401, '로그인이 필요합니다.')
 }
 
 /** 가족에 소속돼 있어야 하는 엔드포인트용. */

@@ -5,7 +5,7 @@ import { todayKst, hourKst, nowIso } from './lib/dates'
 import type { Env, Vars } from './lib/types'
 import { visionModels } from './lib/gemini'
 
-import auth from './routes/auth'
+import auth, { publicAuth } from './routes/auth'
 import ingredients from './routes/ingredients'
 import dashboard from './routes/dashboard'
 import storage from './routes/storage'
@@ -54,6 +54,9 @@ app.get('/api/health/ai', async (c) => {
 })
 
 // ── 인증 필요 ─────────────────────────────────────────────────
+// 로그인/회원가입/로그아웃은 당연히 인증 앞에 있어야 한다.
+app.route('/api/auth', publicAuth)
+
 app.use('/api/*', requireUser)
 
 app.route('/api/auth', auth) // /api/auth/me, /api/auth/family...

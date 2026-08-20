@@ -33,14 +33,12 @@ export default function SettingsPage() {
 
   const handleLogout = async () => {
     try {
-      // Access 세션을 끊는다. 앱 자체 세션은 없다.
-      window.location.href = '/cdn-cgi/access/logout'
-      return
+      await api.post('/auth/logout')
     } catch {
       /* ignore */
     }
     localStorage.removeItem('user')
-    window.location.href = '/cdn-cgi/access/logout'
+    window.location.href = '/login'
   }
 
   const pushTime = settings.length > 0 ? settings[0].push_time : '09:00'

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
 import api from './api/client'
+import LoginPage from './pages/LoginPage'
+import RegisterAccountPage from './pages/RegisterAccountPage'
 import Layout from './components/layout/Layout'
 import FamilyPage from './pages/FamilyPage'
 import InventoryPage from './pages/InventoryPage'
@@ -21,10 +23,11 @@ function ScanRoute() {
 }
 
 /**
- * Cloudflare Access 가 사이트 전체를 막고 있으므로, 이 화면이 보인다는 것 자체가
- * 이미 인증됐다는 뜻이다. 비밀번호 로그인은 없앴다 — 무료 Workers 의 요청당
- * CPU 10ms 안에서 bcrypt(200~300ms)를 돌릴 수 없기 때문이다.
- * 따라서 여기서는 localStorage 를 믿지 않고 서버에 신원을 물어본다.
+ * 신원은 서버에 물어본다. localStorage 는 캐시일 뿐 신뢰의 근거가 아니다.
+ * 인증은 두 갈래를 지원한다:
+ *   1) Cloudflare Access 가 앞에 있으면 그 신원
+ *   2) 없으면 앱 자체 세션 쿠키 (PBKDF2 100k)
+ * 어느 쪽이든 /auth/me 가 200 이면 통과, 401 이면 로그인 화면으로.
  */
 function AuthGuard() {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -58,23 +61,7 @@ function AuthGuard() {
   }
 
   if (state === 'error') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-surface px-6">
-        <div className="text-center max-w-sm">
-          <span className="material-symbols-outlined text-outline text-5xl mb-3 block">lock</span>
-          <h1 className="font-headline font-bold text-xl text-on-surface mb-2">로그인이 필요해요</h1>
-          <p className="text-on-surface-variant text-sm mb-6">
-            세션이 만료되었을 수 있어요. 새로고침하면 다시 로그인 화면으로 이동합니다.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-3 rounded-full font-semibold text-on-primary bg-primary active:scale-95 transition-transform"
-          >
-            새로고침
-          </button>
-        </div>
-      </div>
-    )
+    return <Navigate to="/login" replace />
   }
 
   return <Outlet />
@@ -84,9 +71,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 로그인/회원가입은 Cloudflare Access 가 처리한다. 남아있는 링크는 홈으로. */}
-        <Route path="/login" element={<Navigate to="/" replace />} />
-        <Route path="/signup" element={<Navigate to="/" replace />} />
+        {/* 공개 라우트 */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<RegisterAccountPage />} />
 
         {/* Protected routes */}
         <Route element={<AuthGuard />}>
