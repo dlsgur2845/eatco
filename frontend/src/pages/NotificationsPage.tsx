@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import Reveal from '../components/motion/Reveal'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 
@@ -161,9 +162,9 @@ export default function NotificationsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {notifications.map((notif) => (
+          {notifications.map((notif, i) => (
+            <Reveal key={notif.id} index={i}>
             <button
-              key={notif.id}
               onClick={() => markAsRead(notif)}
               className={`w-full text-left bg-surface-container-lowest p-5 rounded-xl border-l-4 ${
                 typeColor[notif.type] || 'border-outline-variant'
@@ -174,10 +175,10 @@ export default function NotificationsPage() {
               <div
                 className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
                   notif.type === 'expiry_today'
-                    ? 'bg-tertiary-fixed'
+                    ? 'bg-tertiary/10'
                     : notif.type === 'expiry_soon'
-                      ? 'bg-secondary-fixed'
-                      : 'bg-primary-fixed'
+                      ? 'bg-secondary/10'
+                      : 'bg-primary/10'
                 }`}
               >
                 <span className="material-symbols-outlined text-[20px]">
@@ -204,6 +205,7 @@ export default function NotificationsPage() {
                 </span>
               )}
             </button>
+            </Reveal>
           ))}
           {hasMore && (
             <button

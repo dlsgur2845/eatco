@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import CountUp from '../components/motion/CountUp'
 import { Link } from 'react-router-dom'
 import { freshnessColor, daysLabel as fmtDays } from '../lib/freshness'
 import api from '../api/client'
@@ -305,7 +306,9 @@ export default function MvpDashboardPage() {
 function StatCard({ count, label, color, bgColor }: { count: number; label: string; color: string; bgColor: string }) {
   return (
     <div className="flex-1 py-4 rounded-2xl text-center" style={{ backgroundColor: bgColor }}>
-      <p className="text-3xl font-bold" style={{ fontFamily: 'var(--font-headline)', color }}>{count}</p>
+      <p className="text-3xl font-bold" style={{ fontFamily: 'var(--font-headline)', color }}>
+        <CountUp value={count} />
+      </p>
       <p className="text-xs mt-1" style={{ color: 'var(--color-on-surface-variant)' }}>{label}</p>
     </div>
   )

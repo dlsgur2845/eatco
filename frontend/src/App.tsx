@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
 import api from './api/client'
 import LoginPage from './pages/LoginPage'
@@ -10,7 +10,9 @@ import MvpDashboardPage from './pages/MvpDashboardPage'
 import NotificationsPage from './pages/NotificationsPage'
 import ScanPage from './pages/ScanPage'
 import NutritionPage from './pages/NutritionPage'
-import ExpensesPage from './pages/ExpensesPage'
+// 지출/통계는 recharts 를 쓴다. 초기 번들에서 빼면 746 kB → 392 kB (-47%).
+// 냉장고를 확인하러 여는 앱인데 첫 로딩에 차트 라이브러리를 들고 갈 이유가 없다.
+const ExpensesPage = lazy(() => import('./pages/ExpensesPage'))
 import SettingsPage from './pages/SettingsPage'
 import AdminPage from './pages/AdminPage'
 
@@ -28,6 +30,17 @@ function ScanRoute() {
  *   2) 없으면 앱 자체 세션 쿠키 (PBKDF2 100k)
  * 어느 쪽이든 /auth/me 가 200 이면 통과, 401 이면 로그인 화면으로.
  */
+/** 지연 로딩되는 지출 화면의 자리표시자. 실제 레이아웃과 같은 높이를 잡는다. */
+function ChartSkeleton() {
+  return (
+    <div aria-busy="true" className="space-y-4">
+      <div className="h-10 w-40 rounded-xl bg-surface-container-high animate-pulse" />
+      <div className="h-64 rounded-2xl bg-surface-container-high animate-pulse" />
+      <div className="h-64 rounded-2xl bg-surface-container-high animate-pulse" />
+    </div>
+  )
+}
+
 function AuthGuard() {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
 
@@ -80,7 +93,16 @@ export default function App() {
             <Route path="/" element={<MvpDashboardPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/scan" element={<ScanRoute />} />
-            <Route path="/expenses" element={<ExpensesPage />} />
+            {/* fallback 이 null 이면 차트 청크(108 kB)를 받는 동안 화면이
+                빈 칸이 된다. 느린 회선에서 "안 열린다"로 읽힌다. */}
+            <Route
+              path="/expenses"
+              element={
+                <Suspense fallback={<ChartSkeleton />}>
+                  <ExpensesPage />
+                </Suspense>
+              }
+            />
             <Route path="/nutrition" element={<NutritionPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/settings" element={<SettingsPage />} />

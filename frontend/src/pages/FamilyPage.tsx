@@ -164,9 +164,9 @@ function FamilyManageView({
                   alert('탈퇴에 실패했습니다.')
                 }
               }}
-              className="w-full p-4 bg-surface-container-lowest rounded-2xl flex items-center gap-4 hover:bg-tertiary-fixed/30 transition-colors text-left group"
+              className="w-full p-4 bg-surface-container-lowest rounded-2xl flex items-center gap-4 hover:bg-tertiary/10 transition-colors text-left group"
             >
-              <div className="w-10 h-10 bg-tertiary-fixed rounded-xl flex items-center justify-center group-hover:bg-tertiary-container/20">
+              <div className="w-10 h-10 bg-tertiary/10 rounded-xl flex items-center justify-center group-hover:bg-tertiary-container/20">
                 <span className="material-symbols-outlined text-tertiary">logout</span>
               </div>
               <div>

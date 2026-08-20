@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import Reveal from '../components/motion/Reveal'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import { useModal } from '../hooks/useModal'
@@ -414,14 +415,15 @@ export default function AdminPage() {
         ) : (
           <ul className="space-y-3">
             {me &&
-              users.map((u) => (
+              users.map((u, i) => (
+                <Reveal key={u.id} index={i}>
                 <UserRow
-                  key={u.id}
                   u={u}
                   me={me}
                   onRole={changeRole}
                   onDelete={(user) => setPending({ kind: 'delete-user', user })}
                 />
+                </Reveal>
               ))}
           </ul>
         ))}
@@ -434,13 +436,14 @@ export default function AdminPage() {
         ) : (
           <ul className="space-y-3">
             {me &&
-              families.map((f) => (
+              families.map((f, i) => (
+                <Reveal key={f.id} index={i}>
                 <FamilyRow
-                  key={f.id}
                   f={f}
                   me={me}
                   onDelete={(family) => setPending({ kind: 'delete-family', family })}
                 />
+                </Reveal>
               ))}
           </ul>
         ))}

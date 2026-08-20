@@ -21,6 +21,11 @@ export default function BottomNav() {
         <NavLink
           key={to}
           to={to}
+          // View Transitions API. 라이브러리 0 kB — react-router 가
+          // document.startViewTransition 을 호출하고, 실제 전환 모양은
+          // index.css 의 ::view-transition-* 가 정한다.
+          // 미지원 브라우저(구형 Android)는 전환 없이 그냥 넘어간다. 깨지지 않는다.
+          viewTransition
           className={({ isActive }) =>
             `flex flex-col items-center justify-center transition-all active:scale-90 duration-200 relative ${
               isActive

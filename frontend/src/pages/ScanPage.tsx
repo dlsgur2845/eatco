@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import ScanLoader from '../components/motion/ScanLoader'
 import { logEvent } from '../api/events'
 import { analyzeReceipt, registerItems, type ScannedItem } from '../api/scan'
 import { downscaleImage } from '../lib/image'
@@ -21,6 +22,7 @@ export default function ScanPage({ onRegistered }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [registerError, setRegisterError] = useState<string | null>(null)
   const [slow, setSlow] = useState(false)
+  const [registeredCount, setRegisteredCount] = useState<number | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   const handleCapture = useCallback(async (file: File) => {
@@ -89,7 +91,15 @@ export default function ScanPage({ onRegistered }: Props) {
       logEvent('register', { items_count: finalItems.length, store: storeName })
       setShowResults(false)
       setItems([])
-      onRegistered()
+      // 사진 한 장으로 여러 개가 한 번에 들어가는, 이 앱에서 가장 기분 좋은
+      // 순간이다. 500ms 만 붙잡는다. 이보다 길면 축하가 아니라 장애물이 된다.
+      // 동작 줄이기면 CSS 전역 규칙이 애니메이션을 죽이지만 화면은 그대로
+      // 500ms 떠 있다 — 성공했다는 사실 자체는 봐야 한다.
+      setRegisteredCount(finalItems.length)
+      setTimeout(() => {
+        setRegisteredCount(null)
+        onRegistered()
+      }, 500)
     } catch {
       // 예전에는 setError 만 하고 showResults 를 유지해서, 에러 배너가
       // z-[100] 모달 **뒤에** 렌더됐다. 사용자 눈에는 아무 일도 안 일어난 것처럼
@@ -111,27 +121,30 @@ export default function ScanPage({ onRegistered }: Props) {
         영수증을 찍으면 자동으로 등록됩니다
       </p>
 
+      {registeredCount !== null && (
+        <div
+          className="fixed inset-0 z-[110] flex flex-col items-center justify-center gap-4 bg-surface/90 backdrop-blur-sm"
+          role="status"
+        >
+          <div className="eatco-pop w-20 h-20 rounded-full bg-primary flex items-center justify-center">
+            <span className="material-symbols-outlined text-on-primary text-4xl">check</span>
+          </div>
+          <p className="font-headline font-bold text-xl text-on-surface">
+            {registeredCount}개 담았어요
+          </p>
+        </div>
+      )}
+
       {scanning ? (
         <div
           className="w-full py-16 rounded-2xl flex flex-col items-center justify-center gap-4"
           style={{ backgroundColor: 'var(--color-surface-container-low)' }}
         >
-          {/* 불확정형. 예전에는 2.4초에 100% 가 되고 멈춰 있었는데 실제 소요는 9초대라,
-              사용자가 멈춘 줄 알고 뒤로가기를 눌러 스캔을 날렸다. */}
-          <div
-            className="w-48 h-1.5 rounded-full overflow-hidden"
-            style={{ backgroundColor: 'var(--color-surface-container-high)' }}
-            role="progressbar"
-            aria-label="영수증 분석 중"
-          >
-            <div
-              className="h-full w-1/3 rounded-full scan-indeterminate"
-              style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-container))' }}
-            />
-          </div>
-          <p className="text-sm font-medium" style={{ color: 'var(--color-primary)' }}>
-            {PROGRESS_STEPS[progressStep]}
-          </p>
+          {/* 진행률을 그리지 않는다. Gemini 는 진행률을 알려주지 않고, 예전에
+              가짜 퍼센트가 2.4초에 100% 로 멈춰서 사용자가 스캔을 취소했다.
+              대신 "지금 읽고 있다"를 보여준다. canvas 를 못 쓰는 기기에서는
+              ScanLoader 가 알아서 기존 불확정 막대로 되돌아간다. */}
+          <ScanLoader label={PROGRESS_STEPS[progressStep]} />
           {slow && (
             <div className="flex flex-col items-center gap-3">
               <p className="text-xs" style={{ color: 'var(--color-on-surface-variant)' }}>

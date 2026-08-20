@@ -94,3 +94,69 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .scan-indeterminate { animation-duration: 3s; }
 }
+
+/* ──────────────────────────────────────────────────────────────
+   모션
+   ────────────────────────────────────────────────────────────── */
+
+/* 카드/목록 등장. Reveal.tsx 가 animation-delay 만 얹는다. */
+@keyframes eatco-reveal {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.eatco-reveal {
+  animation: eatco-reveal 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 등록 성공. 0.4초. 이보다 길면 다음 동작을 막는 장애물이 된다. */
+@keyframes eatco-pop {
+  0%   { transform: scale(0.8); opacity: 0; }
+  55%  { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.eatco-pop {
+  animation: eatco-pop 400ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* 화면 전환. View Transitions API — 라이브러리 0 kB, 미지원 브라우저는
+   그냥 전환 없이 넘어간다(깨지지 않는다). react-router 의 viewTransition
+   프롭이 document.startViewTransition 을 호출해준다. */
+::view-transition-old(root) {
+  animation: eatco-vt-out 140ms ease-in both;
+}
+::view-transition-new(root) {
+  animation: eatco-vt-in 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes eatco-vt-out {
+  to { opacity: 0; }
+}
+@keyframes eatco-vt-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   동작 줄이기 — 전역
+
+   이 설정을 켜는 사람은 대개 전정기관 문제(어지럼증)가 있다. 취향이 아니라
+   증상이다. 예전에는 .scan-indeterminate 한 곳만 대응하고 있었다.
+   ────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+  /* 예외: 대기 표시는 완전히 멈추면 "죽은 화면"으로 보인다. 느리게 돌린다.
+     작고 선형인 움직임이라 전정기관 유발 요인이 아니다. */
+  .scan-indeterminate {
+    animation-duration: 3s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
