@@ -7,7 +7,6 @@ import { visionModels } from './lib/gemini'
 
 import auth, { publicAuth } from './routes/auth'
 import ingredients from './routes/ingredients'
-import dashboard from './routes/dashboard'
 import storage from './routes/storage'
 import categories, { DEFAULT_CATEGORIES } from './routes/categories'
 import scan from './routes/scan'
@@ -15,7 +14,7 @@ import expenses from './routes/expenses'
 import events from './routes/events'
 import notifications, { logs as notificationLogs } from './routes/notifications'
 import recipes from './routes/recipes'
-import nutrition from './routes/nutrition'
+import calendar from './routes/calendar'
 import admin from './routes/admin'
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>()
@@ -63,7 +62,6 @@ app.use('/api/*', requireUser)
 
 app.route('/api/auth', auth) // /api/auth/me, /api/auth/family...
 app.route('/api/ingredients', ingredients)
-app.route('/api/dashboard', dashboard)
 app.route('/api/storage-guide', storage)
 app.route('/api/categories', categories)
 app.route('/api/scan', scan)
@@ -72,7 +70,7 @@ app.route('/api/events', events)
 app.route('/api/notifications', notifications)
 app.route('/api/notification-logs', notificationLogs)
 app.route('/api/recipes', recipes)
-app.route('/api/nutrition', nutrition)
+app.route('/api/calendar', calendar)
 app.route('/api/admin', admin) // 내부에서 role='admin' 검사
 
 // 매칭 안 된 /api/* 는 HTML 대신 404 JSON. 프론트가 파싱 에러로 죽지 않게.

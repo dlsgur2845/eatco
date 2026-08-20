@@ -38,8 +38,7 @@ app.get('/stats', async (c) => {
       (SELECT COUNT(*) FROM users WHERE role = 'admin')     AS admins,
       (SELECT COUNT(*) FROM families)                       AS families,
       (SELECT COUNT(*) FROM ingredients)                    AS ingredients,
-      (SELECT COUNT(*) FROM usage_events)                   AS usage_events,
-      (SELECT COUNT(*) FROM ingredient_nutrition)           AS nutrition_cache
+      (SELECT COUNT(*) FROM usage_events)                   AS usage_events
   `).first()
   return c.json(row)
 })
@@ -172,14 +171,11 @@ app.delete('/families/:id', async (c) => {
   // 순서가 중요하다. users.family_id 와 families.master_id 가 서로를 참조해서
   // 끊는 순서를 틀리면 FOREIGN KEY constraint failed 로 통째로 실패한다.
   await db.batch([
-    db.prepare('DELETE FROM cooking_log_items WHERE cooking_log_id IN (SELECT id FROM cooking_logs WHERE family_id = ?)').bind(famId),
-    db.prepare('DELETE FROM cooking_logs         WHERE family_id = ?').bind(famId),
     // usage_events 만 family_id 가 아니라 family_code 다 (events.ts 가
     // `user.family_id ?? user.id` 를 넣는다). 가족이 없던 시절에 쌓인 행은
     // 사용자 id 로 들어가 있어서 구성원 id 도 같이 지운다.
     // users.family_id 를 끊기 전에 실행해야 아래 서브쿼리가 비지 않는다.
     db.prepare('DELETE FROM usage_events WHERE family_code = ? OR family_code IN (SELECT id FROM users WHERE family_id = ?)').bind(famId, famId),
-    db.prepare('DELETE FROM custom_recipes       WHERE family_id = ?').bind(famId),
     db.prepare('DELETE FROM ingredients          WHERE family_id = ?').bind(famId),
     db.prepare('DELETE FROM notification_logs    WHERE family_id = ?').bind(famId),
     db.prepare('DELETE FROM notification_settings WHERE family_id = ?').bind(famId),

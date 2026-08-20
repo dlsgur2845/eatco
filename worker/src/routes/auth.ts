@@ -128,9 +128,20 @@ app.post('/family', async (c) => {
   return c.json({ id, name, invite_code: code, allow_shared_edit: true, master_id: user.id }, 201)
 })
 
+/**
+ * 초대코드로 가족 합류. **가족 이동이지 최초 가입이 아니다.**
+ *
+ * 예전에는 `if (user.family_id) throw 409` 가 맨 앞에 있었다. 그런데
+ * requireUser 의 withFamily 가 가족 없는 사용자에게 1인 가족을 즉시
+ * 만들어준다. 탈퇴하면 바로 다음 요청에서 새 가족이 생기므로
+ * **user.family_id 는 항상 값이 있고, 아무도 합류할 수 없었다.**
+ * 초대코드 기능 전체가 죽어 있었다.
+ *
+ * 프론트도 원래 이동을 의도했다 — FamilyPage 에 "참여 시 현재 가족에서
+ * 탈퇴됩니다" 라고 적혀 있다. 409 쪽이 틀렸다.
+ */
 app.post('/family/join', async (c) => {
   const user = c.get('user')
-  if (user.family_id) throw new ApiError(409, '이미 가족 그룹에 속해 있습니다.')
   const body = await readJson<{ invite_code: string }>(c.req)
   const code = (body.invite_code || '').trim().toUpperCase()
   if (!code) throw new ApiError(422, '초대코드를 입력해주세요.')
@@ -139,8 +150,72 @@ app.post('/family/join', async (c) => {
     .bind(code)
     .first<{ id: string; name: string }>()
   if (!fam) throw new ApiError(404, '초대코드를 찾을 수 없습니다.')
+  if (fam.id === user.family_id) throw new ApiError(409, '이미 이 가족에 속해 있습니다.')
 
-  await c.env.DB.prepare('UPDATE users SET family_id = ? WHERE id = ?').bind(fam.id, user.id).run()
+  const prev = user.family_id
+  const stmts: D1PreparedStatement[] = []
+
+  if (prev) {
+    // 마스터였다면 남은 사람 중 가장 오래된 계정에게 넘긴다.
+    // 안 넘기면 master_id 가 떠난 사람을 계속 가리킨다.
+    const prevFam = await c.env.DB.prepare('SELECT master_id FROM families WHERE id = ?')
+      .bind(prev)
+      .first<{ master_id: string | null }>()
+    const others = await c.env.DB.prepare(
+      'SELECT COUNT(*) AS n FROM users WHERE family_id = ? AND id != ?',
+    )
+      .bind(prev, user.id)
+      .first<{ n: number }>()
+    const remaining = others?.n ?? 0
+
+    if (prevFam?.master_id === user.id) {
+      const next = await c.env.DB.prepare(
+        'SELECT id FROM users WHERE family_id = ? AND id != ? ORDER BY created_at ASC LIMIT 1',
+      )
+        .bind(prev, user.id)
+        .first<{ id: string }>()
+      stmts.push(
+        c.env.DB.prepare('UPDATE families SET master_id = ? WHERE id = ?').bind(next?.id ?? null, prev),
+      )
+    }
+
+    // 나 혼자였고 아무것도 안 담긴 가족이면 흔적을 남기지 않는다.
+    // 재료가 하나라도 있으면 남긴다 — 데이터를 조용히 지우지 않는다.
+    if (remaining === 0) {
+      const items = await c.env.DB.prepare('SELECT COUNT(*) AS n FROM ingredients WHERE family_id = ?')
+        .bind(prev)
+        .first<{ n: number }>()
+      if ((items?.n ?? 0) === 0) {
+        stmts.push(
+          c.env.DB.prepare('DELETE FROM meal_comments WHERE family_id = ?').bind(prev),
+          c.env.DB.prepare('DELETE FROM meal_plans WHERE family_id = ?').bind(prev),
+          c.env.DB.prepare('DELETE FROM notification_logs WHERE family_id = ?').bind(prev),
+          c.env.DB.prepare('DELETE FROM notification_settings WHERE family_id = ?').bind(prev),
+          c.env.DB.prepare('DELETE FROM push_subscriptions WHERE family_id = ?').bind(prev),
+          c.env.DB.prepare('UPDATE families SET master_id = NULL WHERE id = ?').bind(prev),
+        )
+      }
+    }
+  }
+
+  stmts.push(c.env.DB.prepare('UPDATE users SET family_id = ? WHERE id = ?').bind(fam.id, user.id))
+
+  // 빈 가족 삭제는 users 를 옮긴 뒤에 해야 FK 가 안 깨진다.
+  if (prev) {
+    const items = await c.env.DB.prepare('SELECT COUNT(*) AS n FROM ingredients WHERE family_id = ?')
+      .bind(prev)
+      .first<{ n: number }>()
+    const others = await c.env.DB.prepare(
+      'SELECT COUNT(*) AS n FROM users WHERE family_id = ? AND id != ?',
+    )
+      .bind(prev, user.id)
+      .first<{ n: number }>()
+    if ((others?.n ?? 0) === 0 && (items?.n ?? 0) === 0) {
+      stmts.push(c.env.DB.prepare('DELETE FROM families WHERE id = ?').bind(prev))
+    }
+  }
+
+  await c.env.DB.batch(stmts)
   return c.json({ id: fam.id, name: fam.name })
 })
 

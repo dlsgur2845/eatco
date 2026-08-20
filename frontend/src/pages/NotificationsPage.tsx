@@ -97,6 +97,8 @@ export default function NotificationsPage() {
   const typeIcon: Record<string, string> = {
     expiry_today: 'warning',
     expiry_soon: 'timer',
+    meal_plan: 'restaurant',
+    comment: 'chat_bubble',
     family_join: 'group_add',
     system: 'info',
   }
@@ -104,6 +106,8 @@ export default function NotificationsPage() {
   const typeColor: Record<string, string> = {
     expiry_today: 'border-tertiary-container',
     expiry_soon: 'border-secondary-container',
+    meal_plan: 'border-primary',
+    comment: 'border-primary-container',
     family_join: 'border-primary-container',
     system: 'border-outline-variant',
   }

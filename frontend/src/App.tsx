@@ -9,11 +9,11 @@ import InventoryPage from './pages/InventoryPage'
 import MvpDashboardPage from './pages/MvpDashboardPage'
 import NotificationsPage from './pages/NotificationsPage'
 import ScanPage from './pages/ScanPage'
-import NutritionPage from './pages/NutritionPage'
 // 지출/통계는 recharts 를 쓴다. 초기 번들에서 빼면 746 kB → 392 kB (-47%).
 // 냉장고를 확인하러 여는 앱인데 첫 로딩에 차트 라이브러리를 들고 갈 이유가 없다.
 const ExpensesPage = lazy(() => import('./pages/ExpensesPage'))
 import SettingsPage from './pages/SettingsPage'
+import CalendarPage from './pages/CalendarPage'
 import AdminPage from './pages/AdminPage'
 
 // 등록 성공은 앱에서 가장 기분 좋은 순간인데, window.location.href 는 전체
@@ -92,6 +92,9 @@ export default function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<MvpDashboardPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            {/* 알림의 link 가 /calendar/<id> 다. 같은 화면에서 상세를 바로 연다. */}
+            <Route path="/calendar/:id" element={<CalendarPage />} />
             <Route path="/scan" element={<ScanRoute />} />
             {/* fallback 이 null 이면 차트 청크(108 kB)를 받는 동안 화면이
                 빈 칸이 된다. 느린 회선에서 "안 열린다"로 읽힌다. */}
@@ -103,7 +106,6 @@ export default function App() {
                 </Suspense>
               }
             />
-            <Route path="/nutrition" element={<NutritionPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/family" element={<FamilyPage />} />

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import CountUp from '../components/motion/CountUp'
-import { Link } from 'react-router-dom'
 import { freshnessColor, daysLabel as fmtDays } from '../lib/freshness'
 import api from '../api/client'
 import { logEvent } from '../api/events'
@@ -239,21 +238,7 @@ export default function MvpDashboardPage() {
         </>
       ) : null}
 
-      {/* 요리 영양 계산 진입 */}
-      {items.length > 0 && (
-        <Link
-          to="/nutrition"
-          className="flex items-center gap-4 p-5 mb-6 rounded-2xl bg-surface-container-low active:scale-[0.98] transition-transform"
-        >
-          <span className="material-symbols-outlined text-primary">local_fire_department</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-on-surface">요리 영양 계산</p>
-            <p className="text-xs text-on-surface-variant">쓸 재료를 고르면 칼로리·탄단지를 합쳐서 보여줘요</p>
-          </div>
-          <span className="material-symbols-outlined text-outline">chevron_right</span>
-        </Link>
-      )}
-
+      
       {/* 오늘 써야 할 식재료 */}
       {urgent.length > 0 && (
         <Section title="오늘 써야 할 식재료">

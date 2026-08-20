@@ -366,7 +366,6 @@ export default function AdminPage() {
           <StatTile label="가족 그룹" value={stats.families} icon="group" />
           <StatTile label="등록 재료" value={stats.ingredients} icon="kitchen" />
           <StatTile label="소비 기록" value={stats.usage_events} icon="receipt_long" />
-          <StatTile label="영양 캐시" value={stats.nutrition_cache} icon="local_fire_department" />
         </div>
       )}
 

@@ -25,48 +25,6 @@ export interface Ingredient {
   normalized_name: string | null
 }
 
-export interface IngredientNutrition {
-  normalized_name: string
-  kcal_per_100g: number | null
-  kcal_per_100ml: number | null
-  kcal_per_piece: number | null
-  source: 'official' | 'user' | 'gemini'
-  confidence: number
-}
-
-export interface CookingLogItem {
-  id: string
-  ingredient_id: string | null
-  ingredient_name_snapshot: string
-  amount_used: number
-  unit: IngredientUnit
-  kcal: number
-  kcal_per_unit: number | null
-  nutrition_source: string | null
-}
-
-export interface CookingLog {
-  id: string
-  family_id: string
-  recipe_id: string | null
-  recipe_name_snapshot: string
-  cooked_by: string | null
-  cooked_at: string
-  total_kcal: number
-  items: CookingLogItem[]
-}
-
-export interface CookingLogCreate {
-  recipe_id?: string | null
-  recipe_name: string
-  cooked_by?: string
-  items: {
-    ingredient_id: string
-    amount_used: number
-    unit: string
-  }[]
-}
-
 export type Role = 'admin' | 'member'
 
 export interface User {
@@ -143,7 +101,6 @@ export interface AdminStats {
   families: number
   ingredients: number
   usage_events: number
-  nutrition_cache: number
 }
 
 export interface AdminUser {
@@ -170,4 +127,42 @@ export interface AdminFamily {
   master_nickname: string | null
   member_count: number
   ingredient_count: number
+}
+
+/* ── 가족 식단 캘린더 ────────────────────────────────────── */
+
+export type MealSlot = 'breakfast' | 'lunch' | 'dinner'
+
+export const MEAL_SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner']
+
+export const MEAL_SLOT_LABEL: Record<MealSlot, string> = {
+  breakfast: '아침',
+  lunch: '점심',
+  dinner: '저녁',
+}
+
+export interface MealPlan {
+  id: string
+  family_id: string
+  plan_date: string
+  meal_slot: MealSlot
+  title: string
+  memo: string | null
+  created_by: string | null
+  /** 이름 스냅샷. 계정이 지워져도 누가 적었는지는 남는다. */
+  created_by_name: string
+  created_at: string
+  comment_count?: number
+}
+
+export interface MealComment {
+  id: string
+  body: string
+  created_by: string | null
+  created_by_name: string
+  created_at: string
+}
+
+export interface MealPlanDetail extends MealPlan {
+  comments: MealComment[]
 }
