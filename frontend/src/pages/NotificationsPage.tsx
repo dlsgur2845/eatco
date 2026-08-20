@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Reveal from '../components/motion/Reveal'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
+import { useUnreadCount } from '../hooks/useUnreadCount'
 
 interface Notification {
   id: string
@@ -11,6 +12,8 @@ interface Notification {
   is_read: boolean
   link: string | null
   created_at: string
+  /** 이 알림을 만든 사람. 내가 만든 것은 배지 숫자에 안 들어간다. */
+  actor_id: string | null
 }
 
 interface PaginatedResponse {
@@ -28,6 +31,10 @@ export default function NotificationsPage() {
   // 로딩/오류/비어있음을 구분한다. 예전에는 catch 가 silent 라서 백엔드가 죽어도
   // "아직 알림이 없습니다" 를 띄웠다 — 문제 없다고 거짓말하는 화면이었다.
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
+  const unread = useUnreadCount()
+  const myId: string | null = (() => {
+    try { return JSON.parse(localStorage.getItem('user') || 'null')?.id ?? null } catch { return null }
+  })()
 
   const PAGE_SIZE = 20
 
@@ -80,6 +87,10 @@ export default function NotificationsPage() {
   const markAsRead = async (notif: Notification) => {
     if (!notif.is_read) {
       await api.put(`/notification-logs/${notif.id}/read`).catch(() => {})
+      // 배지를 바로 줄인다. 예전에는 상단바가 30초 폴링을 기다려서
+      // 읽어도 숫자가 안 바뀌는 것처럼 보였다.
+      // 내가 만든 알림은 애초에 배지에 안 들어가 있으니 빼지 않는다.
+      if (notif.actor_id !== myId) unread.markRead(1)
       setNotifications((prev) =>
         prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n)),
       )
@@ -91,6 +102,7 @@ export default function NotificationsPage() {
 
   const markAllRead = async () => {
     await api.put('/notification-logs/read-all').catch(() => {})
+    unread.markAllRead()
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
   }
 
@@ -194,7 +206,9 @@ export default function NotificationsPage() {
                   <p className="font-medium text-on-surface leading-snug truncate">
                     {notif.title}
                   </p>
-                  {!notif.is_read && (
+                  {/* 내가 만든 알림은 배지에도 안 세므로 점도 찍지 않는다.
+                      점은 있는데 숫자는 안 오르면 어긋나 보인다. */}
+                  {!notif.is_read && notif.actor_id !== myId && (
                     <span className="w-2 h-2 bg-primary rounded-full flex-shrink-0" />
                   )}
                 </div>

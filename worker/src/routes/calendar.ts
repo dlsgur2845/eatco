@@ -13,10 +13,10 @@ import type { Env, Vars } from '../lib/types'
  * (TopAppBar 가 /notification-logs/unread-count 를 폴링)와 알림 목록이
  * 이미 돌고 있어서, 행만 들어가면 양쪽이 그대로 동작한다.
  *
- * 알림의 한계를 명시해 둔다: notification_logs 에는 수신자 컬럼이 없고
- * family_id 스코프뿐이라 **작성자 본인에게도 보인다.** 가족 4명 규모에서
- * 스키마를 늘리는 것보다 낫다고 판단했다. 대신 메시지에 작성자 이름을 넣어
- * "내가 쓴 것" 임을 알 수 있게 한다.
+ * 알림에는 actor_id (만든 사람) 를 남긴다. 이게 없던 동안에는 내가 올린
+ * 식단·내가 쓴 댓글이 내 배지 숫자를 올렸다. 배지는 actor_id 가 나인 행을
+ * 빼고 센다. 목록에는 그대로 남는다 — 가족 피드로서 흐름이 끊기지 않게.
+ * actor_id 가 NULL 이면 사람이 아니라 cron 이 만든 소비기한 알림이다.
  */
 const app = new Hono<{ Bindings: Env; Variables: Vars }>()
 
@@ -47,13 +47,20 @@ function notify(
   title: string,
   message: string,
   link: string,
+  actorId: string,
 ) {
   return db
     .prepare(
-      `INSERT INTO notification_logs (id, family_id, type, title, message, is_read, link, created_at)
-       VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
+      `INSERT INTO notification_logs
+         (id, family_id, type, title, message, is_read, link, created_at, actor_id)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`,
     )
-    .bind(crypto.randomUUID(), familyId, type, title.slice(0, 200), message.slice(0, 500), link, nowIso())
+    .bind(
+      crypto.randomUUID(), familyId, type,
+      title.slice(0, 200), message.slice(0, 500), link, nowIso(),
+      // 작성자를 남겨야 본인 배지에서 뺄 수 있다.
+      actorId,
+    )
 }
 
 /** 가족 스코프로 식단 한 건. 없거나 남의 가족이면 404 (존재 여부를 흘리지 않는다). */
@@ -131,6 +138,7 @@ app.post('/', async (c) => {
       '새 식단이 올라왔어요',
       `${user.nickname}님이 ${human(planDate)} ${SLOT_LABEL[slot]}에 ${title.slice(0, 60)}을(를) 올렸어요`,
       `/calendar/${id}`,
+      user.id,
     ),
   ])
 
@@ -236,6 +244,7 @@ app.post('/:id/comments', async (c) => {
       '식단에 댓글이 달렸어요',
       `${user.nickname}님: ${body.slice(0, 60)}`,
       `/calendar/${plan.id}`,
+      user.id,
     ),
   ])
 

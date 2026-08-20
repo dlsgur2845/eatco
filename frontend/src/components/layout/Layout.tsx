@@ -1,10 +1,12 @@
 import { Outlet } from 'react-router-dom'
+import { UnreadCountProvider } from '../../hooks/useUnreadCount'
 import WhatsNew from '../WhatsNew'
 import BottomNav from './BottomNav'
 import TopAppBar from './TopAppBar'
 
 export default function Layout() {
   return (
+    <UnreadCountProvider>
     <div className="min-h-screen bg-surface">
       <TopAppBar />
       <main
@@ -16,5 +18,6 @@ export default function Layout() {
       <BottomNav />
       <WhatsNew />
     </div>
+    </UnreadCountProvider>
   )
 }

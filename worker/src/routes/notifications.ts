@@ -12,23 +12,37 @@ export const logs = new Hono<{ Bindings: Env; Variables: Vars }>()
 logs.get('/', async (c) => {
   const familyId = requireFamily(c.get('user'))
   const limit = Math.min(Number(c.req.query('limit') || 50) || 50, 200)
+  const offset = Math.max(Number(c.req.query('offset') || 0) || 0, 0)
+
+  // 예전에는 offset 을 받고도 무시했고 total 도 주지 않았다. 프론트가
+  // total = data.length 로 계산해서 "더 보기" 가 첫 페이지 뒤로는 영영
+  // 뜨지 않았다. 알림이 20건을 넘으면 나머지를 볼 방법이 없었다.
+  const totalRow = await c.env.DB
+    .prepare('SELECT COUNT(*) AS n FROM notification_logs WHERE family_id = ?')
+    .bind(familyId)
+    .first<{ n: number }>()
+
   const { results } = await c.env.DB.prepare(
-    `SELECT id, type, title, message, is_read, link, days_before, created_at
+    `SELECT id, type, title, message, is_read, link, days_before, created_at, actor_id
        FROM notification_logs WHERE family_id = ?
-      ORDER BY created_at DESC LIMIT ?`,
+      ORDER BY created_at DESC LIMIT ? OFFSET ?`,
   )
-    .bind(familyId, limit)
+    .bind(familyId, limit, offset)
     .all()
-  return c.json(results ?? [])
+
+  return c.json({ items: results ?? [], total: totalRow?.n ?? 0, limit, offset })
 })
 
 logs.get('/unread-count', async (c) => {
   const user = c.get('user')
   if (!user.family_id) return c.json({ count: 0 })
+  // 내가 올린 식단·내가 쓴 댓글은 내 배지를 올리지 않는다. 이미 아는 일이다.
+  // actor_id IS NULL 은 사람이 아니라 cron 이 만든 소비기한 알림 — 전원에게 센다.
   const row = await c.env.DB.prepare(
-    'SELECT COUNT(*) AS count FROM notification_logs WHERE family_id = ? AND is_read = 0',
+    `SELECT COUNT(*) AS count FROM notification_logs
+      WHERE family_id = ? AND is_read = 0 AND (actor_id IS NULL OR actor_id != ?)`,
   )
-    .bind(user.family_id)
+    .bind(user.family_id, user.id)
     .first<{ count: number }>()
   return c.json({ count: row?.count ?? 0 })
 })

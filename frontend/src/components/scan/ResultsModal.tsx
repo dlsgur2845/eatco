@@ -110,7 +110,11 @@ export default function ResultsModal({ items: initialItems, storeName, error, on
             <div
               key={idx}
               className="flex items-center gap-3 py-3 group"
-              style={{ marginBottom: idx < items.length - 1 ? '4px' : '0', paddingBottom: idx < items.length - 1 ? '4px' : '0', backgroundColor: idx % 2 === 0 ? 'transparent' : 'var(--color-surface-container-low)' , borderRadius: '12px' }}
+              // 교차 줄무늬를 쓰다가 홀수 행 배경(surface-container-low)이
+              // 입력칸 배경과 같은 색이라 입력칸이 통째로 사라졌다. 행마다
+              // 폼이 보였다 안 보였다 했다. 모든 행을 같은 카드로 통일하고
+              // 입력칸은 한 단계 진한 톤을 쓴다.
+              style={{ marginBottom: idx < items.length - 1 ? '6px' : '0', padding: '10px 12px', backgroundColor: 'var(--color-surface-container-low)', borderRadius: '12px' }}
             >
               {/* 상태 바 */}
               <div
@@ -128,7 +132,7 @@ export default function ResultsModal({ items: initialItems, storeName, error, on
                   <div className="flex gap-2">
                     <input
                       className="flex-1 text-sm px-2 py-1 rounded-lg border-none outline-none"
-                      style={{ backgroundColor: 'var(--color-surface-container-low)' }}
+                      style={{ backgroundColor: 'var(--color-surface-container-high)' }}
                       value={editName}
                       onChange={e => setEditName(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleEditConfirm()}
@@ -154,7 +158,7 @@ export default function ResultsModal({ items: initialItems, storeName, error, on
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <input
                         className="w-20 text-xs px-2 py-0.5 rounded-md outline-none"
-                        style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface)' }}
+                        style={{ backgroundColor: 'var(--color-surface-container-high)', color: 'var(--color-on-surface)' }}
                         placeholder="수량 (예: 600g)"
                         value={item.quantity || ''}
                         onChange={e => {
@@ -164,7 +168,7 @@ export default function ResultsModal({ items: initialItems, storeName, error, on
                       />
                       <input
                         className="w-20 text-xs px-2 py-0.5 rounded-md outline-none"
-                        style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface)' }}
+                        style={{ backgroundColor: 'var(--color-surface-container-high)', color: 'var(--color-on-surface)' }}
                         placeholder="가격 (원)"
                         type="number"
                         value={item.price ?? ''}
@@ -176,7 +180,7 @@ export default function ResultsModal({ items: initialItems, storeName, error, on
                       <input
                         // 좁아서 "2026. 08." 로 잘렸다. 소비기한은 이 화면에서 가장 중요한 값이다.
                         className="w-full min-w-[8.5rem] text-sm px-2 py-2 rounded-md outline-none"
-                        style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface)' }}
+                        style={{ backgroundColor: 'var(--color-surface-container-high)', color: 'var(--color-on-surface)' }}
                         type="date"
                         value={item.expiry_date}
                         onChange={e => {

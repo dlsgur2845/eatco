@@ -1,26 +1,13 @@
-import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../api/client'
+import { useUnreadCount } from '../../hooks/useUnreadCount'
 
 export default function TopAppBar() {
   const navigate = useNavigate()
-  const [unreadCount, setUnreadCount] = useState(0)
+  const { count: unreadCount } = useUnreadCount()
   const user = localStorage.getItem('user')
     ? JSON.parse(localStorage.getItem('user')!)
     : null
-
-  useEffect(() => {
-    if (!user) return
-    const fetchUnread = () => {
-      api
-        .get<{ count: number }>('/notification-logs/unread-count')
-        .then((r) => setUnreadCount(r.data.count))
-        .catch(() => {})
-    }
-    fetchUnread()
-    const interval = setInterval(fetchUnread, 30000) // 30초마다 갱신
-    return () => clearInterval(interval)
-  }, [])
 
   const handleLogout = async () => {
     try {

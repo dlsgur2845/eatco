@@ -29,7 +29,33 @@ function weekStart(date: string): string {
   return shift(date, dow === 0 ? -6 : 1 - dow)
 }
 
+/** 그 달 1일. */
+function monthStart(date: string): string {
+  return date.slice(0, 8) + '01'
+}
+
+/** 그 달의 일수. */
+function daysInMonth(date: string): number {
+  const [y, m] = date.split('-').map(Number)
+  return new Date(Date.UTC(y, m, 0)).getUTCDate()
+}
+
+/** 월 단위 이동. 말일 넘침을 피하려 1일 기준으로 계산한다. */
+function shiftMonth(date: string, months: number): string {
+  const [y, m] = date.split('-').map(Number)
+  const d = new Date(Date.UTC(y, m - 1 + months, 1))
+  return d.toISOString().slice(0, 10)
+}
+
+/** 월요일 시작 격자에서 그 날짜가 몇 번째 칸인지 (0=월). */
+function gridIndex(date: string): number {
+  const dow = new Date(date + 'T00:00:00Z').getUTCDay()
+  return dow === 0 ? 6 : dow - 1
+}
+
 const DOW = ['월', '화', '수', '목', '금', '토', '일']
+
+type View = 'week' | 'month'
 
 /* ──────────────────────────────────────────────
    식단 추가
@@ -125,29 +151,94 @@ function AddMealModal({
 }
 
 /* ──────────────────────────────────────────────
+   하루 (끼니 3줄)
+
+   비어 있어도 자리를 남긴다. 빈 자리가 "적으라" 는 신호다.
+   ────────────────────────────────────────────── */
+function DaySlots({
+  date,
+  byCell,
+  onOpen,
+  onAdd,
+}: {
+  date: string
+  byCell: Map<string, MealPlan[]>
+  onOpen: (id: string) => void
+  onAdd: (date: string, slot: MealSlot) => void
+}) {
+  return (
+    <div className="space-y-2">
+      {MEAL_SLOTS.map((slot) => {
+        const cell = byCell.get(`${date}|${slot}`) ?? []
+        return (
+          <div key={slot} className="flex items-start gap-3">
+            <span className="shrink-0 w-8 pt-2 text-xs font-semibold text-on-surface-variant">
+              {MEAL_SLOT_LABEL[slot]}
+            </span>
+            <div className="flex-1 min-w-0 space-y-1.5">
+              {cell.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => onOpen(p.id)}
+                  className="w-full min-h-[44px] flex items-center gap-2 text-left bg-surface-container-low rounded-xl px-3 py-2 active:scale-[0.98] transition-transform"
+                >
+                  <span className="flex-1 min-w-0 truncate text-sm font-medium text-on-surface">
+                    {p.title}
+                  </span>
+                  {!!p.comment_count && (
+                    <span className="shrink-0 inline-flex items-center gap-0.5 text-xs text-on-surface-variant">
+                      <span className="material-symbols-outlined text-[14px]">chat_bubble</span>
+                      {p.comment_count}
+                    </span>
+                  )}
+                </button>
+              ))}
+              <button
+                onClick={() => onAdd(date, slot)}
+                aria-label={`${date} ${MEAL_SLOT_LABEL[slot]} 식단 추가`}
+                className="w-full min-h-[44px] flex items-center gap-1.5 rounded-xl px-3 text-sm text-outline active:scale-[0.98] transition-transform"
+              >
+                <span className="material-symbols-outlined text-[18px]">add</span>
+                추가
+              </button>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ──────────────────────────────────────────────
    메인
    ────────────────────────────────────────────── */
 export default function CalendarPage() {
   const navigate = useNavigate()
-  // 알림에서 /calendar/<id> 로 들어오면 상세를 바로 연다.
   const { id: deepLinkId } = useParams()
 
   const today = useMemo(() => kstToday(), [])
-  const [start, setStart] = useState(() => weekStart(kstToday()))
+  const [view, setView] = useState<View>('week')
+  // 주 보기면 그 주 월요일, 월 보기면 그 달 1일.
+  const [anchor, setAnchor] = useState(() => weekStart(kstToday()))
   const [plans, setPlans] = useState<MealPlan[]>([])
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [me, setMe] = useState<User | null>(null)
   const [adding, setAdding] = useState<{ date: string; slot: MealSlot } | null>(null)
   const [openId, setOpenId] = useState<string | null>(deepLinkId ?? null)
+  // 월 보기에서 펼쳐 놓은 날짜. 폰 화면 격자 칸에는 메뉴 이름이 안 들어간다.
+  const [expanded, setExpanded] = useState<string | null>(null)
 
-  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => shift(start, i)), [start])
-  const end = days[6]
+  const days = useMemo(() => {
+    const n = view === 'week' ? 7 : daysInMonth(anchor)
+    return Array.from({ length: n }, (_, i) => shift(anchor, i))
+  }, [anchor, view])
+  const rangeEnd = days[days.length - 1]
 
   const load = useCallback(async () => {
     setState('loading')
     try {
       const [p, u] = await Promise.all([
-        api.get<MealPlan[]>('/calendar', { params: { from: start, to: end } }),
+        api.get<MealPlan[]>('/calendar', { params: { from: anchor, to: rangeEnd } }),
         api.get<User>('/auth/me'),
       ])
       setPlans(p.data)
@@ -160,7 +251,7 @@ export default function CalendarPage() {
       }
       setState('error')
     }
-  }, [start, end, navigate])
+  }, [anchor, rangeEnd, navigate])
 
   useEffect(() => {
     load()
@@ -177,9 +268,30 @@ export default function CalendarPage() {
     return m
   }, [plans])
 
+  /** 날짜별 식단 수. 월 보기 점 표시용. */
+  const countByDate = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const p of plans) m.set(p.plan_date, (m.get(p.plan_date) ?? 0) + 1)
+    return m
+  }, [plans])
+
+  const switchView = (next: View) => {
+    if (next === view) return
+    // 보고 있던 날짜 감각을 유지한다. 주→월이면 그 주가 속한 달, 월→주면 그 달 1일이 속한 주.
+    setAnchor(next === 'month' ? monthStart(anchor) : weekStart(anchor))
+    setExpanded(null)
+    setView(next)
+  }
+
+  const goPrev = () => setAnchor(view === 'week' ? shift(anchor, -7) : shiftMonth(anchor, -1))
+  const goNext = () => setAnchor(view === 'week' ? shift(anchor, 7) : shiftMonth(anchor, 1))
+  const goToday = () => {
+    setAnchor(view === 'week' ? weekStart(today) : monthStart(today))
+    setExpanded(view === 'month' ? today : null)
+  }
+
   const closeDetail = () => {
     setOpenId(null)
-    // 딥링크로 들어왔으면 URL 도 되돌린다.
     if (deepLinkId) navigate('/calendar', { replace: true })
   }
 
@@ -213,7 +325,10 @@ export default function CalendarPage() {
     )
   }
 
-  const isEmptyWeek = plans.length === 0
+  const label =
+    view === 'week'
+      ? `${anchor.slice(5).replace('-', '.')} – ${rangeEnd.slice(5).replace('-', '.')}`
+      : `${anchor.slice(0, 4)}년 ${Number(anchor.slice(5, 7))}월`
 
   return (
     <>
@@ -222,102 +337,158 @@ export default function CalendarPage() {
         <p className="text-on-surface-variant">가족이 뭘 먹을지 같이 정해요.</p>
       </div>
 
-      {/* 주간 이동 */}
+      {/* 주 / 월 전환 */}
+      <div
+        role="tablist"
+        aria-label="보기 단위"
+        className="flex gap-2 mb-4 bg-surface-container-high p-1.5 rounded-2xl"
+      >
+        {([['week', '주별'], ['month', '월별']] as const).map(([k, t]) => (
+          <button
+            key={k}
+            role="tab"
+            aria-selected={view === k}
+            onClick={() => switchView(k)}
+            className={`flex-1 min-h-[48px] inline-flex items-center justify-center rounded-xl font-bold text-sm transition-colors ${
+              view === k ? 'bg-surface-container-lowest text-on-surface' : 'text-on-surface-variant'
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {/* 기간 이동 */}
       <div className="flex items-center justify-between gap-3 mb-5">
         <button
-          onClick={() => setStart(shift(start, -7))}
-          aria-label="지난 주"
+          onClick={goPrev}
+          aria-label={view === 'week' ? '지난 주' : '지난 달'}
           className="min-w-[48px] min-h-[48px] inline-flex items-center justify-center rounded-full bg-surface-container-low active:scale-95 transition-transform"
         >
           <span className="material-symbols-outlined text-on-surface">chevron_left</span>
         </button>
         <button
-          onClick={() => setStart(weekStart(today))}
+          onClick={goToday}
           className="min-w-0 min-h-[48px] px-4 inline-flex items-center justify-center rounded-full bg-surface-container-low text-sm font-bold text-on-surface active:scale-95 transition-transform"
         >
-          <span className="truncate">
-            {start.slice(5).replace('-', '.')} – {end.slice(5).replace('-', '.')}
-          </span>
+          <span className="truncate">{label}</span>
         </button>
         <button
-          onClick={() => setStart(shift(start, 7))}
-          aria-label="다음 주"
+          onClick={goNext}
+          aria-label={view === 'week' ? '다음 주' : '다음 달'}
           className="min-w-[48px] min-h-[48px] inline-flex items-center justify-center rounded-full bg-surface-container-low active:scale-95 transition-transform"
         >
           <span className="material-symbols-outlined text-on-surface">chevron_right</span>
         </button>
       </div>
 
-      {isEmptyWeek && (
+      {plans.length === 0 && (
         <p className="text-center text-sm text-on-surface-variant py-6">
-          이번 주 식단이 비어 있어요. 아래에서 끼니를 눌러 추가하세요.
+          {view === 'week' ? '이번 주' : '이번 달'} 식단이 비어 있어요.{' '}
+          {view === 'week' ? '아래에서 끼니를 눌러 추가하세요.' : '날짜를 눌러 추가하세요.'}
         </p>
       )}
 
-      {/* 날짜별 카드. 끼니 3줄은 비어 있어도 자리를 남긴다 — 빈 자리가 입력 유도다. */}
-      <div className="space-y-3">
-        {days.map((d, i) => {
-          const isToday = d === today
-          const past = d < today
-          return (
-            <Reveal key={d} index={i}>
-              <section
-                className={`rounded-2xl p-5 ${
-                  isToday ? 'bg-surface-container-lowest ring-2 ring-primary' : 'bg-surface-container-lowest'
-                } ${past && !isToday ? 'opacity-60' : ''}`}
-              >
-                <div className="flex items-baseline gap-2 mb-3">
-                  <span className={`font-headline font-bold ${isToday ? 'text-primary' : 'text-on-surface'}`}>
-                    {DOW[i]}
-                  </span>
-                  <span className="text-xs text-on-surface-variant">{d.slice(5).replace('-', '.')}</span>
-                  {isToday && <span className="text-xs font-bold text-primary">오늘</span>}
+      {view === 'week' ? (
+        /* ── 주별: 날짜 카드 7장 ── */
+        <div className="space-y-3">
+          {days.map((d, i) => {
+            const isToday = d === today
+            const past = d < today
+            return (
+              <Reveal key={d} index={i}>
+                <section
+                  className={`rounded-2xl p-5 bg-surface-container-lowest ${
+                    isToday ? 'ring-2 ring-primary' : ''
+                  } ${past && !isToday ? 'opacity-60' : ''}`}
+                >
+                  <div className="flex items-baseline gap-2 mb-3">
+                    <span className={`font-headline font-bold ${isToday ? 'text-primary' : 'text-on-surface'}`}>
+                      {DOW[gridIndex(d)]}
+                    </span>
+                    <span className="text-xs text-on-surface-variant">{d.slice(5).replace('-', '.')}</span>
+                    {isToday && <span className="text-xs font-bold text-primary">오늘</span>}
+                  </div>
+                  <DaySlots date={d} byCell={byCell} onOpen={setOpenId} onAdd={(dt, sl) => setAdding({ date: dt, slot: sl })} />
+                </section>
+              </Reveal>
+            )
+          })}
+        </div>
+      ) : (
+        /* ── 월별: 격자 + 탭하면 하루 펼침 ──
+             칸에는 날짜와 점만 둔다. 360px 화면에서 칸당 45px 라
+             메뉴 이름은 두 글자도 안 들어간다. */
+        <>
+          <div className="bg-surface-container-lowest rounded-2xl p-3">
+            <div className="grid grid-cols-7 mb-1">
+              {DOW.map((d) => (
+                <div key={d} className="text-center text-xs font-semibold text-on-surface-variant py-1">
+                  {d}
                 </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {/* 1일이 월요일이 아니면 앞을 비운다 */}
+              {Array.from({ length: gridIndex(anchor) }).map((_, i) => (
+                <div key={`pad-${i}`} />
+              ))}
+              {days.map((d) => {
+                const n = countByDate.get(d) ?? 0
+                const isToday = d === today
+                const isOpen = expanded === d
+                return (
+                  <button
+                    key={d}
+                    onClick={() => setExpanded(isOpen ? null : d)}
+                    aria-label={`${d} 식단 ${n}건`}
+                    aria-expanded={isOpen}
+                    className={`min-h-[48px] flex flex-col items-center justify-center gap-1 rounded-xl transition-colors ${
+                      isOpen ? 'bg-primary text-on-primary' : isToday ? 'ring-2 ring-primary' : ''
+                    } ${!isOpen && d < today ? 'opacity-50' : ''}`}
+                  >
+                    <span className={`text-sm font-medium ${isOpen ? 'text-on-primary' : 'text-on-surface'}`}>
+                      {Number(d.slice(8))}
+                    </span>
+                    <span className="flex gap-0.5 h-1.5 items-center">
+                      {Array.from({ length: Math.min(n, 3) }).map((_, i) => (
+                        <span
+                          key={i}
+                          className={`w-1 h-1 rounded-full ${isOpen ? 'bg-on-primary' : 'bg-primary'}`}
+                        />
+                      ))}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
 
-                <div className="space-y-2">
-                  {MEAL_SLOTS.map((slot) => {
-                    const cell = byCell.get(`${d}|${slot}`) ?? []
-                    return (
-                      <div key={slot} className="flex items-start gap-3">
-                        <span className="shrink-0 w-8 pt-2 text-xs font-semibold text-on-surface-variant">
-                          {MEAL_SLOT_LABEL[slot]}
-                        </span>
-                        <div className="flex-1 min-w-0 space-y-1.5">
-                          {cell.map((p) => (
-                            <button
-                              key={p.id}
-                              onClick={() => setOpenId(p.id)}
-                              className="w-full min-h-[44px] flex items-center gap-2 text-left bg-surface-container-low rounded-xl px-3 py-2 active:scale-[0.98] transition-transform"
-                            >
-                              <span className="flex-1 min-w-0 truncate text-sm font-medium text-on-surface">
-                                {p.title}
-                              </span>
-                              {!!p.comment_count && (
-                                <span className="shrink-0 inline-flex items-center gap-0.5 text-xs text-on-surface-variant">
-                                  <span className="material-symbols-outlined text-[14px]">chat_bubble</span>
-                                  {p.comment_count}
-                                </span>
-                              )}
-                            </button>
-                          ))}
-                          <button
-                            onClick={() => setAdding({ date: d, slot })}
-                            aria-label={`${d} ${MEAL_SLOT_LABEL[slot]} 식단 추가`}
-                            className="w-full min-h-[44px] flex items-center gap-1.5 rounded-xl px-3 text-sm text-outline active:scale-[0.98] transition-transform"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">add</span>
-                            추가
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </section>
-            </Reveal>
-          )
-        })}
-      </div>
+          {expanded && (
+            <section className="mt-3 rounded-2xl p-5 bg-surface-container-lowest">
+              <div className="flex items-baseline gap-2 mb-3">
+                <span className="font-headline font-bold text-on-surface">
+                  {Number(expanded.slice(5, 7))}월 {Number(expanded.slice(8))}일
+                </span>
+                <span className="text-xs text-on-surface-variant">{DOW[gridIndex(expanded)]}요일</span>
+                {expanded === today && <span className="text-xs font-bold text-primary">오늘</span>}
+              </div>
+              <DaySlots
+                date={expanded}
+                byCell={byCell}
+                onOpen={setOpenId}
+                onAdd={(dt, sl) => setAdding({ date: dt, slot: sl })}
+              />
+            </section>
+          )}
+
+          {!expanded && (
+            <p className="text-center text-xs text-on-surface-variant mt-4">
+              날짜를 누르면 그 날 식단이 펼쳐져요.
+            </p>
+          )}
+        </>
+      )}
 
       {adding && (
         <AddMealModal
