@@ -15,6 +15,7 @@ const ExpensesPage = lazy(() => import('./pages/ExpensesPage'))
 import SettingsPage from './pages/SettingsPage'
 import CalendarPage from './pages/CalendarPage'
 import AdminPage from './pages/AdminPage'
+import LazyBoundary from './components/LazyBoundary'
 
 // 등록 성공은 앱에서 가장 기분 좋은 순간인데, window.location.href 는 전체
 // 페이지 리로드라 스탠드얼론 PWA 에서 흰 화면 깜빡임 + 콜드 부팅 + 전체 재조회가 났다.
@@ -101,9 +102,14 @@ export default function App() {
             <Route
               path="/expenses"
               element={
-                <Suspense fallback={<ChartSkeleton />}>
-                  <ExpensesPage />
-                </Suspense>
+                /* 배포로 청크 해시가 바뀌면 옛 HTML 을 들고 있던 사용자는
+                   없는 파일을 요청하고, SPA 폴백이 200 + text/html 을 준다.
+                   에러 경계가 없으면 빈 화면이 된다. */
+                <LazyBoundary fallback={<ChartSkeleton />}>
+                  <Suspense fallback={<ChartSkeleton />}>
+                    <ExpensesPage />
+                  </Suspense>
+                </LazyBoundary>
               }
             />
             <Route path="/notifications" element={<NotificationsPage />} />
