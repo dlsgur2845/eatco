@@ -154,7 +154,7 @@ export default function NutritionPage() {
                   key={ing.id}
                   onClick={() => toggle(ing)}
                   aria-pressed={on}
-                  className={`px-4 min-h-[48px] rounded-full text-sm font-medium transition-transform active:scale-95 ${
+                  className={`px-4 min-h-[48px] inline-flex items-center justify-center rounded-full text-sm font-medium transition-transform active:scale-95 ${
                     on ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface'
                   }`}
                 >

@@ -649,7 +649,7 @@ export default function InventoryPage() {
           <button
             key={f.value}
             onClick={() => setFilter(f.value)}
-            className={`px-6 min-h-[48px] rounded-xl text-sm font-semibold active:scale-95 transition-all ${
+            className={`px-6 min-h-[48px] inline-flex items-center justify-center rounded-xl text-sm font-semibold active:scale-95 transition-all ${
               filter === f.value ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high'
             }`}
           >

@@ -152,7 +152,7 @@ export default function ScanPage({ onRegistered }: Props) {
               </p>
               <button
                 onClick={() => { abortRef.current?.abort(); setScanning(false); setSlow(false) }}
-                className="px-5 min-h-[48px] rounded-full text-sm font-medium"
+                className="px-5 min-h-[48px] inline-flex items-center justify-center rounded-full text-sm font-medium"
                 style={{ backgroundColor: 'var(--color-surface-container-high)', color: 'var(--color-on-surface)' }}
               >
                 취소

@@ -145,7 +145,7 @@ export default function NotificationsPage() {
           <p className="text-on-surface-variant mb-6">알림을 불러오지 못했어요.</p>
           <button
             onClick={retry}
-            className="min-h-[48px] px-6 rounded-full bg-on-surface text-surface font-bold active:scale-95 transition-transform"
+            className="min-h-[48px] inline-flex items-center justify-center px-6 rounded-full bg-on-surface text-surface font-bold active:scale-95 transition-transform"
           >
             다시 시도
           </button>

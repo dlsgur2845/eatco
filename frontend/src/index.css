@@ -172,6 +172,11 @@ textarea {
 
    clip 을 쓰는 이유: hidden 은 스크롤 컨테이너를 만들어서 position: sticky
    자식의 기준을 바꾼다. clip 은 안 만든다. */
-body {
+body,
+#root {
+  /* body 만으로는 부족했다. html 이 visible 이면 body 값이 뷰포트로 전파되지만
+     clip 의 전파는 브라우저별로 일관되지 않는다. #root 는 평범한 div 라
+     clip 이 확실히 먹는다. hidden 을 못 쓰는 이유는 TopAppBar 가 sticky 라서다 —
+     hidden 은 스크롤 컨테이너를 만들어 sticky 기준을 바꿔버린다. */
   overflow-x: clip;
 }

@@ -113,7 +113,7 @@ export default function MvpDashboardPage() {
       <div className="flex flex-col items-center justify-center min-h-[60vh] px-5">
         <p className="text-sm mb-4" style={{ color: 'var(--color-error)' }}>{error}</p>
         <button
-          className="px-6 min-h-[48px] rounded-full text-sm font-semibold text-white"
+          className="px-6 min-h-[48px] inline-flex items-center justify-center rounded-full text-sm font-semibold text-white"
           style={{ backgroundColor: 'var(--color-primary)' }}
           onClick={fetchItems}
         >

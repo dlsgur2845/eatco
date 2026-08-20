@@ -54,7 +54,7 @@ function ConfirmDialog({
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="flex-1 min-h-[48px] rounded-full bg-surface-container-high text-on-surface font-bold active:scale-95 transition-transform disabled:opacity-40"
+            className="flex-1 min-h-[48px] inline-flex items-center justify-center rounded-full bg-surface-container-high text-on-surface font-bold active:scale-95 transition-transform disabled:opacity-40"
           >
             취소
           </button>
@@ -62,7 +62,7 @@ function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className="flex-1 min-h-[48px] rounded-full bg-error text-on-error font-bold active:scale-95 transition-transform disabled:opacity-40"
+            className="flex-1 min-h-[48px] inline-flex items-center justify-center rounded-full bg-error text-on-error font-bold active:scale-95 transition-transform disabled:opacity-40"
           >
             {busy ? '처리 중...' : confirmLabel}
           </button>
@@ -138,7 +138,7 @@ function UserRow({
           type="button"
           onClick={() => onRole(u, isAdmin ? 'member' : 'admin')}
           disabled={isMe && isAdmin}
-          className="flex-1 min-h-[48px] rounded-xl bg-surface-container-high text-on-surface text-sm font-bold active:scale-95 transition-transform disabled:opacity-40"
+          className="flex-1 min-h-[48px] inline-flex items-center justify-center rounded-xl bg-surface-container-high text-on-surface text-sm font-bold active:scale-95 transition-transform disabled:opacity-40"
         >
           {isAdmin ? '관리자 해제' : '관리자로'}
         </button>
@@ -147,7 +147,7 @@ function UserRow({
           onClick={() => onDelete(u)}
           disabled={isMe}
           aria-label={`${u.nickname} 계정 삭제`}
-          className="min-h-[48px] px-5 rounded-xl bg-surface-container-high text-error text-sm font-bold active:scale-95 transition-transform disabled:opacity-40"
+          className="min-h-[48px] inline-flex items-center justify-center px-5 rounded-xl bg-surface-container-high text-error text-sm font-bold active:scale-95 transition-transform disabled:opacity-40"
         >
           삭제
         </button>
@@ -192,7 +192,7 @@ function FamilyRow({
         type="button"
         onClick={() => onDelete(f)}
         disabled={isMine}
-        className="w-full min-h-[48px] mt-4 rounded-xl bg-surface-container-high text-error text-sm font-bold active:scale-95 transition-transform disabled:opacity-40"
+        className="w-full min-h-[48px] flex items-center justify-center mt-4 rounded-xl bg-surface-container-high text-error text-sm font-bold active:scale-95 transition-transform disabled:opacity-40"
       >
         {isMine ? '내 가족은 삭제할 수 없어요' : '가족 삭제'}
       </button>
@@ -325,7 +325,7 @@ export default function AdminPage() {
         </p>
         <button
           onClick={() => navigate('/')}
-          className="min-h-[48px] px-6 rounded-full bg-on-surface text-surface font-bold active:scale-95 transition-transform"
+          className="min-h-[48px] inline-flex items-center justify-center px-6 rounded-full bg-on-surface text-surface font-bold active:scale-95 transition-transform"
         >
           홈으로
         </button>
@@ -340,7 +340,7 @@ export default function AdminPage() {
         <p className="text-on-surface-variant mb-6">관리 정보를 불러오지 못했어요.</p>
         <button
           onClick={load}
-          className="min-h-[48px] px-6 rounded-full bg-on-surface text-surface font-bold active:scale-95 transition-transform"
+          className="min-h-[48px] inline-flex items-center justify-center px-6 rounded-full bg-on-surface text-surface font-bold active:scale-95 transition-transform"
         >
           다시 시도
         </button>
@@ -387,7 +387,7 @@ export default function AdminPage() {
             role="tab"
             aria-selected={tab === key}
             onClick={() => setTab(key)}
-            className={`flex-1 min-h-[48px] rounded-xl font-bold text-sm transition-colors ${
+            className={`flex-1 min-h-[48px] inline-flex items-center justify-center rounded-xl font-bold text-sm transition-colors ${
               tab === key
                 ? 'bg-surface-container-lowest text-on-surface'
                 : 'text-on-surface-variant'

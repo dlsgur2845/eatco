@@ -159,7 +159,7 @@ export default function ExpensesPage() {
           {alerts.map((a, i) => (
             <div key={i} className="bg-tertiary-container/10 rounded-2xl p-4 flex items-center gap-3">
               <span className="material-symbols-outlined text-tertiary">trending_up</span>
-              <p className="text-sm text-on-surface flex-1">
+              <p className="text-sm text-on-surface flex-1 min-w-0">
                 <strong>{a.name}</strong>이(가) 3개월 전보다 <strong className="text-tertiary">{a.change_pct}%</strong> 비싸졌어요
                 <span className="text-on-surface-variant ml-2">
                   ({a.old_price.toLocaleString()}원 → {a.current_price.toLocaleString()}원)
@@ -203,7 +203,7 @@ export default function ExpensesPage() {
       <div className="flex gap-2">
         <button
           onClick={() => setTab('overview')}
-          className={`px-6 min-h-[48px] rounded-xl text-sm font-semibold transition-all ${
+          className={`px-6 min-h-[48px] inline-flex items-center justify-center rounded-xl text-sm font-semibold transition-all ${
             tab === 'overview' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant'
           }`}
         >
@@ -211,7 +211,7 @@ export default function ExpensesPage() {
         </button>
         <button
           onClick={() => { setTab('item'); if (!searchName.trim()) loadAllItemNames() }}
-          className={`px-6 min-h-[48px] rounded-xl text-sm font-semibold transition-all ${
+          className={`px-6 min-h-[48px] inline-flex items-center justify-center rounded-xl text-sm font-semibold transition-all ${
             tab === 'item' ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant'
           }`}
         >
@@ -255,7 +255,9 @@ export default function ExpensesPage() {
                 value={budgetInput}
                 onChange={e => setBudgetInput(e.target.value)}
                 placeholder="예: 300000"
-                className="flex-1 bg-surface-container-low rounded-xl px-4 py-3 text-on-surface outline-none focus:ring-2 focus:ring-primary"
+                /* min-w-0 이 없으면 input 의 기본 size=20 고유폭(~215px)이 하한이
+                   되어 행이 카드 밖으로 넘고, 페이지가 좌우로 스크롤된다. */
+                className="flex-1 min-w-0 bg-surface-container-low rounded-xl px-4 py-3 text-on-surface outline-none focus:ring-2 focus:ring-primary"
               />
               <button
                 onClick={saveBudget}
