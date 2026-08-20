@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { freshnessColor } from '../../lib/freshness'
+import { useModal } from '../../hooks/useModal'
 import { logEvent } from '../../api/events'
 import type { ScannedItem } from '../../api/scan'
 
@@ -13,6 +15,7 @@ interface Props {
 }
 
 export default function ResultsModal({ items: initialItems, storeName, error, onConfirm, onClose }: Props) {
+  const panelRef = useModal(true, onClose)
   const [items, setItems] = useState<ScannedItem[]>(initialItems)
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
@@ -55,7 +58,12 @@ export default function ResultsModal({ items: initialItems, storeName, error, on
 
       {/* 모달 */}
       <div
-        className="relative w-full max-w-md max-h-[85vh] rounded-3xl flex flex-col mx-4"
+        ref={panelRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label="인식된 식재료"
+        className="modal-scroll relative w-full max-w-md max-h-[85vh] rounded-3xl flex flex-col mx-4"
         style={{ backgroundColor: 'var(--color-surface-container-lowest)' }}
       >
         {/* 핸들 + 헤더 (고정) */}
@@ -110,7 +118,7 @@ export default function ResultsModal({ items: initialItems, storeName, error, on
                 style={{
                   backgroundColor: item.auto_matched
                     ? 'var(--color-primary-container)'
-                    : 'var(--color-secondary-container)',
+                    : 'var(--color-secondary)',
                 }}
               />
 
@@ -166,7 +174,8 @@ export default function ResultsModal({ items: initialItems, storeName, error, on
                         }}
                       />
                       <input
-                        className="w-28 text-xs px-2 py-0.5 rounded-md outline-none"
+                        // 좁아서 "2026. 08." 로 잘렸다. 소비기한은 이 화면에서 가장 중요한 값이다.
+                        className="w-full min-w-[8.5rem] text-sm px-2 py-2 rounded-md outline-none"
                         style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface)' }}
                         type="date"
                         value={item.expiry_date}
@@ -184,7 +193,7 @@ export default function ResultsModal({ items: initialItems, storeName, error, on
                     <p className="text-xs mt-0.5" style={{ color: 'var(--color-on-surface-variant)' }}>
                       {storageMethodLabel(item.storage_method)} 보관 · 소비기한 {item.expiry_date}
                       {!item.auto_matched && (
-                        <span style={{ color: 'var(--color-secondary-container)' }}> · ⚠️ 자동 분류 실패</span>
+                        <span style={{ color: 'var(--color-secondary)' }}> · ⚠️ 자동 분류 실패</span>
                       )}
                     </p>
                   </>
@@ -195,11 +204,7 @@ export default function ResultsModal({ items: initialItems, storeName, error, on
               <span
                 className="text-xs font-semibold flex-shrink-0"
                 style={{
-                  color: item.shelf_life_days <= 1
-                    ? 'var(--color-tertiary-container)'
-                    : item.shelf_life_days <= 3
-                      ? 'var(--color-secondary-container)'
-                      : 'var(--color-primary)',
+                  color: freshnessColor(item.shelf_life_days),
                 }}
               >
                 D-{item.shelf_life_days}

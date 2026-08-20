@@ -46,7 +46,7 @@ export default function RecipeCard({ recipe }: Props) {
           </p>
 
           {recipe.urgent_used.length > 0 && (
-            <p className="text-xs mt-1" style={{ color: 'var(--color-tertiary-container)' }}>
+            <p className="text-xs mt-1" style={{ color: 'var(--color-tertiary)' }}>
               D-day {recipe.urgent_used[0]} 활용
             </p>
           )}
@@ -70,7 +70,7 @@ export default function RecipeCard({ recipe }: Props) {
             <span className="material-symbols-outlined" style={{ fontSize: '10px', color: 'var(--color-outline)' }}>
               {SOURCE_ICON[recipe.source] || 'public'}
             </span>
-            <span className="text-[10px]" style={{ color: 'var(--color-outline)' }}>
+            <span className="text-xs" style={{ color: 'var(--color-outline)' }}>
               {sourceLabel}
             </span>
           </div>

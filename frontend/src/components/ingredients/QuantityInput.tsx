@@ -28,7 +28,7 @@ export function QuantityInput({
   const step = unit === 'piece' ? 0.25 : 1
   return (
     <div className="flex flex-col gap-2">
-      <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">수량</label>
+      <label className="font-body text-xs font-semibold text-on-surface-variant">수량</label>
       <div className="flex items-center gap-2">
         <input
           type="number"
@@ -61,7 +61,7 @@ export function QuantityInput({
         </select>
       </div>
       {unitLocked && lockedHelper && (
-        <p className="text-[10px] text-on-surface-variant">{lockedHelper}</p>
+        <p className="text-xs text-on-surface-variant">{lockedHelper}</p>
       )}
     </div>
   )

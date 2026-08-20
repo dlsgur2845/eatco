@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useModal } from '../hooks/useModal'
 
 const CURRENT_VERSION = '1.5.0'
 const STORAGE_KEY = 'eatco_changelog_seen'
@@ -102,6 +103,7 @@ const CHANGELOG = [
 
 export default function WhatsNew() {
   const [show, setShow] = useState(false)
+  const panelRef = useModal(show, () => setShow(false))
 
   useEffect(() => {
     const seen = localStorage.getItem(STORAGE_KEY)
@@ -126,7 +128,12 @@ export default function WhatsNew() {
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={dismiss} />
-      <div className="relative z-10 w-full max-w-md max-h-[85vh] overflow-y-auto bg-surface rounded-[2rem] mx-4 shadow-2xl">
+      <div ref={panelRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label="새로운 소식"
+        className="modal-scroll relative z-10 w-full max-w-md max-h-[85vh] overflow-y-auto bg-surface rounded-[2rem] mx-4 shadow-2xl">
 
         {CHANGELOG.map((entry, idx) => (
           <div key={entry.version}>

@@ -1,4 +1,5 @@
 import type { Recipe } from '../../api/recipes'
+import { useModal } from '../../hooks/useModal'
 
 interface Props {
   recipe: Recipe
@@ -6,6 +7,7 @@ interface Props {
 }
 
 export default function RecipeDetailModal({ recipe, onClose }: Props) {
+  const panelRef = useModal(true, onClose)
   const pct = Math.round(recipe.match_ratio * 100)
 
   return (
@@ -17,7 +19,12 @@ export default function RecipeDetailModal({ recipe, onClose }: Props) {
       />
 
       <div
-        className="relative w-full max-w-md max-h-[90vh] rounded-3xl overflow-y-auto pb-8 mx-4"
+        ref={panelRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label="레시피 상세"
+        className="modal-scroll relative w-full max-w-md max-h-[90vh] rounded-3xl overflow-y-auto pb-8 mx-4"
         style={{ backgroundColor: 'var(--color-surface-container-lowest)' }}
       >
         {/* 핸들 */}
@@ -53,7 +60,7 @@ export default function RecipeDetailModal({ recipe, onClose }: Props) {
               재료 {recipe.match_count}/{recipe.total_ingredients}개 보유 ({pct}%)
             </p>
             {recipe.urgent_used.length > 0 && (
-              <p className="text-xs mt-1" style={{ color: 'var(--color-tertiary-container)' }}>
+              <p className="text-xs mt-1" style={{ color: 'var(--color-tertiary)' }}>
                 곧 써야 할 재료 활용: {recipe.urgent_used.join(', ')}
               </p>
             )}

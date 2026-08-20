@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { freshnessColor, daysLabel as fmtDays } from '../lib/freshness'
 import api from '../api/client'
 import { logEvent } from '../api/events'
 import { getRecommendations, type Recipe } from '../api/recipes'
@@ -91,17 +92,9 @@ export default function MvpDashboardPage() {
   const soon = items.filter(i => i.days_left >= 2 && i.days_left <= 3)
   const fresh = items.filter(i => i.days_left >= 4)
 
-  const daysColor = (d: number) => {
-    if (d <= 1) return 'var(--color-tertiary-container)'
-    if (d <= 3) return 'var(--color-secondary-container)'
-    return 'var(--color-primary)'
-  }
+  const daysColor = freshnessColor
 
-  const daysLabel = (d: number) => {
-    if (d < 0) return `D+${Math.abs(d)}`
-    if (d === 0) return 'D-Day'
-    return `D-${d}`
-  }
+  const daysLabel = fmtDays
 
   if (loading) {
     return (
@@ -162,7 +155,7 @@ export default function MvpDashboardPage() {
         <div className="space-y-2 mb-4">
           {alerts.slice(0, 2).map((a, i) => (
             <div key={i} className="rounded-2xl px-4 py-3 flex items-center gap-3" style={{ backgroundColor: 'color-mix(in srgb, var(--color-tertiary-container) 10%, white)' }}>
-              <span className="material-symbols-outlined text-sm" style={{ color: 'var(--color-tertiary-container)' }}>trending_up</span>
+              <span className="material-symbols-outlined text-sm" style={{ color: 'var(--color-tertiary)' }}>trending_up</span>
               <p className="text-xs" style={{ color: 'var(--color-on-surface)' }}>
                 <strong>{a.name}</strong>이(가) {a.change_pct}% 비싸졌어요
                 <span className="ml-1" style={{ color: 'var(--color-on-surface-variant)' }}>
@@ -189,7 +182,7 @@ export default function MvpDashboardPage() {
               style={{
                 width: `${Math.min(100, (budget.spent_this_month / budget.monthly_budget) * 100)}%`,
                 backgroundColor: budget.spent_this_month > budget.monthly_budget
-                  ? 'var(--color-tertiary-container)'
+                  ? 'var(--color-tertiary)'
                   : 'var(--color-primary)',
               }}
             />

@@ -20,21 +20,28 @@ export default function ScanPage({ onRegistered }: Props) {
   const [showResults, setShowResults] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [registerError, setRegisterError] = useState<string | null>(null)
+  const [slow, setSlow] = useState(false)
+  const abortRef = useRef<AbortController | null>(null)
 
   const handleCapture = useCallback(async (file: File) => {
     setError(null)
     setScanning(true)
     setProgressStep(0)
 
+    setSlow(false)
+    abortRef.current = new AbortController()
     const interval = setInterval(() => {
       setProgressStep(prev => Math.min(prev + 1, PROGRESS_STEPS.length - 1))
-    }, 1200)
+    }, 1800)
+    // 10초 넘어가면 "멈췄나?" 를 없애준다. 실측 소요가 9초대라 대부분은 그 전에 끝난다.
+    const slowTimer = setTimeout(() => setSlow(true), 10_000)
 
     try {
       // 업로드 전에 줄인다. 원본 그대로 보내면 업로드가 느리고 토큰만 늘어난다.
       const prepared = await downscaleImage(file)
       const result = await analyzeReceipt(prepared)
       clearInterval(interval)
+      clearTimeout(slowTimer)
 
       logEvent('scan', { source: 'receipt', items_count: result.total })
 
@@ -49,6 +56,7 @@ export default function ScanPage({ onRegistered }: Props) {
       setShowResults(true)
     } catch (err: unknown) {
       clearInterval(interval)
+      clearTimeout(slowTimer)
       let msg = '읽기에 실패했어요. 다시 시도해주세요.'
       if (typeof err === 'object' && err !== null && 'response' in err) {
         const resp = (err as { response?: { status?: number; data?: { detail?: string } } }).response
@@ -60,8 +68,11 @@ export default function ScanPage({ onRegistered }: Props) {
       }
       setError(msg)
     } finally {
+      clearInterval(interval)
+      clearTimeout(slowTimer)
       setScanning(false)
       setProgressStep(0)
+      setSlow(false)
     }
   }, [])
 
@@ -105,18 +116,36 @@ export default function ScanPage({ onRegistered }: Props) {
           className="w-full py-16 rounded-2xl flex flex-col items-center justify-center gap-4"
           style={{ backgroundColor: 'var(--color-surface-container-low)' }}
         >
-          <div className="w-48 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-surface-container-high)' }}>
+          {/* 불확정형. 예전에는 2.4초에 100% 가 되고 멈춰 있었는데 실제 소요는 9초대라,
+              사용자가 멈춘 줄 알고 뒤로가기를 눌러 스캔을 날렸다. */}
+          <div
+            className="w-48 h-1.5 rounded-full overflow-hidden"
+            style={{ backgroundColor: 'var(--color-surface-container-high)' }}
+            role="progressbar"
+            aria-label="영수증 분석 중"
+          >
             <div
-              className="h-full rounded-full transition-all duration-1000"
-              style={{
-                width: `${((progressStep + 1) / PROGRESS_STEPS.length) * 100}%`,
-                background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-container))',
-              }}
+              className="h-full w-1/3 rounded-full scan-indeterminate"
+              style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-container))' }}
             />
           </div>
           <p className="text-sm font-medium" style={{ color: 'var(--color-primary)' }}>
             {PROGRESS_STEPS[progressStep]}
           </p>
+          {slow && (
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-xs" style={{ color: 'var(--color-on-surface-variant)' }}>
+                조금 오래 걸리고 있어요. 잠시만요.
+              </p>
+              <button
+                onClick={() => { abortRef.current?.abort(); setScanning(false); setSlow(false) }}
+                className="px-5 py-2.5 rounded-full text-sm font-medium"
+                style={{ backgroundColor: 'var(--color-surface-container-high)', color: 'var(--color-on-surface)' }}
+              >
+                취소
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div

@@ -63,7 +63,7 @@ export default function RegisterAccountPage() {
             <form onSubmit={handleSubmit} className="flex flex-col gap-6 relative z-10">
               {/* 이름 */}
               <div className="flex flex-col gap-2">
-                <label className="font-body text-[11px] font-bold uppercase tracking-widest text-on-surface-variant pl-1">
+                <label className="font-body text-xs font-semibold text-on-surface-variant pl-1">
                   이름
                 </label>
                 <input
@@ -78,7 +78,7 @@ export default function RegisterAccountPage() {
 
               {/* 이메일 */}
               <div className="flex flex-col gap-2">
-                <label className="font-body text-[11px] font-bold uppercase tracking-widest text-on-surface-variant pl-1">
+                <label className="font-body text-xs font-semibold text-on-surface-variant pl-1">
                   이메일 주소
                 </label>
                 <input
@@ -93,7 +93,7 @@ export default function RegisterAccountPage() {
 
               {/* 비밀번호 */}
               <div className="flex flex-col gap-2">
-                <label className="font-body text-[11px] font-bold uppercase tracking-widest text-on-surface-variant pl-1">
+                <label className="font-body text-xs font-semibold text-on-surface-variant pl-1">
                   비밀번호
                 </label>
                 <input
@@ -123,7 +123,7 @@ export default function RegisterAccountPage() {
             <div className="mt-8 flex flex-col items-center gap-6">
               <div className="flex items-center gap-4 w-full">
                 <div className="h-px flex-1 bg-outline-variant opacity-30" />
-                <span className="font-body text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                <span className="font-body text-xs font-semibold text-on-surface-variant">
                   또는
                 </span>
                 <div className="h-px flex-1 bg-outline-variant opacity-30" />
@@ -143,7 +143,7 @@ export default function RegisterAccountPage() {
 
         {/* Footer */}
         <footer className="text-center">
-          <p className="font-body text-[10px] font-bold uppercase tracking-widest text-on-surface-variant opacity-60">
+          <p className="font-body text-xs font-semibold text-on-surface-variant">
             &copy; 2026 THE EDITORIAL PANTRY. ALL RIGHTS RESERVED.
           </p>
         </footer>

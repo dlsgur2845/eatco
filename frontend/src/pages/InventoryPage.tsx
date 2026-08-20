@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { freshness, freshnessColor, freshnessBg, daysLabel } from '../lib/freshness'
+import { useModal } from '../hooks/useModal'
 import api from '../api/client'
 import { QuantityInput } from '../components/ingredients/QuantityInput'
 import { formatQuantity } from '../lib/format'
@@ -40,6 +42,7 @@ function formatDays(d: number | null | undefined): string {
 
 /* ── Register Form (inline modal) ── */
 function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const panelRef = useModal(true, onClose)
   const [categories, setCategories] = useState<Category[]>([])
   const [form, setForm] = useState<IngredientCreate>({
     name: '',
@@ -127,7 +130,13 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto bg-surface rounded-[2rem] p-6 sm:p-8 shadow-2xl mx-4">
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        className="modal-scroll relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto bg-surface rounded-[2rem] p-6 sm:p-8 shadow-2xl mx-4"
+      >
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-headline font-bold text-xl text-on-surface">식재료 등록</h3>
           <button onClick={onClose} className="p-2 hover:bg-surface-container-high rounded-full transition-colors">
@@ -138,7 +147,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* 상품명 + 자동완성 */}
           <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2 relative">
-            <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">상품명</label>
+            <label className="font-body text-xs font-semibold text-on-surface-variant">상품명</label>
             <input
               type="text"
               required
@@ -165,7 +174,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
                       <span className="material-symbols-outlined text-primary text-sm">search</span>
                       <span className="font-medium text-on-surface">{s.keyword}</span>
                     </div>
-                    <div className="flex gap-2 text-[10px] text-on-surface-variant">
+                    <div className="flex gap-2 text-xs text-on-surface-variant">
                       {s.refrigerated_days != null && (
                         <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded">냉장 {formatDays(s.refrigerated_days)}</span>
                       )}
@@ -178,7 +187,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
               </div>
             )}
             {guide && !showSuggestions && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-secondary-container/10 rounded-lg text-secondary text-[11px] font-medium mt-1">
+              <div className="flex items-center gap-2 px-3 py-2 bg-secondary-container/10 rounded-lg text-secondary text-xs font-medium mt-1">
                 <span className="material-symbols-outlined text-sm">lightbulb</span>
                 &quot;{guide.keyword}&quot; 보관 정보를 찾았어요
               </div>
@@ -187,7 +196,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
 
           {/* 보관 방법 */}
           <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-3">
-            <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">보관 방법</label>
+            <label className="font-body text-xs font-semibold text-on-surface-variant">보관 방법</label>
             <div className="grid grid-cols-3 gap-3">
               {storageMethods.map((m) => (
                 <button
@@ -218,7 +227,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
                   return (
                     <div
                       key={m.value}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-medium ${
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${
                         isSelected ? 'bg-primary/10 text-primary' : 'bg-surface-container-low text-on-surface-variant'
                       }`}
                     >
@@ -230,7 +239,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
                 })}
               </div>
             ) : (
-              <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 rounded-lg text-primary text-[11px] font-medium">
+              <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 rounded-lg text-primary text-xs font-medium">
                 <span className="material-symbols-outlined text-sm">info</span>
                 {getTipForMethod(form.storage_method)}
               </div>
@@ -240,7 +249,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
           {/* 카테고리 + 수량 */}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2">
-              <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">카테고리</label>
+              <label className="font-body text-xs font-semibold text-on-surface-variant">카테고리</label>
               <select
                 value={form.category_id || ''}
                 onChange={(e) => setForm({ ...form, category_id: e.target.value || undefined })}
@@ -265,7 +274,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
           {/* 가격 + 매장명 */}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2">
-              <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">가격 (원)</label>
+              <label className="font-body text-xs font-semibold text-on-surface-variant">가격 (원)</label>
               <input
                 type="number"
                 value={form.price ?? ''}
@@ -275,7 +284,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
               />
             </div>
             <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2">
-              <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">구매처</label>
+              <label className="font-body text-xs font-semibold text-on-surface-variant">구매처</label>
               <input
                 type="text"
                 value={form.store_name ?? ''}
@@ -289,9 +298,9 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
           {/* 소비기한 */}
           <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2 relative overflow-hidden">
             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-secondary-container" />
-            <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">소비기한</label>
+            <label className="font-body text-xs font-semibold text-on-surface-variant">소비기한</label>
             <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-secondary-container">calendar_today</span>
+              <span className="material-symbols-outlined text-secondary">calendar_today</span>
               <input
                 type="date"
                 required
@@ -320,6 +329,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
 
 /* ── Edit Form (inline modal) ── */
 function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; onClose: () => void; onSuccess: () => void }) {
+  const panelRef = useModal(true, onClose)
   const [categories, setCategories] = useState<Category[]>([])
   const [form, setForm] = useState({
     name: ingredient.name,
@@ -356,7 +366,13 @@ function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto bg-surface rounded-[2rem] p-6 sm:p-8 shadow-2xl mx-4">
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        className="modal-scroll relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto bg-surface rounded-[2rem] p-6 sm:p-8 shadow-2xl mx-4"
+      >
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-headline font-bold text-xl text-on-surface">식재료 수정</h3>
           <button onClick={onClose} className="p-2 hover:bg-surface-container-high rounded-full transition-colors">
@@ -367,7 +383,7 @@ function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* 상품명 */}
           <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2">
-            <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">상품명</label>
+            <label className="font-body text-xs font-semibold text-on-surface-variant">상품명</label>
             <input
               type="text"
               required
@@ -379,7 +395,7 @@ function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; 
 
           {/* 보관 방법 */}
           <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-3">
-            <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">보관 방법</label>
+            <label className="font-body text-xs font-semibold text-on-surface-variant">보관 방법</label>
             <div className="grid grid-cols-3 gap-3">
               {storageMethods.map((m) => (
                 <button
@@ -402,7 +418,7 @@ function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; 
           {/* 카테고리 + 수량 */}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2">
-              <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">카테고리</label>
+              <label className="font-body text-xs font-semibold text-on-surface-variant">카테고리</label>
               <select
                 value={form.category_id || ''}
                 onChange={(e) => setForm({ ...form, category_id: e.target.value || undefined })}
@@ -429,7 +445,7 @@ function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; 
           {/* 가격 + 매장명 */}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2">
-              <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">가격 (원)</label>
+              <label className="font-body text-xs font-semibold text-on-surface-variant">가격 (원)</label>
               <input
                 type="number"
                 value={form.price ?? ''}
@@ -439,7 +455,7 @@ function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; 
               />
             </div>
             <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2">
-              <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">구매처</label>
+              <label className="font-body text-xs font-semibold text-on-surface-variant">구매처</label>
               <input
                 type="text"
                 value={form.store_name}
@@ -453,7 +469,7 @@ function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; 
           {/* 소비기한 */}
           <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2 relative overflow-hidden">
             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-secondary-container" />
-            <label className="font-body text-[11px] font-bold uppercase tracking-wider text-outline">소비기한</label>
+            <label className="font-body text-xs font-semibold text-on-surface-variant">소비기한</label>
             <input
               type="date"
               required
@@ -521,12 +537,15 @@ export default function InventoryPage() {
 
   const getDday = (d: string) => Math.ceil((new Date(d).getTime() - Date.now()) / 86400000)
 
-  const getDdayVariant = (d: number) => {
-    if (d <= 0) return { border: 'border-tertiary-container', badge: 'bg-tertiary-container text-white', text: 'D-DAY' }
-    if (d <= 3) return { border: 'border-tertiary-container', badge: 'bg-tertiary-container/10 text-tertiary-container', text: `D-${d}` }
-    if (d <= 7) return { border: 'border-secondary-container', badge: 'bg-secondary-container/10 text-secondary-container', text: `D-${d}` }
-    return { border: 'border-primary-container', badge: 'bg-primary-container/10 text-primary', text: `D-${d}` }
-  }
+  // 구간과 색은 lib/freshness.ts 한 곳에서만 정한다.
+  // border 색을 문자열로 조작해 bg 클래스를 만들던 코드도 같이 없앤다 —
+  // 다른 파일에서 그 리터럴이 사라지면 조용히 깨지는 구조였다.
+  const getDdayVariant = (d: number) => ({
+    color: freshnessColor(d),
+    bg: freshnessBg(d),
+    text: daysLabel(d),
+    level: freshness(d),
+  })
 
   const toggleSelect = (id: string) => {
     const next = new Set(selected)
@@ -534,12 +553,29 @@ export default function InventoryPage() {
     setSelected(next)
   }
 
-  const handleBatchDelete = async () => {
+  // 단건 삭제에는 3초 되돌리기가 있는데 일괄삭제는 즉시 실행이었다.
+  // 한 번에 수십 개를 복구 불가능하게 지울 수 있었다. 확인 단계를 둔다.
+  const [pendingDelete, setPendingDelete] = useState<string[] | null>(null)
+  const [batchError, setBatchError] = useState<string | null>(null)
+
+  const handleBatchDelete = () => {
     if (selected.size === 0) return
-    await api.post('/ingredients/batch-delete', { ids: Array.from(selected) })
-    setSelected(new Set())
-    setSelectMode(false)
-    fetchIngredients()
+    setBatchError(null)
+    setPendingDelete(Array.from(selected))
+  }
+
+  const confirmBatchDelete = async () => {
+    const ids = pendingDelete
+    if (!ids) return
+    try {
+      await api.post('/ingredients/batch-delete', { ids })
+      setSelected(new Set())
+      setSelectMode(false)
+      setPendingDelete(null)
+      fetchIngredients()
+    } catch {
+      setBatchError('삭제하지 못했어요. 다시 시도해주세요.')
+    }
   }
 
   const progressWidth = (d: number) => {
@@ -622,6 +658,44 @@ export default function InventoryPage() {
         ))}
       </div>
 
+      {pendingDelete && (
+        <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setPendingDelete(null)} />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="삭제 확인"
+            className="relative z-10 w-full max-w-sm bg-surface rounded-t-[2rem] sm:rounded-[2rem] p-6 mx-4 mb-0 sm:mb-4 shadow-2xl"
+          >
+            <h3 className="font-headline font-bold text-lg text-on-surface mb-2">
+              {pendingDelete.length}개를 삭제할까요?
+            </h3>
+            <p className="text-sm text-on-surface-variant mb-6">되돌릴 수 없어요.</p>
+            {batchError && (
+              <p role="alert" className="mb-4 text-sm text-center px-4 py-3 rounded-xl"
+                 style={{ backgroundColor: 'var(--color-error-container)', color: 'var(--color-error)' }}>
+                {batchError}
+              </p>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPendingDelete(null)}
+                className="flex-1 py-3 rounded-full font-semibold bg-surface-container-high text-on-surface active:scale-95 transition-transform"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmBatchDelete}
+                className="flex-1 py-3 rounded-full font-semibold text-on-error active:scale-95 transition-transform"
+                style={{ backgroundColor: 'var(--color-error)' }}
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading && (
@@ -674,7 +748,10 @@ export default function InventoryPage() {
                 isSelected ? 'border-2 border-primary bg-surface-container-low' : ''
               }`}
             >
-              <div className={`absolute left-0 top-1/4 bottom-1/4 w-1.5 ${v.border.replace('border-', 'bg-')} rounded-r-full`} />
+              <div
+                className="absolute left-0 top-1/4 bottom-1/4 w-1.5 rounded-r-full"
+                style={{ backgroundColor: v.bg }}
+              />
               {isSelected && (
                 <div className="absolute -top-2 -right-2 bg-primary text-white rounded-full p-1 shadow-lg">
                   <span className="material-symbols-outlined text-[18px]">check</span>
@@ -688,7 +765,10 @@ export default function InventoryPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start mb-1 gap-2">
                   <h3 className="font-semibold text-lg text-on-surface truncate">{item.name}</h3>
-                  <span className={`${v.badge} text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider whitespace-nowrap`}>
+                  <span
+                    className="text-xs font-bold px-2 py-1 rounded-md whitespace-nowrap"
+                    style={{ color: v.color }}
+                  >
                     {v.text}
                   </span>
                 </div>

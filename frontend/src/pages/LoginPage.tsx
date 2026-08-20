@@ -80,7 +80,7 @@ export default function LoginPage() {
         {/* Session Expired Banner */}
         {showExpiredBanner && (
           <div className="bg-secondary-container/10 rounded-2xl p-4 flex items-start gap-3">
-            <span className="material-symbols-outlined text-secondary-container mt-0.5">warning</span>
+            <span className="material-symbols-outlined text-secondary mt-0.5">warning</span>
             <div className="flex-1">
               <p className="font-medium text-on-surface text-sm">다른 기기에서 로그인되어 세션이 만료되었습니다.</p>
               <p className="text-on-surface-variant text-xs mt-1">다시 로그인해 주세요.</p>
@@ -97,7 +97,7 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit} className="flex flex-col gap-6">
               {/* 이메일 */}
               <div className="flex flex-col gap-2">
-                <label className="font-body text-[11px] font-bold uppercase tracking-widest text-on-surface-variant pl-1">
+                <label className="font-body text-xs font-semibold text-on-surface-variant pl-1">
                   이메일 주소
                 </label>
                 <input
@@ -113,7 +113,7 @@ export default function LoginPage() {
 
               {/* 비밀번호 */}
               <div className="flex flex-col gap-2">
-                <label className="font-body text-[11px] font-bold uppercase tracking-widest text-on-surface-variant pl-1">
+                <label className="font-body text-xs font-semibold text-on-surface-variant pl-1">
                   비밀번호
                 </label>
                 <input
@@ -154,7 +154,7 @@ export default function LoginPage() {
             {/* Divider & Signup Link */}
             <div className="mt-8 flex flex-col items-center gap-6">
               <div className="flex items-center justify-center w-full py-2">
-                <span className="font-body text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                <span className="font-body text-xs font-semibold text-on-surface-variant">
                   또는
                 </span>
               </div>
@@ -173,7 +173,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <footer className="text-center">
-          <p className="font-body text-[10px] font-bold uppercase tracking-widest text-on-surface-variant opacity-60">
+          <p className="font-body text-xs font-semibold text-on-surface-variant">
             &copy; 2026 THE EDITORIAL PANTRY. ALL RIGHTS RESERVED.
           </p>
         </footer>

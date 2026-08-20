@@ -81,3 +81,16 @@ textarea {
 .modal-scroll {
   overscroll-behavior: contain;
 }
+
+/* 불확정형 진행바. 얼마나 남았는지 모를 때 가짜 퍼센트를 보여주면
+   100%에서 멈춘 것처럼 보여서 사용자가 작업을 취소해 버린다. */
+@keyframes scan-indeterminate {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+.scan-indeterminate {
+  animation: scan-indeterminate 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scan-indeterminate { animation-duration: 3s; }
+}

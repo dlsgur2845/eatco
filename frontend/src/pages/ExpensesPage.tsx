@@ -158,9 +158,9 @@ export default function ExpensesPage() {
         <div className="space-y-2">
           {alerts.map((a, i) => (
             <div key={i} className="bg-tertiary-container/10 rounded-2xl p-4 flex items-center gap-3">
-              <span className="material-symbols-outlined text-tertiary-container">trending_up</span>
+              <span className="material-symbols-outlined text-tertiary">trending_up</span>
               <p className="text-sm text-on-surface flex-1">
-                <strong>{a.name}</strong>이(가) 3개월 전보다 <strong className="text-tertiary-container">{a.change_pct}%</strong> 비싸졌어요
+                <strong>{a.name}</strong>이(가) 3개월 전보다 <strong className="text-tertiary">{a.change_pct}%</strong> 비싸졌어요
                 <span className="text-on-surface-variant ml-2">
                   ({a.old_price.toLocaleString()}원 → {a.current_price.toLocaleString()}원)
                 </span>
@@ -186,15 +186,15 @@ export default function ExpensesPage() {
               style={{
                 width: `${Math.min(100, (budget.spent_this_month / budget.monthly_budget) * 100)}%`,
                 backgroundColor: budget.spent_this_month > budget.monthly_budget
-                  ? 'var(--color-tertiary-container)'
+                  ? 'var(--color-tertiary)'
                   : budget.spent_this_month > budget.monthly_budget * 0.8
-                    ? 'var(--color-secondary-container)'
+                    ? 'var(--color-secondary)'
                     : 'var(--color-primary)',
               }}
             />
           </div>
           {budget.spent_this_month > budget.monthly_budget && (
-            <p className="text-xs text-tertiary-container mt-2 font-medium">예산을 초과했어요!</p>
+            <p className="text-xs text-tertiary mt-2 font-medium">예산을 초과했어요!</p>
           )}
         </div>
       )}
@@ -226,7 +226,7 @@ export default function ExpensesPage() {
             <div className="flex justify-between items-baseline mb-4">
               <h3 className="text-sm font-semibold text-on-surface-variant">월별 식재료 지출</h3>
               {monthDelta !== null && (
-                <span className={`text-xs font-bold ${monthDelta > 0 ? 'text-tertiary-container' : 'text-primary'}`}>
+                <span className={`text-xs font-bold ${monthDelta > 0 ? 'text-tertiary' : 'text-primary'}`}>
                   지난달 대비 {monthDelta > 0 ? '+' : ''}{monthDelta}%
                 </span>
               )}

@@ -75,10 +75,10 @@ function FamilyManageView({
           <section>
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-headline font-semibold text-xl flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary-container">group</span>
+                <span className="material-symbols-outlined text-primary">group</span>
                 현재 가족 구성원
               </h3>
-              <span className="text-[10px] bg-primary-container/10 text-primary font-bold px-3 py-1 rounded-full uppercase tracking-widest">
+              <span className="text-xs bg-primary-container/10 text-primary font-bold px-3 py-1 rounded-full">
                 {localFamily.members.length} MEMBERS
               </span>
             </div>
@@ -120,7 +120,7 @@ function FamilyManageView({
                     </div>
                     <div className="flex items-center gap-2">
                       {isAdmin && (
-                        <span className="text-[10px] text-primary font-bold tracking-widest bg-primary/5 px-2 py-1 rounded">
+                        <span className="text-xs text-primary font-bold tracking-widest bg-primary/5 px-2 py-1 rounded">
                           MASTER
                         </span>
                       )}
@@ -216,7 +216,7 @@ function FamilyManageView({
                     참여하기
                   </button>
                 </div>
-                <p className="text-[11px] text-on-surface-variant text-center">
+                <p className="text-xs text-on-surface-variant text-center">
                   참여 시 현재 가족에서 탈퇴됩니다
                 </p>
               </form>
@@ -236,7 +236,7 @@ function FamilyManageView({
               </p>
 
               <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6">
-                <p className="text-[10px] text-white/60 font-bold tracking-[0.2em] mb-3">
+                <p className="text-xs text-white/60 font-bold tracking-[0.2em] mb-3">
                   INVITATION CODE
                 </p>
                 <div className="flex items-center justify-between gap-4">
@@ -262,7 +262,7 @@ function FamilyManageView({
           {/* Settings */}
           <section className="bg-surface-container-low p-8 rounded-[2rem]">
             <h3 className="font-headline font-semibold text-xl mb-6 flex items-center gap-2">
-              <span className="material-symbols-outlined text-secondary-container">shield_person</span>
+              <span className="material-symbols-outlined text-secondary">shield_person</span>
               공유 및 권한 설정
             </h3>
 
@@ -360,7 +360,7 @@ export default function FamilyPage() {
   if (error) {
     return (
       <div className="text-center py-20">
-        <span className="material-symbols-outlined text-tertiary-container text-5xl mb-4 block">
+        <span className="material-symbols-outlined text-tertiary text-5xl mb-4 block">
           error
         </span>
         <p className="text-on-surface-variant mb-4">{error}</p>
