@@ -4,6 +4,7 @@ import { nowIso } from '../lib/dates'
 import type { Env, Vars } from '../lib/types'
 import { hashPassword, verifyPassword } from '../lib/password'
 import { createSession, sessionCookie, clearCookie } from '../lib/session'
+import { uniqueInviteCode, notificationSettingStatements, createSoloFamily } from '../lib/family'
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>()
 
@@ -39,8 +40,13 @@ publicAuth.post('/register', async (c) => {
     .bind(id, email, nickname.slice(0, 50), await hashPassword(password), nowIso())
     .run()
 
+  // 기존 FastAPI register 와 동일하게 1인 가족을 같이 만든다.
+  // 안 만들면 가입 직후 가족 스코프 엔드포인트가 전부 400 이고,
+  // 프론트에는 가족 생성 온보딩 화면이 없다.
+  const familyId = await createSoloFamily(c.env.DB, id, nickname.slice(0, 50))
+
   c.header('Set-Cookie', sessionCookie(await createSession(c.env, id)))
-  return c.json({ id, email, nickname, family_id: null }, 201)
+  return c.json({ id, email, nickname, family_id: familyId }, 201)
 })
 
 publicAuth.post('/login', async (c) => {
@@ -65,18 +71,6 @@ publicAuth.post('/logout', (c) => {
   c.header('Set-Cookie', clearCookie())
   return c.json({ ok: true })
 })
-
-/** 초대코드. 예전 구현은 token_urlsafe(8).upper() 라 base64url 62심볼을 36으로
- *  접어서 엔트로피가 ~64bit -> ~40bit 로 떨어지고, 이어지는 replace 로 길이가
- *  8보다 짧아질 수도 있었다. 처음부터 대문자+숫자 알파벳에서 균등하게 뽑는다. */
-const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // 0/O/1/I 제외
-function inviteCode(len = 8): string {
-  const bytes = new Uint8Array(len)
-  crypto.getRandomValues(bytes)
-  let out = ''
-  for (const b of bytes) out += CODE_ALPHABET[b % CODE_ALPHABET.length]
-  return out
-}
 
 app.get('/me', (c) => c.json(c.get('user')))
 
@@ -118,21 +112,14 @@ app.post('/family', async (c) => {
 
   const id = crypto.randomUUID()
   // invite_code 는 UNIQUE. 충돌하면 몇 번 다시 뽑는다.
-  let code = ''
-  for (let i = 0; i < 5; i++) {
-    code = inviteCode()
-    const dup = await c.env.DB.prepare('SELECT 1 FROM families WHERE invite_code = ?').bind(code).first()
-    if (!dup) break
-    code = ''
-  }
-  if (!code) throw new ApiError(503, '초대코드 생성에 실패했습니다. 다시 시도해주세요.')
+  const code = await uniqueInviteCode(c.env.DB)
 
   await c.env.DB.batch([
     c.env.DB.prepare(
       'INSERT INTO families (id, name, invite_code, allow_shared_edit, created_at, master_id) VALUES (?, ?, ?, 1, ?, ?)',
     ).bind(id, name, code, nowIso(), user.id),
     c.env.DB.prepare('UPDATE users SET family_id = ? WHERE id = ?').bind(id, user.id),
-    ...defaultNotificationSettings(c.env.DB, id),
+    ...notificationSettingStatements(c.env.DB, id),
   ])
 
   return c.json({ id, name, invite_code: code, allow_shared_edit: true, master_id: user.id }, 201)
@@ -188,19 +175,6 @@ app.post('/family/leave', async (c) => {
   }
   return c.json({ left: true })
 })
-
-/** 가족 생성 시 기본 알림 설정 8개. 기존 seed 와 동일한 days_before 집합. */
-function defaultNotificationSettings(db: D1Database, familyId: string) {
-  // backend/app/seed.py 의 DEFAULT_NOTIFICATION_DAYS 와 동일하게 유지
-  const daysSet = [0, 1, 3, 5, 7, 14, 21, 30]
-  return daysSet.map((d) =>
-    db
-      .prepare(
-        'INSERT INTO notification_settings (id, family_id, days_before, enabled, push_time) VALUES (?, ?, ?, ?, ?)',
-      )
-      .bind(crypto.randomUUID(), familyId, d, d <= 3 ? 1 : 0, '09:00'),
-  )
-}
 
 // 와일드카드는 반드시 구체 경로들보다 뒤에 둔다.
 // 먼저 등록하면 /family/members 나 /family/settings 를 :id 로 삼켜버린다.

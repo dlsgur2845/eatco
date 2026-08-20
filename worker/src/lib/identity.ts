@@ -3,6 +3,7 @@ import { ApiError } from './errors'
 import type { Env, User, Vars } from './types'
 import { nowIso } from './dates'
 import { readCookie, readSession } from './session'
+import { createSoloFamily } from './family'
 
 /**
  * Cloudflare Access 기반 신원 확인.
@@ -142,7 +143,7 @@ export const requireUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> 
   // 1) Cloudflare Access 가 앞에 있으면 그 신원을 쓴다 (가장 강함).
   if (token && env.ACCESS_TEAM_DOMAIN) {
     const claims = await verifyAccessJwt(token, env.ACCESS_TEAM_DOMAIN, env.ACCESS_AUD)
-    const user = await resolveUser(env.DB, claims.email!)
+    const user = await withFamily(env.DB, await resolveUser(env.DB, claims.email!))
     c.set('user', user)
     return next()
   }
@@ -157,7 +158,7 @@ export const requireUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> 
         .bind(uid)
         .first<User>()
       if (user) {
-        c.set('user', user)
+        c.set('user', await withFamily(env.DB, user))
         return next()
       }
     }
@@ -165,12 +166,23 @@ export const requireUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> 
 
   // 3) 로컬 개발 전용 탈출구. 프로덕션에 이 변수를 두면 앱이 무방비가 된다.
   if (env.ALLOW_INSECURE_DEV === '1' && env.DEV_EMAIL) {
-    const user = await resolveUser(env.DB, env.DEV_EMAIL)
+    const user = await withFamily(env.DB, await resolveUser(env.DB, env.DEV_EMAIL))
     c.set('user', user)
     return next()
   }
 
   throw new ApiError(401, '로그인이 필요합니다.')
+}
+
+/**
+ * 가족이 없는 사용자에게 1인 가족을 만들어준다.
+ * 기존 FastAPI 는 register 안에서만 했는데, 그러면 Access 로 들어온 사용자와
+ * 이미 만들어진 고아 계정이 구제되지 않는다. 신원 확정 지점 한 곳에서 처리한다.
+ */
+async function withFamily(db: D1Database, user: User): Promise<User> {
+  if (user.family_id) return user
+  const familyId = await createSoloFamily(db, user.id, user.nickname)
+  return { ...user, family_id: familyId }
 }
 
 /** 가족에 소속돼 있어야 하는 엔드포인트용. */
