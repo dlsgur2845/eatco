@@ -33,7 +33,13 @@ app.get('/api/health', async (c) => {
     ok = false
   }
   components.gemini_key = c.env.GEMINI_API_KEY ? 'ok' : 'missing'
-  components.access = c.env.ACCESS_TEAM_DOMAIN ? 'ok' : 'not_configured'
+  // Access 는 선택 사항이다. 안 쓰면 세션 쿠키로만 인증한다 — 정상 상태다.
+  // 도메인만 있고 aud 가 없으면 requireUser 가 막으므로 그것도 드러낸다.
+  components.access = !c.env.ACCESS_TEAM_DOMAIN
+    ? 'disabled'
+    : c.env.ACCESS_AUD
+      ? 'ok'
+      : 'misconfigured'
   return c.json({ status: ok ? 'ok' : 'degraded', components }, ok ? 200 : 503)
 })
 

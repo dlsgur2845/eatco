@@ -6,16 +6,20 @@ import { readCookie, readSession } from './session'
 import { createSoloFamily } from './family'
 
 /**
- * Cloudflare Access 기반 신원 확인.
+ * 신원 확인. **현재는 앱 자체 세션 쿠키만 쓴다.**
  *
- * 왜 비밀번호를 쓰지 않는가: 무료 Workers 는 요청당 CPU 10ms 인데 bcrypt 는
- * 200~300ms 다. PBKDF2 를 예산에 맞추려면 반복 횟수를 안전 기준 아래로 낮춰야 한다.
- * Access 는 무료 티어(50석)이고, 비밀번호 해싱·레이트리밋·사용자 열거 공격면을
- * 통째로 없앤다. 가족 4명에게는 엄격히 더 낫다.
+ * 이 주석은 원래 "비밀번호를 쓰지 않는다, bcrypt 가 무료 CPU 예산 10ms 를
+ * 넘기니 Access 로 간다" 였다. 둘 다 틀린 서술이 됐다:
+ *  - PBKDF2-SHA256 100,000회가 무료 CPU 예산 안에서 도는 것을 실측했다.
+ *    (Workers 는 100,000회가 플랫폼 상한이다.) 그래서 비밀번호 인증을 쓴다.
+ *  - Cloudflare Access 는 결국 붙이지 않았다. wrangler.jsonc 에서
+ *    ACCESS_TEAM_DOMAIN 을 뺐으므로 아래 Access 분기는 비활성이다.
  *
- * Access 는 검증된 JWT 를 Cf-Access-Jwt-Assertion 헤더로 넣어준다.
- * 그래도 Worker 가 직접 서명을 검증한다 — 헤더를 그대로 믿으면 Access 를
- * 우회한 직접 요청이 아무 이메일이나 주장할 수 있다.
+ * Access 를 나중에 붙일 때를 위해 검증 코드는 남긴다. 단 aud 없이는 열리지
+ * 않는다 — 그게 없던 동안 같은 Zero Trust 조직의 다른 애플리케이션 토큰까지
+ * 통과했다. Access 는 검증된 JWT 를 Cf-Access-Jwt-Assertion 헤더로 넣어주지만
+ * Worker 가 직접 서명을 다시 검증한다. 헤더를 그대로 믿으면 Access 를 우회한
+ * 직접 요청이 아무 이메일이나 주장할 수 있다.
  */
 
 interface Jwk {
@@ -66,7 +70,9 @@ interface AccessClaims {
 export async function verifyAccessJwt(
   token: string,
   teamDomain: string,
-  expectedAud: string | undefined,
+  // 필수다. 옵셔널이던 시절에 aud 검사가 조건부로 건너뛰어져서, 같은 Zero Trust
+  // 조직의 다른 애플리케이션 토큰까지 통과했다. 타입으로 막는다.
+  expectedAud: string,
 ): Promise<AccessClaims> {
   const parts = token.split('.')
   if (parts.length !== 3) throw new ApiError(401, '인증 토큰 형식이 올바르지 않습니다.')
@@ -103,10 +109,8 @@ export async function verifyAccessJwt(
   if (claims.iss && claims.iss !== `https://${teamDomain}`) {
     throw new ApiError(401, '인증 발급자가 올바르지 않습니다.')
   }
-  if (expectedAud) {
-    const auds = Array.isArray(claims.aud) ? claims.aud : claims.aud ? [claims.aud] : []
-    if (!auds.includes(expectedAud)) throw new ApiError(401, '이 애플리케이션 토큰이 아닙니다.')
-  }
+  const auds = Array.isArray(claims.aud) ? claims.aud : claims.aud ? [claims.aud] : []
+  if (!auds.includes(expectedAud)) throw new ApiError(401, '이 애플리케이션 토큰이 아닙니다.')
   if (!claims.email) throw new ApiError(401, '토큰에 이메일이 없습니다.')
   return claims
 }
@@ -154,7 +158,19 @@ export const requireUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> 
     (c.req.header('Cookie') || '').match(/CF_Authorization=([^;]+)/)?.[1]
 
   // 1) Cloudflare Access 가 앞에 있으면 그 신원을 쓴다 (가장 강함).
+  //
+  // aud 없이는 열지 않는다. ACCESS_TEAM_DOMAIN 만 있고 ACCESS_AUD 가 없으면
+  // 그 Zero Trust 조직의 **어떤 애플리케이션에서 발급된 토큰이든** 통과하고,
+  // resolveUser 가 그 토큰의 이메일로 계정을 자동 생성한다. 애플리케이션 간
+  // 토큰 혼용이다. 예전에 실제로 이 상태였다.
+  //
+  // 설정 실수로 다시 열리지 않게 여기서 막는다. 조용히 통과시키느니
+  // 눈에 띄게 실패하는 쪽이 낫다.
   if (token && env.ACCESS_TEAM_DOMAIN) {
+    if (!env.ACCESS_AUD) {
+      console.error('ACCESS_TEAM_DOMAIN 은 있는데 ACCESS_AUD 가 없다. Access 인증을 거부한다.')
+      throw new ApiError(500, '인증 설정이 올바르지 않습니다. 관리자에게 문의하세요.')
+    }
     const claims = await verifyAccessJwt(token, env.ACCESS_TEAM_DOMAIN, env.ACCESS_AUD)
     const user = await withFamily(env.DB, await resolveUser(env.DB, claims.email!))
     c.set('user', user)
