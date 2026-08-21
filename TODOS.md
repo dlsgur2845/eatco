@@ -39,6 +39,23 @@ D1 HTTP API 를 직접 부르거나 GitHub Actions 로 빼야 한다.
 **Priority:** P2
 **Depends on:** None
 
+### 대시보드 HTML 이 엣지에 캐시된다
+
+**What:** 배포 직후 `https://eatco.dlsgur2845.workers.dev/` 를 그냥 받으면
+**이전 번들 해시**를 가리키는 HTML 이 온다. `?cb=<타임스탬프>` 나
+`Cache-Control: no-cache` 를 붙이면 새 해시가 온다.
+
+**Why:** 자산 파일명이 내용 해시라 결국 스스로 낫는다(옛 HTML → 옛 자산, 둘 다
+아직 존재). 하지만 배포 직후 "왜 안 바뀌지" 로 시간을 쓰게 된다. 실제로
+이번에 배포가 실패한 줄 알고 한 번 확인했다.
+
+**Context:** `wrangler.jsonc` 의 assets 설정에 HTML 만 `no-cache` 로 두는
+헤더 규칙을 넣으면 된다. 자산은 지금처럼 오래 캐시해도 안전하다.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ### 가입 자체는 여전히 누구나 할 수 있다 (막는 건 로그인)
 
 **What:** 승인제는 **로그인**을 막는다. `POST /api/auth/register` 는 여전히
