@@ -21,6 +21,10 @@ interface Recipe {
   image_url: string
   ingredients: string[]
   manual_steps: string[]
+  /* 단계별 사진. 공공 API 가 MANUAL_IMG01~20 으로 주는데 파싱하지 않고 있었다.
+     상세 화면에는 이걸 그리는 코드가 이미 있었고, 서버가 안 보내니
+     `manual_images[i]` 에서 터져 흰 화면이 됐다. */
+  manual_images: string[]
   tip: string
 }
 
@@ -90,9 +94,15 @@ async function fetchRecipes(env: Env): Promise<Recipe[]> {
       const json = (await res.json()) as { COOKRCP01?: { row?: Record<string, string>[] } }
       for (const r of json.COOKRCP01?.row ?? []) {
         const steps: string[] = []
+        const stepImages: string[] = []
         for (let i = 1; i <= 20; i++) {
-          const s = r[`MANUAL${String(i).padStart(2, '0')}`]
-          if (s && s.trim()) steps.push(s.trim())
+          const n = String(i).padStart(2, '0')
+          const s = r[`MANUAL${n}`]
+          if (s && s.trim()) {
+            steps.push(s.trim())
+            // 사진은 단계마다 있을 수도 없을 수도 있다. 인덱스를 맞춰 빈 문자열로 채운다.
+            stepImages.push((r[`MANUAL_IMG${n}`] ?? '').trim())
+          }
         }
         out.push({
           name: r.RCP_NM ?? '',
@@ -102,6 +112,7 @@ async function fetchRecipes(env: Env): Promise<Recipe[]> {
           image_url: r.ATT_FILE_NO_MK || r.ATT_FILE_NO_MAIN || '',
           ingredients: extractIngredients(r.RCP_PARTS_DTLS ?? ''),
           manual_steps: steps,
+          manual_images: stepImages,
           tip: r.RCP_NA_TIP ?? '',
         })
       }

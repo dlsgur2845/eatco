@@ -99,8 +99,20 @@ export default function RecipeDetailModal({ recipe, onClose }: Props) {
                     </span>
                     <div className="flex-1">
                       <p className="text-sm" style={{ color: 'var(--color-on-surface)' }}>{step}</p>
-                      {recipe.manual_images[i] && (
-                        <img src={recipe.manual_images[i]} alt={`Step ${i + 1}`} className="mt-2 rounded-lg w-full" />
+                      {/* `?.` 가 이 화면이 흰 화면이 되던 이유다.
+                          서버는 manual_images 를 보낸 적이 없는데 프론트 타입은
+                          `manual_images: string[]` 이라고 단언하고 있었다.
+                          api.get<Recipe[]> 는 그 단언을 그냥 믿기 때문에 타입체크는
+                          통과하고, 조리 순서가 있는 레시피를 열면 undefined[i] 로
+                          터졌다. 지금은 서버도 채워 보내지만, 옛 응답이 캐시에
+                          남아 있거나 필드가 빠져도 화면이 죽지 않게 여기서도 막는다. */}
+                      {recipe.manual_images?.[i] && (
+                        <img
+                          src={recipe.manual_images[i]}
+                          alt=""
+                          loading="lazy"
+                          className="mt-2 rounded-lg w-full"
+                        />
                       )}
                     </div>
                   </div>
