@@ -139,26 +139,18 @@ app.post('/register', async (c) => {
   return c.json({ registered: stmts.length })
 })
 
-/**
- * 브라우저가 Gemini 를 직접 호출하기 위한 설정.
+/*
+ * GET /config 는 삭제했다.
  *
- * 왜 서버에서 안 부르는가: 배포된 Worker 에서 Gemini 가 지역 차단된다
- * (프로덕션 10회 측정에서 9회 "User location is not supported").
- * Worker egress 위치는 통제 불가, 지역 고정은 Enterprise 전용.
- * 사용자의 폰은 한국에 있어서 직접 호출하면 문제가 없다.
+ * GEMINI_API_KEY 를 그대로 클라이언트에 내려주던 엔드포인트다. 인증 뒤에
+ * 있었지만 로그인한 사람은 누구나 개발자도구 한 줄로 키를 꺼내 앱 밖에서
+ * 쓸 수 있었다 (/cso 감사에서 실제로 꺼내 Gemini 호출까지 확인).
+ * AI Studio 키라 HTTP 리퍼러 제한도 걸 수 없어 완화책이 없었다.
  *
- * 키는 정적 번들에 넣지 않고 이 엔드포인트로만 내려준다.
- * Access 인증을 통과한 가족만 받을 수 있다.
+ * 애초에 이게 필요했던 이유는 Worker 에서 Gemini 를 부르면 지역차단됐기
+ * 때문인데, Smart Placement 로 Worker 가 싱가포르에서 돌면서 해결됐다.
+ * 스캔은 아래 POST /analyze 서버 경로로만 처리한다.
  */
-app.get('/config', (c) => {
-  if (!c.env.GEMINI_API_KEY) throw new ApiError(503, 'AI 기능이 설정되지 않았습니다.')
-  return c.json({
-    api_key: c.env.GEMINI_API_KEY,
-    models: visionModels(c.env),
-    prompt: RECEIPT_PROMPT,
-    max_bytes: MAX_IMAGE_BYTES,
-  })
-})
 
 // ── 프론트가 쓰는 /scan/items 계약 (재고 화면) ──────────────────
 app.get('/items', async (c) => {

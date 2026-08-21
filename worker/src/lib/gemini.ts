@@ -108,7 +108,28 @@ export async function generate(env: Env, parts: Part[], opts: GenerateOpts): Pro
         if (attempt === 0) continue
         break
       }
-      const detail = (await res.text()).slice(0, 200)
+      const detail = (await res.text()).slice(0, 300)
+
+      // 지역차단은 따로 잡는다.
+      //
+      // 예전에 Worker 에서 Gemini 를 부르면 10번 중 9번이 이거였다
+      // ("User location is not supported for the API use"). Worker 의 egress
+      // 위치를 통제할 수 없어서 스캔을 브라우저로 옮겼고, 그러느라 API 키를
+      // 클라이언트에 내보내야 했다.
+      //
+      // Smart Placement 로 Worker 가 D1 옆(싱가포르)에서 돌게 되면서
+      // 15/15 성공으로 바뀌어 서버 호출로 되돌렸다. 다만 Smart Placement 는
+      // Cloudflare 의 휴리스틱이라 보장이 아니다. 다시 지원하지 않는 리전으로
+      // 옮겨가면 이 에러가 돌아온다. 그때 "혼잡합니다" 로 뭉뚱그리면 원인을
+      // 못 찾으므로 로그와 사용자 문구를 분리해 둔다.
+      if (res.status === 400 && /location is not supported|FAILED_PRECONDITION/i.test(detail)) {
+        console.error(
+          `Gemini 지역차단 (${model}). Worker 가 지원되지 않는 리전에서 실행 중이다. ` +
+            `wrangler.jsonc 의 placement 설정을 확인할 것. 원문: ${detail}`,
+        )
+        throw new ApiError(503, 'AI 기능이 일시적으로 중단됐어요. 잠시 후 다시 시도해주세요.')
+      }
+
       console.error(`Gemini 호출 실패 (${model}, HTTP ${res.status}): ${detail}`)
       throw new ApiError(503, `AI 요청이 거부되었습니다 (HTTP ${res.status}).`)
     }
