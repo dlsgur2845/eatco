@@ -39,6 +39,24 @@ D1 HTTP API 를 직접 부르거나 GitHub Actions 로 빼야 한다.
 **Priority:** P2
 **Depends on:** None
 
+### 가입 자체는 여전히 누구나 할 수 있다 (막는 건 로그인)
+
+**What:** 승인제는 **로그인**을 막는다. `POST /api/auth/register` 는 여전히
+누구에게나 열려 있고, 아무나 users 행을 만들 수 있다.
+
+**Why:** 승인 대기 계정이 쌓이면 관리자 목록이 그걸로 덮인다. D1 쓰기도
+계정당 1행씩 든다(무료 10만/일). 가족·알림 설정을 미승인 상태에서 만들지 않게
+고쳤으므로 계정당 9행 → 1행으로 줄었지만, 0은 아니다.
+
+**Context:** 지금은 URL 을 아는 사람이 사실상 가족뿐이라 급하지 않다.
+필요해지면 register 에 IP 기준 상한을 두거나, 같은 이메일 재시도를 조용히
+성공시키는(계정은 안 만드는) 방식이 있다. Cloudflare Rate Limiting 규칙을
+Worker 앞에 두는 게 제일 싸다.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
 ### 공유 레시피 검열이 Gemini 쿼터를 영수증 스캔과 나눠 쓴다
 
 **What:** `/api/shared-recipes` 등록마다 Gemini 를 한 번 부른다(`moderate()`).

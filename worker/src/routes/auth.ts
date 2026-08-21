@@ -46,18 +46,27 @@ publicAuth.post('/register', async (c) => {
     .bind(id, email, nickname.slice(0, 50), await hashPassword(password), nowIso(), role, approved)
     .run()
 
-  // 기존 FastAPI register 와 동일하게 1인 가족을 같이 만든다.
-  // 안 만들면 가입 직후 가족 스코프 엔드포인트가 전부 400 이고,
-  // 프론트에는 가족 생성 온보딩 화면이 없다.
-  const familyId = await createSoloFamily(c.env.DB, id, nickname.slice(0, 50))
-
-  // 승인 대기 상태면 세션을 주지 않는다. 쿠키를 주면 들어와서 화면을 돌아다닌다.
+  // 승인 대기 상태면 여기서 끝낸다.
+  //
+  // 세션을 주지 않는다 — 쿠키를 주면 들어와서 화면을 돌아다닌다.
+  // **가족도 만들지 않는다.** createSoloFamily 는 families 1행 + 알림 설정 8행,
+  // 합쳐서 9번의 D1 쓰기다. 가입 자체는 여전히 누구나 할 수 있으므로(막는 건
+  // 로그인이다), 미승인 가입마다 9행씩 쌓으면 그것만으로 무료 티어 쓰기 한도
+  // (10만/일)를 갉아먹고 고아 가족이 관리자 목록에 쌓인다. 실제로 배포 확인용
+  // 계정 하나가 고아 가족 + 알림 설정 8행을 남겼고, 손으로 지워야 했다.
+  //
+  // 승인된 뒤 첫 요청에서 identity.ts 의 withFamily() 가 만들어준다.
+  // 그게 원래 "가족 없는 사용자를 신원 확정 지점 한 곳에서 구제한다" 는 설계다.
   if (!approved) {
     return c.json(
       { id, email, nickname, approved: false, message: '가입 신청이 접수됐어요. 관리자 승인 후 이용할 수 있어요.' },
       201,
     )
   }
+
+  // 승인된 경우(= 관리자 1호)에만 즉시 만든다. 안 만들면 가입 직후 가족 스코프
+  // 엔드포인트가 전부 400 이고, 프론트에는 가족 생성 온보딩 화면이 없다.
+  const familyId = await createSoloFamily(c.env.DB, id, nickname.slice(0, 50))
   c.header('Set-Cookie', sessionCookie(await createSession(c.env, id)))
   return c.json({ id, email, nickname, family_id: familyId, role, approved: true }, 201)
 })
