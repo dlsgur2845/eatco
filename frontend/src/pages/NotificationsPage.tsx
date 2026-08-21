@@ -139,10 +139,12 @@ export default function NotificationsPage() {
     <div className="max-w-screen-md mx-auto space-y-8">
       <div className="flex items-center justify-between">
         <h2 className="font-headline font-bold text-2xl text-on-surface">알림</h2>
+        {/* 실측 52×20px 이었다. 높이가 기준의 절반도 안 됐다.
+            글자 크기는 그대로 두고 탭 영역만 넓힌다 (-mr-3 로 시각적 정렬 유지). */}
         {notifications.some((n) => !n.is_read) && (
           <button
             onClick={markAllRead}
-            className="text-sm font-bold text-primary hover:underline"
+            className="min-h-[48px] px-3 -mr-3 inline-flex items-center justify-center text-sm font-bold text-primary hover:underline"
           >
             모두 읽음
           </button>
@@ -217,8 +219,23 @@ export default function NotificationsPage() {
                 </p>
                 <p className="text-xs text-outline mt-1">{timeAgo(notif.created_at)}</p>
               </div>
+              {/* `outline-variant` 는 흰 배경에서 **1.7:1** 이라 사실상 안 보였다.
+                  안 보이는 장식은 장식 노릇도 못 한다 — "눌러서 이동" 을 알려주는
+                  화살표다.
+
+                  다만 `outline` 로 그냥 올렸더니 이번엔 본문 글자와 같은 무게가 됐다.
+                  장식이 제목보다 눈에 띄면 안 된다. 게다가 이 아이콘은 `text-sm` 이
+                  안 먹는다 — 구글 스타일시트가 레이어 밖에 있어서 Tailwind 의
+                  `@layer utilities` 를 이기고 24px 로 그린다. 크기는 인라인으로,
+                  무게는 투명도로 낮춘다.
+
+                  낭독은 막는다 — 카드 전체가 이미 링크다. */}
               {notif.link && (
-                <span className="material-symbols-outlined text-outline-variant text-sm self-center">
+                <span
+                  aria-hidden="true"
+                  className="material-symbols-outlined text-outline/70 self-center"
+                  style={{ fontSize: '18px' }}
+                >
                   arrow_forward_ios
                 </span>
               )}

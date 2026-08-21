@@ -31,13 +31,43 @@
   /* 13곳에서 사용 중인데 정의가 없었다 (placeholder 색, FamilyPage 폼 배경 등) */
   --color-surface-container-highest: #dfe3e0;
 
-  --color-outline: #6f7a6b;
+  /* 예전 값 #6f7a6b 는 흰 카드 위에서 **4.49:1** 이라 AA(4.5)를 0.006 차이로
+     못 넘겼다. 지난 리뷰가 이 값을 "4.49:1 ✅" 로 잘못 기록하고, 안 보이던
+     입력 힌트 10곳을 이 토큰으로 옮겨놨었다. 실제로는 전부 미달이었다.
+
+     새 값은 이 앱에서 이 토큰이 실제로 놓이는 세 배경 모두에서 통과한다:
+       흰 카드(#ffffff)          5.12:1
+       페이지 배경(#f8faf8)      4.88:1
+       container-low(#f2f4f2)   4.63:1
+     (container-high 위에는 쓰이는 곳이 없다 — 43곳 전부 확인함) */
+  --color-outline: #667162;
+  /* 구분선·테두리 전용. 글자에 쓰지 않는다 (흰 배경 1.62:1). */
   --color-outline-variant: #becab9;
 
   /* Inter / Plus Jakarta Sans 에는 한글 글리프가 없다. Pretendard 를 먼저 두어
      한글과 Latin 이 같은 줄에서 다른 서체로 갈라지지 않게 한다. */
   --font-headline: "Plus Jakarta Sans", "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   --font-body: "Pretendard Variable", Pretendard, "Inter", -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+
+/* 상단바 높이. **하드코딩 금지 — 여기가 유일한 출처다.**
+
+   예전에는 이 숫자가 두 곳에 흩어져 있었고 (아래 .scroll-anchor 의 5.5rem,
+   그리고 주석 속의 "실측 79px") 서로 9px 어긋나 있었다. 캘린더 컨트롤 바가
+   상단바 바로 아래에 붙어야 해서 세 번째 사본이 생길 참이었다.
+
+   TopAppBar 가 이 값을 min-height 로 강제하고, 그 아래 붙는 것들이 같은
+   변수를 읽는다. 상단바 내용이 바뀌어도 조용히 어긋나지 않는다. */
+:root {
+  /* 아이콘 버튼 48px(터치 최소치) + py-4 위아래 각 1rem.
+     16px 루트에서 80px 이다.
+
+     **px 로 굳히면 안 된다.** 처음엔 `80px` 로 적었는데, 이 값을 쓰는
+     `.scroll-anchor` 가 원래 `5.5rem` 이었다. rem 은 브라우저 글자 크기 설정을
+     따라 커지는데 px 은 안 커진다. 크롬 "매우 크게"(루트 24px)에서 헤더는
+     96px 이 되지만 바는 80px 에 붙어서 **16px 이 헤더 뒤로 먹힌다.**
+     패딩만 rem 으로 남겨두면 헤더와 같이 자란다. */
+  --eatco-topbar-h: calc(48px + 2rem);
 }
 
 body {
@@ -60,6 +90,22 @@ body {
   /* 한글은 어절 단위로 끊어야 한다. 없으면 단어 중간에서 줄바꿈된다. */
   word-break: keep-all;
   overflow-wrap: break-word;
+}
+
+/* 아이콘 폰트가 안 왔을 때의 방어선.
+
+   Material Symbols 는 리거처 폰트라, 폰트가 오기 전에는 `chevron_left` 가
+   **글자 그대로** 그려진다. 구글 스타일시트가 `white-space: nowrap` 과
+   `line-height: 1` 을 주기 때문에 평소엔 한 줄로 눌려서 티가 안 나는데,
+   그 스타일시트 자체를 못 받는 상황(오프라인 설치형 PWA — sw.js 는 캐시를
+   안 한다, CDN 차단)에서는 규칙이 통째로 없다. 그러면 글자가 여러 줄로
+   접히면서 버튼 높이가 부풀고 상단바 높이 계산이 무너진다.
+
+   `overflow: hidden` 은 가로만 막지 세로를 안 막는다. nowrap 이 진짜 방어선이라
+   CDN 에 기대지 않고 여기서 직접 준다. */
+.material-symbols-outlined {
+  white-space: nowrap;
+  line-height: 1;
 }
 
 /* iOS 는 16px 미만 입력에 포커스하면 뷰포트를 확대하고 되돌리지 않는다.
@@ -181,11 +227,47 @@ body,
   overflow-x: clip;
 }
 
-/* 스크롤 목표가 스티키 상단바 뒤로 숨지 않게.
+/* 스크롤 목표가 고정 바 뒤로 숨지 않게.
 
-   상단바는 sticky top-0 이고 실측 79px + safe-area 다. scrollIntoView 는
-   스티키 요소를 모르기 때문에, 이걸 안 주면 오늘 날짜 카드의 제목이
-   상단바에 가려진 채로 멈춘다. */
+   **아래쪽도 반드시 있어야 한다.** 예전에는 top 만 있었고, 그래서 월 보기에서
+   격자 마지막 줄 날짜를 누르면 펼친 패널의 아래 94px 이 하단 네비에 잘렸다
+   (저녁 칸이 안 보였다). 실측으로 확인한 버그다.
+
+   원인: 요소가 화면 아래에 있으면 scrollIntoView({block:'nearest'}) 는
+   **아래쪽 가장자리**를 맞추므로 scroll-margin-**bottom** 을 쓴다. 그 값이 0
+   이었고, BottomNav 는 position: fixed 라 스크롤포트에 포함되지도 않는다.
+
+   지금은 CalendarPage 가 두 경로 모두 직접 계산한다(살아있는 실측값을 쓰므로
+   폰트 로딩 중 높이가 흔들려도 안전하다). 이 값은 브라우저 기본 스크롤
+   (포커스 이동, 앵커 링크)을 위해 남긴다. */
 .scroll-anchor {
-  scroll-margin-top: calc(5.5rem + env(safe-area-inset-top));
+  scroll-margin-top: calc(var(--eatco-topbar-h) + 0.5rem + env(safe-area-inset-top));
+  /* 하단바 94px = 고정 70px + max(1.5rem, safe-area) */
+  scroll-margin-bottom: calc(70px + max(1.5rem, env(safe-area-inset-bottom)) + 0.5rem);
+}
+
+/* 캘린더 컨트롤 바 — 상단바 바로 아래에 붙고, 아래로 스크롤하면 물러난다.
+
+   Material Design 이 이 구성(상단바 + 그 아래 탭/컨트롤 행)에 규정한 동작이다:
+   "the tab bar returning on reverse-scroll". 읽는 동안은 0px 을 쓰고,
+   필요할 때 위로 한 번 튕기면 돌아온다.
+
+   상시 고정을 안 하는 이유는 실측 때문이다. 설치형 PWA(노치 iPhone)에서
+   콘텐츠 창은 671px 이 아니라 **614px** 이고, 두 줄 바를 상시로 두면
+   화면의 43% 가 크롬이 된다.
+
+   top 을 리터럴 79px 로 쓰면 안 된다. 상단바는 env(safe-area-inset-top) 만큼
+   더 크므로 설치형에서 이 바가 상단바 **뒤로** 완전히 숨는다 (z-30 < z-50).
+
+   z-30 인 이유: .eatco-reveal 이 등장 중 transform 을 걸어 날짜 카드마다
+   쌓임 맥락을 만든다. z-auto 면 카드가 바 위에 그려진다. 모달은 z-100. */
+.cal-subbar {
+  position: sticky;
+  top: calc(var(--eatco-topbar-h) + env(safe-area-inset-top));
+  z-index: 30;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cal-subbar[data-hidden='true'] {
+  /* 자기 높이의 100% + 위쪽 여백. 아래 콘텐츠는 그대로 흐른다. */
+  transform: translateY(-115%);
 }

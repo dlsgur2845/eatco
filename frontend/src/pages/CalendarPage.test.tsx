@@ -1,0 +1,253 @@
+import { render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import CalendarPage from './CalendarPage'
+import { kstToday, shift, weekStart } from '../components/calendar/dates'
+
+vi.mock('../api/client', () => ({
+  default: { get: vi.fn(), post: vi.fn(), delete: vi.fn() },
+}))
+import api from '../api/client'
+
+/**
+ * jsdom 은 레이아웃을 계산하지 않는다 — getBoundingClientRect 는 전부 0,
+ * offsetTop 은 0, offsetParent 는 null. 그래서 **스크롤 위치**를 단언하는
+ * 테스트는 전부 연극이다: 뭘 넣어도 {top: 0} 이 나와서 통과한다.
+ *
+ * 여기서는 위치가 아니라 **횟수와 시점**만 본다. 그건 jsdom 에서도 진짜다.
+ * 실제 위치(오늘 카드가 바 아래에 오는가, 폭이 맞는가)는 실기기 뷰포트에서
+ * Playwright 로 확인했다.
+ */
+
+const today = kstToday()
+
+function renderPage() {
+  return render(
+    <MemoryRouter initialEntries={['/calendar']}>
+      <CalendarPage />
+    </MemoryRouter>,
+  )
+}
+
+let scrollTo: ReturnType<typeof vi.fn>
+
+beforeEach(() => {
+  vi.mocked(api.get).mockResolvedValue({ data: [] } as never)
+  scrollTo = vi.fn()
+  Object.defineProperty(window, 'scrollTo', { value: scrollTo, writable: true })
+  // rAF 를 타이머로 바꾼다. **동기로 돌리면 안 된다** — load() 는 두 프레임을
+  // 기다려서 React 가 날짜 카드를 커밋한 뒤에 위치를 잰다. 동기로 돌리면
+  // 커밋 전에 실행돼서 todayRef 가 아직 null 이고 조용히 아무것도 안 한다.
+  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) =>
+    setTimeout(() => cb(0), 0) as unknown as number,
+  )
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.clearAllMocks()
+})
+
+describe('CalendarPage — 스크롤 계약', () => {
+  it('이번 주면 최초 로드에서 오늘로 한 번 내려준다', async () => {
+    renderPage()
+    await waitFor(() => expect(api.get).toHaveBeenCalled())
+    await waitFor(() => expect(scrollTo).toHaveBeenCalledTimes(1))
+  })
+
+  it('지난 주로 가면 그 주에서는 오늘로 내려주지 않는다', async () => {
+    renderPage()
+    await waitFor(() => expect(scrollTo).toHaveBeenCalledTimes(1))
+
+    // ◀ 를 누르면 기간 이동 스크롤 1회. 그 뒤 load() 가 끝나도
+    // 지난 주에는 오늘이 없으므로 추가 스크롤이 없어야 한다.
+    screen.getByLabelText('지난 주').click()
+    await waitFor(() => expect(scrollTo).toHaveBeenCalledTimes(2))
+    await new Promise((r) => setTimeout(r, 30))
+    expect(scrollTo).toHaveBeenCalledTimes(2)
+  })
+
+  it('기간 이동은 매번 스크롤을 맞춘다', async () => {
+    renderPage()
+    await waitFor(() => expect(scrollTo).toHaveBeenCalledTimes(1))
+    screen.getByLabelText('다음 주').click()
+    await waitFor(() => expect(scrollTo).toHaveBeenCalledTimes(2))
+  })
+})
+
+describe('CalendarPage — 요청 순서 보호', () => {
+  it('늦게 도착한 옛 응답은 버린다', async () => {
+    // ◀ 연타 시 응답이 뒤바뀌면 라벨과 목록이 다른 기간을 가리킨다.
+    let resolveFirst: (v: unknown) => void = () => {}
+    const first = new Promise((r) => {
+      resolveFirst = r
+    })
+    vi.mocked(api.get)
+      .mockReturnValueOnce(first as never)
+      .mockResolvedValue({ data: [{ id: 'new', plan_date: today, meal_slot: 'dinner', title: '나중응답', comment_count: 0 }] } as never)
+
+    renderPage()
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1))
+    screen.getByLabelText('다음 주').click()
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2))
+
+    // 이제 첫 요청이 뒤늦게 응답한다. 화면에 반영되면 안 된다.
+    resolveFirst({ data: [{ id: 'old', plan_date: today, meal_slot: 'dinner', title: '옛응답', comment_count: 0 }] })
+    await new Promise((r) => setTimeout(r, 30))
+    expect(screen.queryByText('옛응답')).toBeNull()
+  })
+})
+
+describe('CalendarPage — "오늘로" (B1)', () => {
+  it('이번 주에서 눌러도 맨 위가 아니라 오늘 카드로 간다', async () => {
+    // jsdom 은 레이아웃이 없어서 offsetTop 이 0 이다. 그대로 두면 고친 코드와
+    // 고치기 전 코드가 **둘 다 {top: 0}** 을 내서 테스트가 버그를 못 잡는다.
+    // 오늘 카드에만 오프셋을 심어 두 경로를 구분한다.
+    const spy = vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.tagName === 'SECTION' ? 1234 : 0
+    })
+    try {
+      renderPage()
+      await waitFor(() => expect(scrollTo).toHaveBeenCalled())
+      scrollTo.mockClear()
+      vi.mocked(api.get).mockClear()
+
+      screen.getByLabelText(/오늘로 이동/).click()
+      await waitFor(() => expect(scrollTo).toHaveBeenCalled())
+
+      const top = scrollTo.mock.calls.at(-1)?.[0]?.top
+      // 예전 버그: jump() 가 돌면서 scrollTo({top: 0}) — 오늘로부터 반대 방향
+      expect(top).toBeGreaterThan(0)
+      // 같은 주라 anchor 가 안 바뀌므로 재조회도 없어야 한다
+      expect(api.get).not.toHaveBeenCalled()
+    } finally {
+      spy.mockRestore()
+    }
+  })
+})
+
+describe('CalendarPage — 월 보기', () => {
+  const openMonth = async () => {
+    renderPage()
+    await waitFor(() => expect(api.get).toHaveBeenCalled())
+    screen.getByRole('tab', { name: '월별' }).click()
+    await waitFor(() => expect(screen.getByRole('tab', { name: '월별' }).getAttribute('aria-selected')).toBe('true'))
+  }
+
+  it('기간을 넘기면 펼쳐둔 날짜 패널이 남지 않는다', async () => {
+    // 예전엔 jump() 가 expanded 를 안 지워서, 9월 격자 아래에 "8월 21일" 패널이
+    // 그대로 남았다. 그 패널의 "추가" 는 화면에 없는 날짜로 식단을 등록한다.
+    await openMonth()
+    const cells = screen.getAllByRole('button', { expanded: false })
+    cells[cells.length - 1].click()
+    await waitFor(() => expect(screen.queryByText(/^\d+월 \d+일$/)).toBeTruthy())
+
+    screen.getByLabelText('다음 달').click()
+    await waitFor(() => expect(screen.queryByText(/^\d+월 \d+일$/)).toBeNull())
+    // 안내 문구가 다시 보이면 아무것도 안 펼쳐진 상태다
+    expect(screen.getByText(/날짜를 누르면/)).toBeTruthy()
+  })
+})
+
+describe('CalendarPage — 보기 전환 왕복', () => {
+  it('주별 → 월별 → 주별 이 과거로 보내지 않는다', async () => {
+    // 예전엔 월→주에서 weekStart(그 달 1일) 을 써서, 8/21 에서 왕복하면
+    // 7/27 로 3주 전에 가 있었다.
+    renderPage()
+    await waitFor(() => expect(api.get).toHaveBeenCalled())
+    const label = () => screen.getByLabelText(/오늘로 이동/).textContent ?? ''
+    const before = label()
+
+    screen.getByRole('tab', { name: '월별' }).click()
+    await new Promise((r) => setTimeout(r, 10))
+    screen.getByRole('tab', { name: '주별' }).click()
+    await new Promise((r) => setTimeout(r, 10))
+
+    expect(label()).toBe(before)
+  })
+})
+
+describe('CalendarPage — 컨트롤 바 스크롤-오프', () => {
+  const bar = () => document.querySelector('.cal-subbar')
+  const scrollBy = async (total: number, step: number) => {
+    const sign = Math.sign(total)
+    for (let moved = 0; moved < Math.abs(total); moved += step) {
+      const next = Math.max(0, window.scrollY + sign * step)
+      Object.defineProperty(window, 'scrollY', { value: next, writable: true, configurable: true })
+      window.dispatchEvent(new Event('scroll'))
+      await new Promise((r) => setTimeout(r, 0))
+    }
+  }
+
+  beforeEach(() => {
+    Object.defineProperty(window, 'scrollY', { value: 0, writable: true, configurable: true })
+  })
+
+  it('읽는 속도(프레임당 6px)로 내려가도 바가 물러난다', async () => {
+    // **여기가 원래 깨져 있었다.** 프레임당 델타를 임계값과 직접 비교하고
+    // 기준점을 매 프레임 갱신해서, 한 프레임에 12px 넘게 안 움직이면 영영
+    // 안 숨었다. 프레임당 6px 은 60Hz 에서 초당 360px — 흔한 읽기 속도다.
+    renderPage()
+    await waitFor(() => expect(bar()).toBeTruthy())
+    expect(bar()?.getAttribute('data-hidden')).toBe('false')
+
+    await scrollBy(300, 6)
+    await waitFor(() => expect(bar()?.getAttribute('data-hidden')).toBe('true'))
+  })
+
+  it('위로 조금만 올려도 돌아온다', async () => {
+    renderPage()
+    await waitFor(() => expect(bar()).toBeTruthy())
+    await scrollBy(400, 20)
+    await waitFor(() => expect(bar()?.getAttribute('data-hidden')).toBe('true'))
+
+    // 40px 만 올린다 — "위로 살짝 올리면 돌아온다" 가 사실이어야 한다
+    await scrollBy(-40, 5)
+    await waitFor(() => expect(bar()?.getAttribute('data-hidden')).toBe('false'))
+  })
+
+  it('작은 흔들림으로는 바뀌지 않는다', async () => {
+    renderPage()
+    await waitFor(() => expect(bar()).toBeTruthy())
+    await scrollBy(400, 20)
+    await waitFor(() => expect(bar()?.getAttribute('data-hidden')).toBe('true'))
+
+    // iOS 관성 스크롤의 방향 떨림 흉내 — 임계값을 못 넘어야 한다
+    for (let i = 0; i < 6; i++) {
+      await scrollBy(-3, 3)
+      await scrollBy(3, 3)
+    }
+    expect(bar()?.getAttribute('data-hidden')).toBe('true')
+  })
+
+  it('맨 위 근처에서는 무조건 보인다', async () => {
+    renderPage()
+    await waitFor(() => expect(bar()).toBeTruthy())
+    await scrollBy(400, 20)
+    await waitFor(() => expect(bar()?.getAttribute('data-hidden')).toBe('true'))
+    await scrollBy(-400, 20)
+    await waitFor(() => expect(bar()?.getAttribute('data-hidden')).toBe('false'))
+  })
+})
+
+describe('CalendarPage — 라벨', () => {
+  it('빈 상태 문구가 보고 있는 기간을 말한다 ("이번 주" 로 못박지 않는다)', async () => {
+    renderPage()
+    await waitFor(() => expect(api.get).toHaveBeenCalled())
+    // 3주 전으로 간다
+    for (let i = 0; i < 3; i++) {
+      screen.getByLabelText('지난 주').click()
+      await new Promise((r) => setTimeout(r, 5))
+    }
+    await waitFor(() => {
+      const past = weekStart(shift(today, -21))
+      const md = (d: string) => `${Number(d.slice(5, 7))}.${Number(d.slice(8))}`
+      // 빈 상태 문단만 본다 — 날짜 문자열은 카드에도 나온다.
+      const empty = screen.getByText(/식단이 비어 있어요/)
+      expect(empty.textContent).toContain(md(past))
+      expect(empty.textContent).not.toContain('이번 주')
+    })
+  })
+})

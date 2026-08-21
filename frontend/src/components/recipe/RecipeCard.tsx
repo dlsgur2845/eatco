@@ -66,14 +66,24 @@ export default function RecipeCard({ recipe }: Props) {
             </span>
           </div>
 
-          <div className="mt-2 flex items-center gap-1">
-            <span className="material-symbols-outlined" style={{ fontSize: '10px', color: 'var(--color-outline)' }}>
-              {SOURCE_ICON[recipe.source] || 'public'}
-            </span>
-            <span className="text-xs" style={{ color: 'var(--color-outline)' }}>
-              {sourceLabel}
-            </span>
-          </div>
+          {/* 아이콘이 10px 이었고 옆 라벨은 비어 있었다. 실기기 캡처에서는
+              **의미를 알 수 없는 10px 점 하나**만 남았다. 라벨이 없으면 아이콘도
+              띄우지 않는다 — 출처를 말해주지 못하는 출처 표시는 장식일 뿐이다.
+              라벨이 있을 때는 아이콘도 글자와 같은 눈높이(14px)로 올린다. */}
+          {sourceLabel && (
+            <div className="mt-2 flex items-center gap-1">
+              <span
+                aria-hidden="true"
+                className="material-symbols-outlined"
+                style={{ fontSize: '14px', color: 'var(--color-outline)' }}
+              >
+                {SOURCE_ICON[recipe.source] || 'public'}
+              </span>
+              <span className="text-xs" style={{ color: 'var(--color-outline)' }}>
+                {sourceLabel}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
