@@ -78,39 +78,49 @@ function isWordMatch(a: string, b: string): boolean {
   return false
 }
 
-/* R2 에 올려두는 카탈로그 사본. 아이소레이트 캐시만으로는 부족해서 넣었다.
+/* 아이소레이트 밖에서도 남는 카탈로그 사본.
 
    `recipeCache` 는 **아이소레이트 메모리**다. Cloudflare 는 아이소레이트를 수시로
    재활용하므로 6시간 TTL 이 실제로 6시간 가는 게 아니다. 콜드 아이소레이트마다
    공공 API 로 1,000건짜리 요청을 두 번 날린다. 그 API 는 하루 트래픽 제한이 있다.
 
-   R2 는 아이소레이트와 무관하게 남는다. 순서는 메모리 → R2 → 공공 API 이고,
-   공공 API 를 부르는 건 R2 사본까지 만료됐을 때뿐이다. */
-const R2_CATALOG_KEY = 'recipes/foodsafety-catalog.json'
+   처음엔 R2(`env.UPLOADS`)에 넣으려 했는데 **이 계정은 R2 가 활성화돼 있지 않다.**
+   바인딩은 wrangler.jsonc 에 있고 배포도 통과하지만 런타임에
+   `code 10042: Please enable R2 through the Cloudflare Dashboard` 로 실패한다.
+   try/catch 에 삼켜져서 조용히 아무 일도 안 하고 있었다.
 
-async function readCatalogFromR2(env: Env): Promise<Recipe[] | null> {
+   Cache API 는 계정 설정 없이 바로 된다. 콜로 단위라 전역은 아니지만, 가족이
+   대부분 한 지역에서 접속하므로 실질적으로 같은 효과다.
+   순서는 메모리 → Cache API → 공공 API. */
+const CATALOG_CACHE_URL = 'https://eatco.internal/cache/foodsafety-catalog'
+const CACHE_TTL_SEC = Math.floor(CACHE_TTL_MS / 1000)
+
+async function readCatalogFromCache(): Promise<Recipe[] | null> {
   try {
-    const obj = await env.UPLOADS.get(R2_CATALOG_KEY)
-    if (!obj) return null
-    const savedAt = Number(obj.customMetadata?.savedAt ?? 0)
-    if (!savedAt || Date.now() - savedAt >= CACHE_TTL_MS) return null
-    const data = (await obj.json()) as Recipe[]
+    const hit = await caches.default.match(new Request(CATALOG_CACHE_URL))
+    if (!hit) return null
+    const data = (await hit.json()) as Recipe[]
     return Array.isArray(data) && data.length ? data : null
   } catch (e) {
     // 캐시는 있으면 좋은 것이지 없으면 안 되는 게 아니다. 실패하면 공공 API 로 간다.
-    console.warn('레시피 R2 캐시 읽기 실패:', e)
+    console.warn('레시피 캐시 읽기 실패:', e)
     return null
   }
 }
 
-async function writeCatalogToR2(env: Env, data: Recipe[]): Promise<void> {
+async function writeCatalogToCache(data: Recipe[]): Promise<void> {
   try {
-    await env.UPLOADS.put(R2_CATALOG_KEY, JSON.stringify(data), {
-      httpMetadata: { contentType: 'application/json' },
-      customMetadata: { savedAt: String(Date.now()), count: String(data.length) },
-    })
+    await caches.default.put(
+      new Request(CATALOG_CACHE_URL),
+      new Response(JSON.stringify(data), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': `max-age=${CACHE_TTL_SEC}`,
+        },
+      }),
+    )
   } catch (e) {
-    console.warn('레시피 R2 캐시 쓰기 실패:', e)
+    console.warn('레시피 캐시 쓰기 실패:', e)
   }
 }
 
@@ -118,8 +128,8 @@ async function fetchRecipes(env: Env): Promise<Recipe[]> {
   const now = Date.now()
   if (recipeCache && now - recipeCache.at < CACHE_TTL_MS) return recipeCache.data
 
-  // 아이소레이트가 새로 떴어도 R2 사본이 살아 있으면 공공 API 를 안 부른다.
-  const cached = await readCatalogFromR2(env)
+  // 아이소레이트가 새로 떴어도 콜로 캐시가 살아 있으면 공공 API 를 안 부른다.
+  const cached = await readCatalogFromCache()
   if (cached) {
     recipeCache = { at: now, data: cached }
     return cached
@@ -168,7 +178,7 @@ async function fetchRecipes(env: Env): Promise<Recipe[]> {
   if (out.length) {
     recipeCache = { at: now, data: out }
     // 다음 콜드 아이소레이트가 공공 API 를 다시 안 부르도록 사본을 남긴다.
-    await writeCatalogToR2(env, out)
+    await writeCatalogToCache(out)
   }
   return out
 }
