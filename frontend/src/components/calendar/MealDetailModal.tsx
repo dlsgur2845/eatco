@@ -118,7 +118,7 @@ export default function MealDetailModal({
             aria-label="닫기"
             className="shrink-0 min-w-[48px] min-h-[48px] inline-flex items-center justify-center rounded-full active:scale-95 transition-transform"
           >
-            <span className="material-symbols-outlined text-on-surface-variant">close</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-on-surface-variant">close</span>
           </button>
         </div>
 
@@ -133,7 +133,7 @@ export default function MealDetailModal({
 
           {state === 'error' && (
             <div className="text-center py-12" role="status">
-              <span className="material-symbols-outlined text-tertiary text-4xl mb-3 block">error</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-tertiary text-4xl mb-3 block">error</span>
               <p className="text-on-surface-variant mb-5">식단을 불러오지 못했어요.</p>
               <button
                 onClick={load}

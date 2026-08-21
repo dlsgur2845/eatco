@@ -45,7 +45,7 @@ function ConfirmDialog({
         className="w-full max-w-md bg-surface-container-lowest rounded-[2rem] p-7 outline-none"
       >
         <div className="w-12 h-12 rounded-2xl bg-error-container flex items-center justify-center mb-4">
-          <span className="material-symbols-outlined text-error">warning</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-error">warning</span>
         </div>
         <h3 id="confirm-title" className="font-headline font-bold text-xl text-on-surface mb-2">
           {title}
@@ -80,7 +80,7 @@ function ConfirmDialog({
 function StatTile({ label, value, icon }: { label: string; value: number; icon: string }) {
   return (
     <div className="bg-surface-container-lowest rounded-2xl p-5">
-      <span className="material-symbols-outlined text-on-surface-variant text-xl mb-2 block">
+      <span aria-hidden="true" className="material-symbols-outlined text-on-surface-variant text-xl mb-2 block">
         {icon}
       </span>
       <p className="font-headline font-bold text-3xl text-on-surface leading-none">
@@ -350,7 +350,7 @@ export default function AdminPage() {
   if (state === 'denied') {
     return (
       <div className="text-center py-20">
-        <span className="material-symbols-outlined text-on-surface-variant text-5xl mb-4 block">
+        <span aria-hidden="true" className="material-symbols-outlined text-on-surface-variant text-5xl mb-4 block">
           lock
         </span>
         <p className="text-on-surface font-headline font-bold text-lg mb-1">
@@ -372,7 +372,7 @@ export default function AdminPage() {
   if (state === 'error') {
     return (
       <div className="text-center py-20" role="status">
-        <span className="material-symbols-outlined text-tertiary text-5xl mb-4 block">error</span>
+        <span aria-hidden="true" className="material-symbols-outlined text-tertiary text-5xl mb-4 block">error</span>
         <p className="text-on-surface-variant mb-6">관리 정보를 불러오지 못했어요.</p>
         <button
           onClick={load}

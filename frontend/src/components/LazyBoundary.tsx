@@ -69,7 +69,7 @@ export default class LazyBoundary extends Component<Props, State> {
 
     return (
       <div className="text-center py-20" role="status">
-        <span className="material-symbols-outlined text-tertiary text-5xl mb-4 block">
+        <span aria-hidden="true" className="material-symbols-outlined text-tertiary text-5xl mb-4 block">
           sync_problem
         </span>
         <p className="text-on-surface font-headline font-bold text-lg mb-1">

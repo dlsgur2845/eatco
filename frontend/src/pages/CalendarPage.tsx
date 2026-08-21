@@ -175,14 +175,14 @@ function DaySlots({
                 <button
                   key={p.id}
                   onClick={() => onOpen(p.id)}
-                  className="w-full min-h-[44px] flex items-center gap-2 text-left bg-surface-container-low rounded-xl px-3 py-2 active:scale-[0.98] transition-transform"
+                  className="w-full min-h-[48px] flex items-center gap-2 text-left bg-surface-container-low rounded-xl px-3 py-2 active:scale-[0.98] transition-transform"
                 >
                   <span className="flex-1 min-w-0 truncate text-sm font-medium text-on-surface">
                     {p.title}
                   </span>
                   {!!p.comment_count && (
                     <span className="shrink-0 inline-flex items-center gap-0.5 text-xs text-on-surface-variant">
-                      <span className="material-symbols-outlined text-[14px]">chat_bubble</span>
+                      <span aria-hidden="true" className="material-symbols-outlined text-[14px]">chat_bubble</span>
                       {p.comment_count}
                     </span>
                   )}
@@ -191,9 +191,9 @@ function DaySlots({
               <button
                 onClick={() => onAdd(date, slot)}
                 aria-label={`${date} ${MEAL_SLOT_LABEL[slot]} 식단 추가`}
-                className="w-full min-h-[44px] flex items-center gap-1.5 rounded-xl px-3 text-sm text-outline active:scale-[0.98] transition-transform"
+                className="w-full min-h-[48px] flex items-center gap-1.5 rounded-xl px-3 text-sm text-outline active:scale-[0.98] transition-transform"
               >
-                <span className="material-symbols-outlined text-[18px]">add</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">add</span>
                 추가
               </button>
             </div>
@@ -657,7 +657,7 @@ export default function CalendarPage() {
             {/* w-6 + overflow-hidden 은 FOUT 방어다. Material Symbols 가 오기
                 전에는 'chevron_left' 가 글자 그대로 ~85px 로 그려져서 줄이
                 넘치고 바 높이가 두 배가 된다 — 하필 스크롤 계산이 도는 창이다. */}
-            <span className="material-symbols-outlined text-on-surface inline-block w-6 overflow-hidden">
+            <span aria-hidden="true" className="material-symbols-outlined text-on-surface inline-block w-6 overflow-hidden">
               chevron_left
             </span>
           </button>
@@ -673,7 +673,7 @@ export default function CalendarPage() {
             aria-label={view === 'week' ? '다음 주' : '다음 달'}
             className="shrink-0 min-w-[48px] min-h-[48px] inline-flex items-center justify-center rounded-full bg-surface-container-low active:scale-95 transition-transform"
           >
-            <span className="material-symbols-outlined text-on-surface inline-block w-6 overflow-hidden">
+            <span aria-hidden="true" className="material-symbols-outlined text-on-surface inline-block w-6 overflow-hidden">
               chevron_right
             </span>
           </button>
@@ -688,7 +688,7 @@ export default function CalendarPage() {
         </div>
       ) : state === 'error' ? (
         <div className="text-center py-20" role="status">
-          <span className="material-symbols-outlined text-tertiary text-5xl mb-4 block">error</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-tertiary text-5xl mb-4 block">error</span>
           <p className="text-on-surface-variant mb-6">식단을 불러오지 못했어요.</p>
           <button
             onClick={load}

@@ -84,7 +84,7 @@ export default function RegisterAccountPage() {
         {/* Header */}
         <header className="flex flex-col gap-4 text-center md:text-left md:pl-10">
           <div className="flex items-center gap-3 justify-center md:justify-start">
-            <span className="material-symbols-outlined text-primary text-4xl">restaurant_menu</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-primary text-4xl">restaurant_menu</span>
             <span className="font-headline font-extrabold text-2xl tracking-tight text-primary">
               Eatco
             </span>

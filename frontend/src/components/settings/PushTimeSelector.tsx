@@ -35,7 +35,7 @@ export default function PushTimeSelector({ initialTime, disabled }: Props) {
         value={time}
         onChange={(e) => handleChange(e.target.value)}
         disabled={disabled || saving}
-        className="px-3 py-2 rounded-xl bg-surface-container text-on-surface text-sm min-h-[44px] min-w-[100px] disabled:opacity-50"
+        className="px-3 py-2 rounded-xl bg-surface-container text-on-surface text-sm min-h-[48px] min-w-[100px] disabled:opacity-50"
       >
         {TIME_OPTIONS.map((t) => (
           <option key={t} value={t}>

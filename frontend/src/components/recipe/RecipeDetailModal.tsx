@@ -46,7 +46,7 @@ export default function RecipeDetailModal({ recipe, onClose }: Props) {
             {recipe.category} · {recipe.cooking_method} · {recipe.calories}kcal
           </p>
           <div className="flex items-center gap-1 mt-1">
-            <span className="material-symbols-outlined" style={{ fontSize: '12px', color: 'var(--color-outline)' }}>
+            <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: '12px', color: 'var(--color-outline)' }}>
               {recipe.source === 'custom' ? 'book_2' : recipe.source === 'gemini' ? 'auto_awesome' : 'public'}
             </span>
             <span className="text-xs" style={{ color: 'var(--color-outline)' }}>

@@ -51,7 +51,7 @@ export default function NotificationCycleForm({ settings, onToggle }: Props) {
         <button
           key={s.id}
           onClick={() => handleToggle(s)}
-          className="w-full flex items-center gap-3 p-3 rounded-2xl bg-surface-container-low min-h-[44px] transition-all active:scale-[0.98]"
+          className="w-full flex items-center gap-3 p-3 rounded-2xl bg-surface-container-low min-h-[48px] transition-all active:scale-[0.98]"
         >
           <div
             className={`w-3 h-3 rounded-full transition-opacity ${cycleColors[s.days_before] || 'bg-outline'} ${

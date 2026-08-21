@@ -155,12 +155,12 @@ export default function WhatsNew() {
                 {idx === 0 ? (
                   <div className="w-10 h-10 rounded-full flex items-center justify-center"
                     style={{ backgroundColor: 'var(--color-primary)' }}>
-                    <span className="material-symbols-outlined text-white text-xl">auto_awesome</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-white text-xl">auto_awesome</span>
                   </div>
                 ) : (
                   <div className="w-10 h-10 rounded-full flex items-center justify-center"
                     style={{ backgroundColor: 'var(--color-surface-container-high)' }}>
-                    <span className="material-symbols-outlined text-on-surface-variant text-xl">history</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-on-surface-variant text-xl">history</span>
                   </div>
                 )}
                 <div>
@@ -179,7 +179,7 @@ export default function WhatsNew() {
                   <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
                     idx === 0 ? '' : 'opacity-60'
                   }`} style={{ backgroundColor: idx === 0 ? 'var(--color-primary-container)' : 'var(--color-surface-container-high)', color: idx === 0 ? 'white' : 'var(--color-on-surface-variant)' }}>
-                    <span className="material-symbols-outlined text-sm">{f.icon}</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-sm">{f.icon}</span>
                   </div>
                   <p className={`text-sm pt-1 ${idx === 0 ? 'text-on-surface' : 'text-on-surface-variant'}`}>{f.text}</p>
                 </div>

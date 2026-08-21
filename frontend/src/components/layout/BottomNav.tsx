@@ -36,7 +36,7 @@ export default function BottomNav() {
         >
           {({ isActive }) => (
             <>
-              <span
+              <span aria-hidden="true"
                 className="material-symbols-outlined"
                 style={isActive ? { fontVariationSettings: "'FILL' 1" } : undefined}
               >

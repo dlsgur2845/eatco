@@ -32,7 +32,7 @@ export default function TopAppBar() {
         style={{ minHeight: 'var(--eatco-topbar-h)' }}
       >
         <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-primary">restaurant_menu</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-primary">restaurant_menu</span>
           <span className="font-headline font-bold text-xl text-primary tracking-tight">Eatco</span>
         </div>
         {user && (
@@ -52,7 +52,7 @@ export default function TopAppBar() {
               className="relative min-w-[48px] min-h-[48px] inline-flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors"
               aria-label="알림"
             >
-              <span className="material-symbols-outlined text-on-surface-variant text-xl">
+              <span aria-hidden="true" className="material-symbols-outlined text-on-surface-variant text-xl">
                 notifications
               </span>
               {unreadCount > 0 && (
@@ -68,7 +68,7 @@ export default function TopAppBar() {
               className="text-on-surface-variant hover:text-tertiary transition-colors min-w-[48px] min-h-[48px] inline-flex items-center justify-center rounded-full hover:bg-surface-container-high"
               aria-label="로그아웃"
             >
-              <span className="material-symbols-outlined text-xl">logout</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-xl">logout</span>
             </button>
           </div>
         )}

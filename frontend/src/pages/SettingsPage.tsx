@@ -51,17 +51,17 @@ export default function SettingsPage() {
       {isSupported && (
         <section className="bg-surface-container-low p-8 rounded-[2.5rem]">
           <h3 className="font-headline font-bold text-lg text-on-surface mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">notifications</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-primary">notifications</span>
             푸시 알림
           </h3>
 
           <button
             onClick={handlePushToggle}
             disabled={pushLoading || permission === 'denied'}
-            className="w-full flex items-center justify-between p-4 bg-surface-container-lowest rounded-xl min-h-[44px] transition-all active:scale-[0.98] disabled:opacity-50"
+            className="w-full flex items-center justify-between p-4 bg-surface-container-lowest rounded-xl min-h-[48px] transition-all active:scale-[0.98] disabled:opacity-50"
           >
             <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-on-surface-variant">
+              <span aria-hidden="true" className="material-symbols-outlined text-on-surface-variant">
                 {subscribed ? 'notifications_active' : 'notifications_off'}
               </span>
               <div className="text-left">
@@ -115,7 +115,7 @@ export default function SettingsPage() {
       {/* Notification Cycle */}
       <section className="bg-surface-container-low p-8 rounded-[2.5rem]">
         <h3 className="font-headline font-bold text-lg text-on-surface mb-6 flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary">notifications_active</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-primary">notifications_active</span>
           소비기한 알림 주기
         </h3>
         {settings.length === 0 ? (
@@ -134,7 +134,7 @@ export default function SettingsPage() {
           {user && (
             <div className="flex items-center justify-between p-5">
               <div className="flex items-center gap-4">
-                <span className="material-symbols-outlined text-outline">account_circle</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-outline">account_circle</span>
                 <div>
                   <span className="font-medium block">{user.nickname}</span>
                   <span className="text-sm text-on-surface-variant">{user.email}</span>
@@ -147,20 +147,20 @@ export default function SettingsPage() {
             className="flex items-center justify-between p-5 hover:bg-primary/5 transition-colors"
           >
             <div className="flex items-center gap-4">
-              <span className="material-symbols-outlined text-outline">account_balance_wallet</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-outline">account_balance_wallet</span>
               <span className="font-medium">가계부</span>
             </div>
-            <span className="material-symbols-outlined text-outline text-sm">chevron_right</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-outline text-sm">chevron_right</span>
           </Link>
           <Link
             to="/family"
             className="flex items-center justify-between p-5 hover:bg-primary/5 transition-colors"
           >
             <div className="flex items-center gap-4">
-              <span className="material-symbols-outlined text-outline">group</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-outline">group</span>
               <span className="font-medium">가족 관리</span>
             </div>
-            <span className="material-symbols-outlined text-outline text-sm">chevron_right</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-outline text-sm">chevron_right</span>
           </Link>
           {user?.role === 'admin' && (
             <Link
@@ -168,15 +168,15 @@ export default function SettingsPage() {
               className="flex items-center justify-between p-5 hover:bg-primary/5 transition-colors"
             >
               <div className="flex items-center gap-4">
-                <span className="material-symbols-outlined text-primary">shield_person</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-primary">shield_person</span>
                 <span className="font-medium">관리자</span>
               </div>
-              <span className="material-symbols-outlined text-outline text-sm">chevron_right</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-outline text-sm">chevron_right</span>
             </Link>
           )}
           <div className="flex items-center justify-between p-5">
             <div className="flex items-center gap-4">
-              <span className="material-symbols-outlined text-outline">info</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-outline">info</span>
               <span className="font-medium">버전 정보</span>
             </div>
             <span className="text-sm text-primary font-bold">v1.5.0</span>
@@ -185,7 +185,7 @@ export default function SettingsPage() {
             onClick={handleLogout}
             className="w-full flex items-center gap-4 p-5 hover:bg-red-50 text-tertiary transition-colors"
           >
-            <span className="material-symbols-outlined">logout</span>
+            <span aria-hidden="true" className="material-symbols-outlined">logout</span>
             <span className="font-medium">로그아웃</span>
           </button>
         </div>

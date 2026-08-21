@@ -96,7 +96,7 @@ export default function SharedRecipeCard({ recipe, onDeleted }: Props) {
             opacity: busy ? 0.4 : 1,
           }}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-on-surface-variant)' }}>
+          <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--color-on-surface-variant)' }}>
             delete
           </span>
         </button>

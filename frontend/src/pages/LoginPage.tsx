@@ -64,7 +64,7 @@ export default function LoginPage() {
         {/* Header */}
         <header className="flex flex-col gap-4 text-center md:text-left md:pl-10">
           <div className="flex items-center gap-3 justify-center md:justify-start">
-            <span className="material-symbols-outlined text-primary text-4xl">restaurant_menu</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-primary text-4xl">restaurant_menu</span>
             <span className="font-headline font-extrabold text-2xl tracking-tight text-primary">
               Eatco
             </span>
@@ -80,13 +80,13 @@ export default function LoginPage() {
         {/* Session Expired Banner */}
         {showExpiredBanner && (
           <div className="bg-secondary-container/10 rounded-2xl p-4 flex items-start gap-3">
-            <span className="material-symbols-outlined text-secondary mt-0.5">warning</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-secondary mt-0.5">warning</span>
             <div className="flex-1">
               <p className="font-medium text-on-surface text-sm">다른 기기에서 로그인되어 세션이 만료되었습니다.</p>
               <p className="text-on-surface-variant text-xs mt-1">다시 로그인해 주세요.</p>
             </div>
             <button aria-label="알림 닫기" onClick={() => setShowExpiredBanner(false)} className="text-on-surface-variant hover:text-on-surface p-1">
-              <span className="material-symbols-outlined text-sm">close</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-sm">close</span>
             </button>
           </div>
         )}

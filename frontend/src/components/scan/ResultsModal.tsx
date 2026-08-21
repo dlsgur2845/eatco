@@ -81,7 +81,7 @@ export default function ResultsModal({ items: initialItems, storeName, error, on
               </h2>
               {storeName && (
                 <p className="text-xs mt-0.5" style={{ color: 'var(--color-on-surface-variant)' }}>
-                  <span className="material-symbols-outlined text-xs align-middle mr-1">store</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-xs align-middle mr-1">store</span>
                   {storeName}
                 </p>
               )}
@@ -236,7 +236,7 @@ export default function ResultsModal({ items: initialItems, storeName, error, on
                 onClick={() => handleDelete(idx)}
                 aria-label={`${item.name} 삭제`}
               >
-                <span className="material-symbols-outlined text-xl">close</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-xl">close</span>
               </button>
             </div>
           ))}

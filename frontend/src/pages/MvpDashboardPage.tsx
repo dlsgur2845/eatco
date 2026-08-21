@@ -150,7 +150,7 @@ export default function MvpDashboardPage() {
           className="rounded-2xl py-16 flex flex-col items-center gap-3"
           style={{ backgroundColor: 'var(--color-surface-container-low)' }}
         >
-          <span className="material-symbols-outlined text-4xl opacity-30" style={{ color: 'var(--color-primary)' }}>eco</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-4xl opacity-30" style={{ color: 'var(--color-primary)' }}>eco</span>
           <p className="text-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
             아직 등록된 식재료가 없어요
           </p>
@@ -165,7 +165,7 @@ export default function MvpDashboardPage() {
         <div className="space-y-2 mb-4">
           {alerts.slice(0, 2).map((a, i) => (
             <div key={i} className="rounded-2xl px-4 py-3 flex items-center gap-3" style={{ backgroundColor: 'color-mix(in srgb, var(--color-tertiary-container) 10%, white)' }}>
-              <span className="material-symbols-outlined text-sm" style={{ color: 'var(--color-tertiary)' }}>trending_up</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-sm" style={{ color: 'var(--color-tertiary)' }}>trending_up</span>
               <p className="text-xs" style={{ color: 'var(--color-on-surface)' }}>
                 <strong>{a.name}</strong>
                 {josa(a.name, '이')} {a.change_pct}% 비싸졌어요
@@ -260,7 +260,7 @@ export default function MvpDashboardPage() {
           <button
             type="button"
             onClick={() => setShowAddRecipe(true)}
-            className="flex items-center gap-1 pl-3 pr-4 py-2 rounded-full text-sm font-semibold transition-transform active:scale-95"
+            className="flex items-center gap-1 pl-4 pr-5 min-h-[48px] rounded-full text-sm font-semibold transition-transform active:scale-95"
             style={{ backgroundColor: 'var(--color-primary)', color: 'white' }}
           >
             <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
@@ -445,7 +445,7 @@ function ItemRow({
         <div className="flex items-center gap-1 flex-shrink-0">
           {item.quantity && (
             <button
-              className="text-xs px-3 py-2.5 rounded-lg min-h-[44px]"
+              className="text-xs px-3 py-2.5 rounded-lg min-h-[48px]"
               style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface-variant)' }}
               onClick={() => setEditing(true)}
               aria-label={`${item.name} 수량 변경`}
@@ -454,7 +454,7 @@ function ItemRow({
             </button>
           )}
           <button
-            className="text-xs px-3 py-2.5 rounded-lg min-h-[44px]"
+            className="text-xs px-3 py-2.5 rounded-lg min-h-[48px]"
             style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface-variant)' }}
             onClick={() => onDelete(item)}
             aria-label={`${item.name} 사용 완료`}

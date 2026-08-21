@@ -135,7 +135,7 @@ export default function ExpensesPage() {
       {/* 서버 연결 실패는 "데이터 없음"과 구분해서 보여준다 */}
       {loadError && (
         <div className="rounded-2xl p-5 text-center bg-surface-container-low">
-          <span className="material-symbols-outlined text-outline text-4xl mb-2 block">cloud_off</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-outline text-4xl mb-2 block">cloud_off</span>
           <p className="text-on-surface font-semibold mb-1">가계부를 불러오지 못했어요</p>
           <p className="text-on-surface-variant text-sm mb-4">데이터가 없는 게 아니라 서버에 연결하지 못한 거예요.</p>
           <button
@@ -159,7 +159,7 @@ export default function ExpensesPage() {
         <div className="space-y-2">
           {alerts.map((a, i) => (
             <div key={i} className="bg-tertiary-container/10 rounded-2xl p-4 flex items-center gap-3">
-              <span className="material-symbols-outlined text-tertiary">trending_up</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-tertiary">trending_up</span>
               <p className="text-sm text-on-surface flex-1 min-w-0">
                 <strong>{a.name}</strong>
                 {josa(a.name, '이')} 3개월 전보다{' '}
@@ -287,7 +287,7 @@ export default function ExpensesPage() {
           {/* 식재료 검색 + 자동완성 */}
           <div className="relative">
             <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
-              <span className="material-symbols-outlined text-outline">search</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-outline">search</span>
             </div>
             <input
               type="text"
@@ -309,7 +309,7 @@ export default function ExpensesPage() {
                     onClick={() => selectSuggestion(s)}
                     className="w-full text-left px-4 py-3 hover:bg-primary/5 transition-colors flex items-center gap-2"
                   >
-                    <span className="material-symbols-outlined text-sm text-outline">history</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-sm text-outline">history</span>
                     <span className="text-sm font-medium text-on-surface">{s}</span>
                   </button>
                 ))}
@@ -351,9 +351,9 @@ export default function ExpensesPage() {
                     onClick={() => { setSearchName(name); searchItem(name) }}
                     className="w-full flex items-center gap-3 py-3 px-3 rounded-xl hover:bg-primary/5 transition-colors text-left"
                   >
-                    <span className="material-symbols-outlined text-on-surface-variant text-lg">grocery</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-on-surface-variant text-lg">grocery</span>
                     <span className="font-medium text-on-surface">{name}</span>
-                    <span className="material-symbols-outlined text-outline text-sm ml-auto">chevron_right</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-outline text-sm ml-auto">chevron_right</span>
                   </button>
                 ))}
               </div>
@@ -370,7 +370,7 @@ export default function ExpensesPage() {
                     {/* min-w-0 이 없으면 매장명(영수증 OCR 이라 길 수 있다)이 줄을
                         넘겨 페이지 전체가 가로로 밀린다. */}
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="material-symbols-outlined text-on-surface-variant shrink-0">store</span>
+                      <span aria-hidden="true" className="material-symbols-outlined text-on-surface-variant shrink-0">store</span>
                       <span className="font-medium text-on-surface truncate">{s.store_name}</span>
                     </div>
                     <div className="text-right shrink-0">

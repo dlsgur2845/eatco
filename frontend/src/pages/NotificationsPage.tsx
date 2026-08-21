@@ -159,7 +159,7 @@ export default function NotificationsPage() {
         </div>
       ) : state === 'error' ? (
         <div className="text-center py-20" role="status">
-          <span className="material-symbols-outlined text-tertiary text-5xl mb-4 block">error</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-tertiary text-5xl mb-4 block">error</span>
           <p className="text-on-surface-variant mb-6">알림을 불러오지 못했어요.</p>
           <button
             onClick={retry}
@@ -170,7 +170,7 @@ export default function NotificationsPage() {
         </div>
       ) : notifications.length === 0 ? (
         <div className="text-center py-20">
-          <span className="material-symbols-outlined text-outline-variant text-6xl mb-4 block">
+          <span aria-hidden="true" className="material-symbols-outlined text-outline-variant text-6xl mb-4 block">
             notifications_off
           </span>
           <p className="text-on-surface-variant">아직 알림이 없습니다.</p>
@@ -199,7 +199,7 @@ export default function NotificationsPage() {
                       : 'bg-primary/10'
                 }`}
               >
-                <span className="material-symbols-outlined text-[20px]">
+                <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
                   {typeIcon[notif.type] || 'notifications'}
                 </span>
               </div>

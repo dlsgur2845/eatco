@@ -80,7 +80,7 @@ function FamilyManageView({
           <section>
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-headline font-semibold text-xl flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary">group</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-primary">group</span>
                 현재 가족 구성원
               </h3>
               <span className="text-xs bg-primary-container/10 text-primary font-bold px-3 py-1 rounded-full">
@@ -105,13 +105,13 @@ function FamilyManageView({
                     <div className="flex items-center gap-4">
                       <div className="relative">
                         <div className="w-14 h-14 rounded-full bg-surface-container-high flex items-center justify-center">
-                          <span className="material-symbols-outlined text-on-surface-variant text-2xl">
+                          <span aria-hidden="true" className="material-symbols-outlined text-on-surface-variant text-2xl">
                             person
                           </span>
                         </div>
                         {isAdmin && (
                           <div className="absolute -bottom-1 -right-1 bg-primary text-white p-0.5 rounded-full border-2 border-white">
-                            <span className="material-symbols-outlined text-[14px] block">verified</span>
+                            <span aria-hidden="true" className="material-symbols-outlined text-[14px] block">verified</span>
                           </div>
                         )}
                       </div>
@@ -172,7 +172,7 @@ function FamilyManageView({
               className="w-full p-4 bg-surface-container-lowest rounded-2xl flex items-center gap-4 hover:bg-tertiary/10 transition-colors text-left group"
             >
               <div className="w-10 h-10 bg-tertiary/10 rounded-xl flex items-center justify-center group-hover:bg-tertiary-container/20">
-                <span className="material-symbols-outlined text-tertiary">logout</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-tertiary">logout</span>
               </div>
               <div>
                 <p className="font-headline font-semibold text-tertiary">가족에서 탈퇴하기</p>
@@ -189,7 +189,7 @@ function FamilyManageView({
                 className="w-full p-5 bg-surface-container-lowest rounded-2xl flex items-center gap-4 hover:shadow-lg transition-shadow text-left"
               >
                 <div className="w-12 h-12 bg-surface-container-high rounded-xl flex items-center justify-center">
-                  <span className="material-symbols-outlined text-on-surface-variant">group_add</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-on-surface-variant">group_add</span>
                 </div>
                 <div>
                   <p className="font-headline font-semibold">다른 가족에 참여하기</p>
@@ -199,7 +199,7 @@ function FamilyManageView({
             ) : (
               <form onSubmit={handleJoinFamily} className="bg-surface-container-highest rounded-2xl p-6 space-y-4">
                 <h4 className="font-headline font-semibold flex items-center gap-2">
-                  <span className="material-symbols-outlined">group_add</span>
+                  <span aria-hidden="true" className="material-symbols-outlined">group_add</span>
                   초대 코드로 가족 변경
                 </h4>
                 <input
@@ -241,12 +241,12 @@ function FamilyManageView({
             <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-primary-container rounded-full blur-[80px] opacity-40" />
             <div className="relative z-10">
               <h3 className="font-headline font-bold text-2xl mb-2">새 구성원 초대</h3>
-              <p className="text-white/70 mb-8 font-light leading-relaxed">
+              <p className="text-white/90 mb-8 font-light leading-relaxed">
                 냉장고를 함께 관리할 가족을 초대해 보세요.
               </p>
 
               <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6">
-                <p className="text-xs text-white/60 font-bold tracking-[0.2em] mb-3">
+                <p className="text-xs text-white/90 font-bold tracking-[0.2em] mb-3">
                   INVITATION CODE
                 </p>
                 <div className="flex items-center justify-between gap-4">
@@ -257,13 +257,13 @@ function FamilyManageView({
                     onClick={copyCode}
                     className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-primary active:scale-95 transition-transform"
                   >
-                    <span className="material-symbols-outlined">
+                    <span aria-hidden="true" className="material-symbols-outlined">
                       {copied ? 'check' : 'content_copy'}
                     </span>
                   </button>
                 </div>
               </div>
-              <p className="text-white/50 text-xs text-center mt-3">
+              <p className="text-white/90 text-xs text-center mt-3">
                 초대 코드를 가족에게 공유하세요
               </p>
             </div>
@@ -272,7 +272,7 @@ function FamilyManageView({
           {/* Settings */}
           <section className="bg-surface-container-low p-8 rounded-[2rem]">
             <h3 className="font-headline font-semibold text-xl mb-6 flex items-center gap-2">
-              <span className="material-symbols-outlined text-secondary">shield_person</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-secondary">shield_person</span>
               공유 및 권한 설정
             </h3>
 
@@ -323,7 +323,7 @@ function FamilyManageView({
 
               {/* 알림 설정 안내 */}
               <div className="flex items-center gap-3 p-4 bg-surface-container-lowest rounded-xl">
-                <span className="material-symbols-outlined text-primary text-xl">notifications</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-primary text-xl">notifications</span>
                 <div className="flex-1">
                   <p className="text-[12px] text-on-surface-variant">
                     소비기한 알림 주기는 <span className="font-bold text-on-surface">설정</span> 페이지에서 변경할 수 있습니다.
@@ -382,7 +382,7 @@ export default function FamilyPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <span className="material-symbols-outlined text-primary animate-spin text-4xl">
+        <span aria-hidden="true" className="material-symbols-outlined text-primary animate-spin text-4xl">
           progress_activity
         </span>
       </div>
@@ -392,7 +392,7 @@ export default function FamilyPage() {
   if (error) {
     return (
       <div className="text-center py-20">
-        <span className="material-symbols-outlined text-tertiary text-5xl mb-4 block">
+        <span aria-hidden="true" className="material-symbols-outlined text-tertiary text-5xl mb-4 block">
           error
         </span>
         <p className="text-on-surface-variant mb-4">{error}</p>

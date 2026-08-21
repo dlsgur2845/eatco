@@ -149,7 +149,7 @@ export default function ScanPage({ onRegistered }: Props) {
           role="status"
         >
           <div className="eatco-pop w-20 h-20 rounded-full bg-primary flex items-center justify-center">
-            <span className="material-symbols-outlined text-on-primary text-4xl">check</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-on-primary text-4xl">check</span>
           </div>
           <p className="font-headline font-bold text-xl text-on-surface">
             {registeredCount}개 담았어요
@@ -194,7 +194,7 @@ export default function ScanPage({ onRegistered }: Props) {
           style={{ backgroundColor: 'var(--color-surface-container-low)' }}
           onClick={() => fileInputRef.current?.click()}
         >
-          <span className="material-symbols-outlined text-5xl" style={{ color: 'var(--color-outline)', opacity: 0.4 }}>photo_camera</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-5xl" style={{ color: 'var(--color-outline)', opacity: 0.4 }}>photo_camera</span>
           <span className="text-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
             여기를 눌러 영수증을 촬영하세요
           </span>
@@ -250,7 +250,7 @@ export default function ScanPage({ onRegistered }: Props) {
       </button>
 
       <button
-        className="w-full mt-3 py-3 rounded-full text-sm font-medium disabled:opacity-50"
+        className="w-full mt-3 min-h-[48px] rounded-full text-sm font-medium disabled:opacity-50"
         style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface)' }}
         onClick={() => galleryInputRef.current?.click()}
         disabled={scanning}

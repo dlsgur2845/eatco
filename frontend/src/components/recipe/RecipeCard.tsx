@@ -46,7 +46,7 @@ export default function RecipeCard({ recipe }: Props) {
           <img src={recipe.image_url} alt={recipe.name} className="w-full h-32 object-cover" />
         ) : (
           <div className="w-full h-32 flex items-center justify-center" style={{ backgroundColor: 'var(--color-surface-container-low)' }}>
-            <span className="material-symbols-outlined text-4xl" style={{ color: 'var(--color-outline)', opacity: 0.5 }}>restaurant</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-4xl" style={{ color: 'var(--color-outline)', opacity: 0.5 }}>restaurant</span>
           </div>
         )}
 

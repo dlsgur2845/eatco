@@ -148,15 +148,19 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-headline font-bold text-xl text-on-surface">식재료 등록</h3>
           <button aria-label="닫기" onClick={onClose} className="p-2 hover:bg-surface-container-high rounded-full transition-colors">
-            <span className="material-symbols-outlined text-on-surface-variant">close</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-on-surface-variant">close</span>
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* 상품명 + 자동완성 */}
           <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2 relative">
-            <label className="font-body text-xs font-semibold text-on-surface-variant">상품명</label>
+            {/* htmlFor/id 로 묶는다. 라벨이 형제로 놓여 있기만 하면 눈에는 보여도
+                스크린리더는 이 입력의 이름을 모른다 — VoiceOver/TalkBack 이
+                "편집 텍스트" 라고만 읽는다. */}
+            <label htmlFor="inv-name" className="font-body text-xs font-semibold text-on-surface-variant">상품명</label>
             <input
+              id="inv-name"
               type="text"
               required
               value={form.name}
@@ -179,7 +183,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
                     className="w-full text-left px-4 py-3 hover:bg-primary/5 transition-colors flex items-center justify-between gap-2"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary text-sm">search</span>
+                      <span aria-hidden="true" className="material-symbols-outlined text-primary text-sm">search</span>
                       <span className="font-medium text-on-surface">{s.keyword}</span>
                     </div>
                     <div className="flex gap-2 text-xs text-on-surface-variant">
@@ -196,7 +200,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
             )}
             {guide && !showSuggestions && (
               <div className="flex items-center gap-2 px-3 py-2 bg-secondary-container/10 rounded-lg text-secondary text-xs font-medium mt-1">
-                <span className="material-symbols-outlined text-sm">lightbulb</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-sm">lightbulb</span>
                 &quot;{guide.keyword}&quot; 보관 정보를 찾았어요
               </div>
             )}
@@ -217,7 +221,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
                       : 'border-outline-variant bg-surface-container-lowest text-outline'
                   }`}
                 >
-                  <span className="material-symbols-outlined mb-1">{m.icon}</span>
+                  <span aria-hidden="true" className="material-symbols-outlined mb-1">{m.icon}</span>
                   <span className="text-xs font-bold">{m.label}</span>
                 </button>
               ))}
@@ -239,7 +243,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
                         isSelected ? 'bg-primary/10 text-primary' : 'bg-surface-container-low text-on-surface-variant'
                       }`}
                     >
-                      <span className="material-symbols-outlined text-sm">{m.icon}</span>
+                      <span aria-hidden="true" className="material-symbols-outlined text-sm">{m.icon}</span>
                       <span>{m.label}:</span>
                       <span className="font-bold">{formatDays(d)}</span>
                     </div>
@@ -248,7 +252,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
               </div>
             ) : (
               <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 rounded-lg text-primary text-xs font-medium">
-                <span className="material-symbols-outlined text-sm">info</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-sm">info</span>
                 {getTipForMethod(form.storage_method)}
               </div>
             )}
@@ -308,7 +312,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-secondary-container" />
             <label className="font-body text-xs font-semibold text-on-surface-variant">소비기한</label>
             <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-secondary">calendar_today</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-secondary">calendar_today</span>
               <input
                 type="date"
                 required
@@ -326,7 +330,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
             disabled={submitting}
             className="w-full py-4 rounded-full bg-primary text-on-primary font-headline font-bold text-lg shadow-xl active:scale-95 transition-transform duration-200 flex items-center justify-center gap-3 disabled:opacity-50"
           >
-            <span className="material-symbols-outlined">check_circle</span>
+            <span aria-hidden="true" className="material-symbols-outlined">check_circle</span>
             {submitting ? '등록 중...' : '등록하기'}
           </button>
         </form>
@@ -384,15 +388,19 @@ function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; 
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-headline font-bold text-xl text-on-surface">식재료 수정</h3>
           <button aria-label="닫기" onClick={onClose} className="p-2 hover:bg-surface-container-high rounded-full transition-colors">
-            <span className="material-symbols-outlined text-on-surface-variant">close</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-on-surface-variant">close</span>
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* 상품명 */}
           <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm flex flex-col gap-2">
-            <label className="font-body text-xs font-semibold text-on-surface-variant">상품명</label>
+            {/* htmlFor/id 로 묶는다. 라벨이 형제로 놓여 있기만 하면 눈에는 보여도
+                스크린리더는 이 입력의 이름을 모른다 — VoiceOver/TalkBack 이
+                "편집 텍스트" 라고만 읽는다. */}
+            <label htmlFor="inv-name" className="font-body text-xs font-semibold text-on-surface-variant">상품명</label>
             <input
+              id="inv-name"
               type="text"
               required
               value={form.name}
@@ -416,7 +424,7 @@ function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; 
                       : 'border-outline-variant bg-surface-container-lowest text-outline'
                   }`}
                 >
-                  <span className="material-symbols-outlined mb-1">{m.icon}</span>
+                  <span aria-hidden="true" className="material-symbols-outlined mb-1">{m.icon}</span>
                   <span className="text-xs font-bold">{m.label}</span>
                 </button>
               ))}
@@ -494,7 +502,7 @@ function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; 
             disabled={submitting}
             className="w-full py-4 rounded-full bg-primary text-on-primary font-headline font-bold text-lg shadow-xl active:scale-95 transition-transform duration-200 flex items-center justify-center gap-3 disabled:opacity-50"
           >
-            <span className="material-symbols-outlined">save</span>
+            <span aria-hidden="true" className="material-symbols-outlined">save</span>
             {submitting ? '저장 중...' : '저장하기'}
           </button>
         </form>
@@ -613,7 +621,7 @@ export default function InventoryPage() {
             onClick={() => setShowRegister(true)}
             className="bg-primary text-on-primary px-5 min-h-[48px] rounded-full font-medium flex items-center gap-2 active:scale-95 transition-transform shadow-lg"
           >
-            <span className="material-symbols-outlined text-[20px]">add</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-[20px]">add</span>
             등록
           </button>
           <button
@@ -622,7 +630,7 @@ export default function InventoryPage() {
               selectMode ? 'bg-primary text-white' : 'bg-surface-container-high text-on-surface'
             }`}
           >
-            <span className="material-symbols-outlined text-[20px]">check_box</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-[20px]">check_box</span>
             선택
           </button>
           {selectMode && selected.size > 0 && (
@@ -630,7 +638,7 @@ export default function InventoryPage() {
               onClick={handleBatchDelete}
               className="bg-tertiary text-white px-5 min-h-[48px] rounded-full font-medium flex items-center gap-2 active:scale-95 transition-transform"
             >
-              <span className="material-symbols-outlined text-[20px]">delete</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-[20px]">delete</span>
               삭제 ({selected.size})
             </button>
           )}
@@ -640,10 +648,13 @@ export default function InventoryPage() {
       {/* Search */}
       <div className="relative">
         <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
-          <span className="material-symbols-outlined text-outline">search</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-outline">search</span>
         </div>
+        {/* placeholder 는 접근 가능한 이름이 아니다. 글자를 입력하는 순간
+            사라지므로, 스크린리더에는 이름 없는 "편집 텍스트" 로만 남는다. */}
         <input
-          type="text"
+          type="search"
+          aria-label="식재료 검색"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full bg-surface-container-low border-none rounded-2xl py-4 pl-14 pr-6 text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary transition-all outline-none"
@@ -716,7 +727,7 @@ export default function InventoryPage() {
 
         {!loading && loadError && (
           <div className="col-span-full text-center py-16">
-            <span className="material-symbols-outlined text-outline text-6xl mb-4 block">cloud_off</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-outline text-6xl mb-4 block">cloud_off</span>
             <p className="text-on-surface font-semibold mb-1">목록을 불러오지 못했어요</p>
             <p className="text-on-surface-variant text-sm mb-4">
               재료가 없는 게 아니라 서버에 연결하지 못한 거예요.
@@ -732,13 +743,13 @@ export default function InventoryPage() {
 
         {!loading && !loadError && ingredients.length === 0 && (
           <div className="col-span-full text-center py-16">
-            <span className="material-symbols-outlined text-outline-variant text-6xl mb-4 block">inventory_2</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-outline-variant text-6xl mb-4 block">inventory_2</span>
             <p className="text-on-surface-variant mb-4">등록된 식재료가 없습니다.</p>
             <button
               onClick={() => setShowRegister(true)}
               className="text-primary font-bold hover:underline flex items-center gap-1 mx-auto"
             >
-              <span className="material-symbols-outlined text-sm">add</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-sm">add</span>
               식재료를 등록해보세요
             </button>
           </div>
@@ -762,11 +773,11 @@ export default function InventoryPage() {
               />
               {isSelected && (
                 <div className="absolute -top-2 -right-2 bg-primary text-white rounded-full p-1 shadow-lg">
-                  <span className="material-symbols-outlined text-[18px]">check</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-[18px]">check</span>
                 </div>
               )}
               <div className="w-16 h-16 bg-surface-container rounded-3xl flex items-center justify-center flex-shrink-0">
-                <span className="material-symbols-outlined text-on-surface-variant text-3xl">
+                <span aria-hidden="true" className="material-symbols-outlined text-on-surface-variant text-3xl">
                   {storageIcons[item.storage_method] || 'nutrition'}
                 </span>
               </div>
@@ -798,7 +809,7 @@ export default function InventoryPage() {
         onClick={() => setShowRegister(true)}
         className="fixed right-6 bottom-28 w-14 h-14 rounded-full bg-primary text-on-primary shadow-2xl flex items-center justify-center active:scale-90 transition-transform z-40 md:hidden"
       >
-        <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>add</span>
+        <span aria-hidden="true" className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>add</span>
       </button>
 
       {/* Register Modal */}
