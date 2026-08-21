@@ -37,3 +37,6 @@ test.jpg
 # Cloudflare
 .wrangler/
 .dev.vars
+
+# D1 백업 — 실제 가족 데이터다. 저장소에 넣지 않는다.
+backups/

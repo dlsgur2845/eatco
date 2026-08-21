@@ -183,10 +183,21 @@ export const requireUser: MiddlewareHandler<{ Bindings: Env; Variables: Vars }> 
     const uid = await readSession(env, sess)
     if (uid) {
       const user = await env.DB
-        .prepare('SELECT id, email, nickname, family_id, role FROM users WHERE id = ?')
+        .prepare('SELECT id, email, nickname, family_id, role, approved FROM users WHERE id = ?')
         .bind(uid)
-        .first<User>()
+        .first<User & { approved: number }>()
       if (user) {
+        // 세션이 있어도 승인이 취소됐으면 막는다. 관리자가 승인을 거둬들였는데
+        // 기존 세션으로 계속 들어올 수 있으면 승인제가 반쪽이 된다.
+        //
+        // 403 이 아니라 **401** 이다. 의미상으로는 "인증됐으나 거부" 라 403 이
+        // 맞아 보이지만, 프론트에서 403 은 "남의 글 삭제 시도" 같은 것과 구분이
+        // 안 된다. client.ts 가 401 에서만 저장된 신원을 비우므로, 여기서 401 을
+        // 줘야 앱이 로그인 화면으로 정상 복귀한다. 이 세션은 실제로 못 쓰는
+        // 세션이니 401 이 거짓말도 아니다.
+        if (!user.approved) {
+          throw new ApiError(401, '아직 승인되지 않은 계정이에요. 관리자 승인 후 이용할 수 있어요.')
+        }
         c.set('user', await withFamily(env.DB, user))
         return next()
       }

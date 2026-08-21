@@ -7,12 +7,20 @@ export default function RegisterAccountPage() {
   const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', nickname: '', password: '' })
   const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     try {
-      const res = await api.post<User>('/auth/register', form)
+      const res = await api.post<User & { approved?: boolean }>('/auth/register', form)
+      /* 승인 대기면 세션 쿠키가 안 나온다. 여기서 '/' 로 보내면 AuthGuard 가
+         401 을 받아 로그인 화면으로 튕기고, 사용자는 가입이 실패한 줄 안다.
+         localStorage 에도 넣지 않는다 — 로그인한 적이 없는 계정이다. */
+      if (res.data.approved === false) {
+        setPending(true)
+        return
+      }
       localStorage.setItem('user', JSON.stringify(res.data))
       navigate('/')
     } catch (err: any) {
@@ -30,6 +38,40 @@ export default function RegisterAccountPage() {
         setError('회원가입에 실패했습니다. 다시 시도해주세요.')
       }
     }
+  }
+
+  if (pending) {
+    return (
+      <div className="min-h-screen bg-surface flex flex-col items-center justify-center p-6 text-center">
+        <span
+          aria-hidden="true"
+          className="material-symbols-outlined"
+          style={{ fontSize: '48px', color: 'var(--color-primary)' }}
+        >
+          how_to_reg
+        </span>
+        <h1
+          className="mt-4 text-xl font-bold"
+          style={{ fontFamily: 'var(--font-headline)', color: 'var(--color-on-surface)' }}
+        >
+          가입 신청이 접수됐어요
+        </h1>
+        <p className="mt-2 text-sm max-w-xs" style={{ color: 'var(--color-on-surface-variant)' }}>
+          관리자가 승인하면 로그인할 수 있어요.<br />승인 후 이 이메일로 다시 로그인해주세요.
+        </p>
+        <p className="mt-1 text-sm font-medium" style={{ color: 'var(--color-on-surface)' }}>
+          {form.email}
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/login')}
+          className="mt-8 px-6 py-3 rounded-xl text-base font-semibold"
+          style={{ backgroundColor: 'var(--color-primary)', color: 'white' }}
+        >
+          로그인 화면으로
+        </button>
+      </div>
+    )
   }
 
   return (

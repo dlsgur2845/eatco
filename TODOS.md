@@ -2,21 +2,28 @@
 
 ## Infrastructure
 
-### D1 백업 메커니즘 없음
+### D1 백업 — 스크립트는 생겼고, 자동화는 아직 (2026-08-21)
 
-**What:** 프로덕션 D1 데이터베이스에 백업이 하나도 없다.
+**What:** `scripts/backup-d1.sh` 가 원격 D1 을 `backups/` 에 SQL 로 덤프한다.
+첫 백업을 실제로 떴고, 빈 sqlite 에 복원해서 열리는 것까지 확인했다
+(사용자 2 / 가족 1 / 식재료 7 — 프로덕션과 일치).
 
-**Why:** 지금 실제 가족 데이터(계정 2개, 식재료, 식단, 알림)가 들어 있다. 잘못된
-마이그레이션이나 실수한 DELETE 한 번이면 복구 수단이 없다.
+**남은 일:** 아직 **수동이다.** 사람이 기억해야 도는 백업은 결국 안 돈다.
+Cron Trigger 가 이미 매시 정각에 돌고 있으니(`wrangler.jsonc` 의 `triggers.crons`)
+거기 붙이는 게 자연스럽지만, Worker 안에서는 `wrangler d1 export` 를 못 쓴다 —
+D1 HTTP API 를 직접 부르거나 GitHub Actions 로 빼야 한다.
+저장할 곳도 정해야 한다. R2 가 자연스러운데 이 계정은 R2 가 꺼져 있다(아래 항목).
 
-**Context:** `wrangler d1 export` 로 SQL 덤프를 뜰 수 있다. Cron Trigger 가 이미
-매시 정각에 돌고 있으니(`wrangler.jsonc` 의 `triggers.crons`) 거기에 붙이거나,
-별도 워크플로로 R2(`eatco-uploads` 버킷이 이미 있다)에 떨구는 방법이 있다.
-D1 무료 플랜에도 Time Travel(30일)이 있지만 그건 우발적 삭제 대비이지 백업 정책이 아니다.
+**아는 것 두 가지:**
+- `backups/` 는 gitignore 돼 있다. **실제 가족 데이터라 저장소에 넣으면 안 된다.**
+- D1 은 무료 플랜에도 Time Travel(30일)이 있다. 잘못된 마이그레이션을 되돌리는
+  데는 그쪽이 더 정확하다(`wrangler d1 time-travel info eatco`). 이 덤프는
+  30일이 지났거나, DB 자체가 사라졌거나, 계정 접근을 잃은 경우를 위한 것이다.
+  되돌림 지점은 `backups/ROLLBACK.md` 에 적어뒀다(gitignore 안이라 로컬에만 있다).
 
 **Effort:** M
-**Priority:** P1
-**Depends on:** None
+**Priority:** P2
+**Depends on:** R2 활성화 (저장 위치를 R2 로 할 경우)
 
 ### CI/CD 자동 배포가 트리거되지 않음
 
@@ -30,6 +37,41 @@ D1 무료 플랜에도 Time Travel(30일)이 있지만 그건 우발적 삭제 �
 
 **Effort:** S
 **Priority:** P2
+**Depends on:** None
+
+### 공유 레시피 검열이 Gemini 쿼터를 영수증 스캔과 나눠 쓴다
+
+**What:** `/api/shared-recipes` 등록마다 Gemini 를 한 번 부른다(`moderate()`).
+영수증 스캔도 같은 키를 쓴다. 무료 티어는 하루 요청 수가 정해져 있다.
+
+**Why:** 쿼터가 소진되면 **영수증 스캔이 먼저 죽는다** — 매일 쓰는 기능이
+어쩌다 쓰는 기능 때문에 멈춘다. 지금은 작성자당 하루 10건 상한
+(`DAILY_LIMIT`)이 사실상 유일한 방어선이다. 가입 승인제가 있어서 임의의
+사람이 늘어나진 않지만, 승인된 사용자 몇 명이 같은 날 몰리면 닿는다.
+
+**Context:** 검열 실패는 `pending` 으로 남고 자동 승인/거절을 하지 않으므로
+안전한 쪽으로 실패한다. 즉 지금 당장 위험하진 않고, 쿼터를 다 쓰면 새 레시피가
+공개되지 않을 뿐이다. 관측 수단이 없다는 게 진짜 문제다 — 쿼터를 얼마나
+쓰고 있는지 아무도 모른다.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
+### 오래된 `pending` 레시피를 아무도 안 본다
+
+**What:** Gemini 호출이 실패하면 레시피가 `pending` 으로 남는다. 작성자에게는
+«검토 중» 으로 보이고, 다른 사람에게는 아예 안 보인다. 되살릴 경로가 없다.
+
+**Why:** 정상 작성자의 정상 레시피가 Gemini 장애 때문에 영영 안 보이게 된다.
+작성자는 왜인지 모른다.
+
+**Context:** 관리자 화면에 «검토 중» 목록과 수동 승인 버튼을 두거나,
+Cron 이 오래된 pending 을 재시도하면 된다. 스키마는 이미 준비돼 있다
+(`status`, `status_reason`, `moderated_at`).
+
+**Effort:** S
+**Priority:** P3
 **Depends on:** None
 
 ### R2 가 계정에서 활성화돼 있지 않다
@@ -165,7 +207,7 @@ D1 무료 플랜에도 Time Travel(30일)이 있지만 그건 우발적 삭제 �
 **Priority:** P4
 **Depends on:** None
 
-### 워커에 테스트 러너가 없다
+### 워커에 테스트 러너가 없다 (일부 우회 중)
 
 **What:** `worker/` 에 테스트 프레임워크가 없어 `worker/src/routes/` 는 커버리지 0% 다.
 

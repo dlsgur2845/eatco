@@ -23,6 +23,10 @@ export function registerFridgeChangeHandler(fn: () => void): void {
 
 // 401 응답 시 저장된 신원만 비우고 호출부가 처리하게 둔다.
 // 401 은 세션 만료다. 리다이렉트는 화면마다 사정이 달라 여기서 하지 않는다.
+//
+// **403 을 여기 넣지 말 것.** 403 은 "로그인은 됐는데 이건 못 한다" 전반이다 —
+// 남의 레시피 삭제, 관리자 전용 화면 접근 등. 403 에 로그아웃을 걸면 남의 글
+// 삭제 버튼을 눌렀다가 튕겨 나간다. 승인 취소는 identity.ts 가 401 로 준다.
 api.interceptors.response.use(
   (response) => {
     const method = (response.config.method ?? 'get').toLowerCase()

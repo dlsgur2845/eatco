@@ -37,10 +37,13 @@ publicAuth.post('/register', async (c) => {
   const id = crypto.randomUUID()
   // 첫 가입자는 관리자 1호. 판정은 INSERT 직전에 한다.
   const role = await roleForNewUser(c.env.DB)
+  // 가입 승인제. 예전엔 URL 만 알면 누구나 계정을 만들고 바로 들어왔다.
+  // 관리자 1호는 승인해줄 사람이 없으므로 자동 승인한다 — 안 그러면 아무도 못 들어온다.
+  const approved = role === 'admin' ? 1 : 0
   await c.env.DB.prepare(
-    'INSERT INTO users (id, email, nickname, hashed_password, family_id, created_at, role) VALUES (?, ?, ?, ?, NULL, ?, ?)',
+    'INSERT INTO users (id, email, nickname, hashed_password, family_id, created_at, role, approved) VALUES (?, ?, ?, ?, NULL, ?, ?, ?)',
   )
-    .bind(id, email, nickname.slice(0, 50), await hashPassword(password), nowIso(), role)
+    .bind(id, email, nickname.slice(0, 50), await hashPassword(password), nowIso(), role, approved)
     .run()
 
   // 기존 FastAPI register 와 동일하게 1인 가족을 같이 만든다.
@@ -48,8 +51,15 @@ publicAuth.post('/register', async (c) => {
   // 프론트에는 가족 생성 온보딩 화면이 없다.
   const familyId = await createSoloFamily(c.env.DB, id, nickname.slice(0, 50))
 
+  // 승인 대기 상태면 세션을 주지 않는다. 쿠키를 주면 들어와서 화면을 돌아다닌다.
+  if (!approved) {
+    return c.json(
+      { id, email, nickname, approved: false, message: '가입 신청이 접수됐어요. 관리자 승인 후 이용할 수 있어요.' },
+      201,
+    )
+  }
   c.header('Set-Cookie', sessionCookie(await createSession(c.env, id)))
-  return c.json({ id, email, nickname, family_id: familyId, role }, 201)
+  return c.json({ id, email, nickname, family_id: familyId, role, approved: true }, 201)
 })
 
 publicAuth.post('/login', async (c) => {
@@ -58,13 +68,19 @@ publicAuth.post('/login', async (c) => {
   const password = String(b.password ?? '')
 
   const user = await c.env.DB
-    .prepare('SELECT id, email, nickname, family_id, role, hashed_password FROM users WHERE email = ?')
+    .prepare('SELECT id, email, nickname, family_id, role, approved, hashed_password FROM users WHERE email = ?')
     .bind(email)
-    .first<{ id: string; email: string; nickname: string; family_id: string | null; role: 'admin' | 'member'; hashed_password: string }>()
+    .first<{ id: string; email: string; nickname: string; family_id: string | null; role: 'admin' | 'member'; approved: number; hashed_password: string }>()
 
   // 이메일 존재 여부를 메시지로 구분하지 않는다 (사용자 열거 방지).
   const ok = user ? await verifyPassword(password, user.hashed_password) : false
   if (!user || !ok) throw new ApiError(401, '이메일 또는 비밀번호가 올바르지 않습니다.')
+
+  // 비밀번호 검증 **뒤에** 승인 여부를 본다. 순서를 뒤집으면 아무 이메일이나 넣어보고
+  // "승인 대기" 응답이 오는지로 가입 여부를 알아낼 수 있다.
+  if (!user.approved) {
+    throw new ApiError(403, '아직 승인되지 않은 계정이에요. 관리자 승인 후 이용할 수 있어요.')
+  }
 
   c.header('Set-Cookie', sessionCookie(await createSession(c.env, user.id)))
   return c.json({ id: user.id, email: user.email, nickname: user.nickname, family_id: user.family_id, role: user.role })

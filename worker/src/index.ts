@@ -14,6 +14,7 @@ import expenses from './routes/expenses'
 import events from './routes/events'
 import notifications, { logs as notificationLogs } from './routes/notifications'
 import recipes from './routes/recipes'
+import sharedRecipes from './routes/shared-recipes'
 import calendar from './routes/calendar'
 import admin from './routes/admin'
 
@@ -76,6 +77,8 @@ app.route('/api/events', events)
 app.route('/api/notifications', notifications)
 app.route('/api/notification-logs', notificationLogs)
 app.route('/api/recipes', recipes)
+// 가족 경계를 넘는 유일한 데이터. shared-recipes.ts 상단 주석 참고.
+app.route('/api/shared-recipes', sharedRecipes)
 app.route('/api/calendar', calendar)
 app.route('/api/admin', admin) // 내부에서 role='admin' 검사
 

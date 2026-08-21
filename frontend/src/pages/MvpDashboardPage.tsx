@@ -6,6 +6,9 @@ import { logEvent } from '../api/events'
 import { getRecommendations, type Recipe } from '../api/recipes'
 import { deleteItem, getItems, updateItem, type DashboardItem } from '../api/scan'
 import RecipeCard from '../components/recipe/RecipeCard'
+import AddRecipeSheet from '../components/recipe/AddRecipeSheet'
+import SharedRecipeCard from '../components/recipe/SharedRecipeCard'
+import { getSharedRecipes, type SharedRecipe } from '../api/sharedRecipes'
 import { josa } from '../lib/korean'
 import { formatDate } from '../lib/format'
 
@@ -19,6 +22,8 @@ export default function MvpDashboardPage() {
   const [undoItem, setUndoItem] = useState<{ item: DashboardItem; timeout: ReturnType<typeof setTimeout> } | null>(null)
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [recipesLoading, setRecipesLoading] = useState(true)
+  const [shared, setShared] = useState<SharedRecipe[]>([])
+  const [showAddRecipe, setShowAddRecipe] = useState(false)
   const [alerts, setAlerts] = useState<InflationAlert[]>([])
   const [budget, setBudget] = useState<BudgetInfo | null>(null)
 
@@ -41,6 +46,8 @@ export default function MvpDashboardPage() {
       .then(setRecipes)
       .catch(() => {})
       .finally(() => setRecipesLoading(false))
+    // 실패해도 대시보드는 그려야 한다 (추천과 같은 방식으로 조용히 삼킨다).
+    getSharedRecipes().then(setShared).catch(() => {})
     api.get<InflationAlert[]>('/expenses/alerts').then(r => setAlerts(r.data)).catch(() => {})
     api.get<BudgetInfo>('/expenses/budget').then(r => setBudget(r.data)).catch(() => {})
   }, [fetchItems])
@@ -241,7 +248,48 @@ export default function MvpDashboardPage() {
         </>
       ) : null}
 
-      
+
+      {/* 모두의 메뉴 — 이 앱에서 유일하게 가족 경계를 넘는 화면 */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold tracking-wide" style={{ color: 'var(--color-on-surface-variant)' }}>
+            모두의 메뉴
+          </h3>
+          {/* 눈에 띄어야 한다는 요구가 있었다. 목록이 비어 있어도 항상 보인다 —
+              첫 사용자에게는 이 버튼이 유일한 진입점이다. */}
+          <button
+            type="button"
+            onClick={() => setShowAddRecipe(true)}
+            className="flex items-center gap-1 pl-3 pr-4 py-2 rounded-full text-sm font-semibold transition-transform active:scale-95"
+            style={{ backgroundColor: 'var(--color-primary)', color: 'white' }}
+          >
+            <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
+            나의 메뉴 추가
+          </button>
+        </div>
+
+        {shared.length > 0 ? (
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
+            {shared.map(r => (
+              <SharedRecipeCard key={r.id} recipe={r} onDeleted={() => getSharedRecipes().then(setShared).catch(() => {})} />
+            ))}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowAddRecipe(true)}
+            className="w-full py-6 rounded-2xl text-sm text-center"
+            style={{
+              backgroundColor: 'var(--color-surface-container-low)',
+              color: 'var(--color-on-surface-variant)',
+              border: '1px dashed var(--color-outline-variant)',
+            }}
+          >
+            아직 올라온 메뉴가 없어요.<br />우리 집 요리를 처음으로 올려보세요.
+          </button>
+        )}
+      </div>
+
       {/* 오늘 써야 할 식재료 */}
       {urgent.length > 0 && (
         <Section title="오늘 써야 할 식재료">
@@ -286,6 +334,14 @@ export default function MvpDashboardPage() {
             되돌리기
           </button>
         </div>
+      )}
+
+      {/* 나의 메뉴 추가 시트 */}
+      {showAddRecipe && (
+        <AddRecipeSheet
+          onClose={() => setShowAddRecipe(false)}
+          onCreated={() => getSharedRecipes().then(setShared).catch(() => {})}
+        />
       )}
     </div>
   )

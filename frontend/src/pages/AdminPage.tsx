@@ -104,15 +104,18 @@ function UserRow({
   u,
   me,
   onRole,
+  onApprove,
   onDelete,
 }: {
   u: AdminUser
   me: User
   onRole: (u: AdminUser, role: 'admin' | 'member') => void
+  onApprove: (u: AdminUser, approved: boolean) => void
   onDelete: (u: AdminUser) => void
 }) {
   const isMe = u.id === me.id
   const isAdmin = u.role === 'admin'
+  const waiting = !u.approved
 
   return (
     <li className="bg-surface-container-lowest rounded-2xl p-5">
@@ -129,14 +132,33 @@ function UserRow({
             {formatDate(u.created_at)} 가입
           </p>
         </div>
-        {isAdmin && (
+        {waiting ? (
+          <span className="shrink-0 text-xs font-bold text-tertiary bg-tertiary/10 px-2.5 py-1 rounded-full">
+            승인 대기
+          </span>
+        ) : isAdmin ? (
           <span className="shrink-0 text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
             관리자
           </span>
-        )}
+        ) : null}
       </div>
 
+      {waiting && (
+        <p className="text-xs mt-3 text-on-surface-variant">
+          승인해야 로그인할 수 있어요.
+        </p>
+      )}
+
       <div className="flex gap-2 mt-4">
+        {waiting ? (
+          <button
+            type="button"
+            onClick={() => onApprove(u, true)}
+            className="flex-1 min-h-[48px] inline-flex items-center justify-center rounded-xl bg-primary text-white text-sm font-bold active:scale-95 transition-transform"
+          >
+            승인하기
+          </button>
+        ) : (
         <button
           type="button"
           onClick={() => onRole(u, isAdmin ? 'member' : 'admin')}
@@ -145,6 +167,7 @@ function UserRow({
         >
           {isAdmin ? '관리자 해제' : '관리자로'}
         </button>
+        )}
         <button
           type="button"
           onClick={() => onDelete(u)}
@@ -270,6 +293,16 @@ export default function AdminPage() {
       load()
     } catch (err: any) {
       flash(err?.response?.data?.detail ?? '역할을 바꾸지 못했어요.')
+    }
+  }
+
+  const changeApproval = async (u: AdminUser, approved: boolean) => {
+    try {
+      await api.patch(`/admin/users/${u.id}/approve`, { approved })
+      flash(`${u.nickname}님을 승인했어요.`)
+      load()
+    } catch (err: any) {
+      flash(err?.response?.data?.detail ?? '승인하지 못했어요.')
     }
   }
 
@@ -423,6 +456,7 @@ export default function AdminPage() {
                   u={u}
                   me={me}
                   onRole={changeRole}
+                  onApprove={changeApproval}
                   onDelete={(user) => setPending({ kind: 'delete-user', user })}
                 />
                 </Reveal>

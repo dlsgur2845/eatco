@@ -114,6 +114,8 @@ export interface AdminUser {
   /** SQLite 는 불리언이 없다. 0/1 로 온다. */
   is_family_master: number | null
   ingredient_count: number
+  /** 가입 승인 여부. 0 이면 로그인이 막혀 있다. */
+  approved: number
 }
 
 export interface AdminFamily {

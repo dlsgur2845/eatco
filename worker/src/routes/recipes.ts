@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { requireFamily } from '../lib/identity'
-import { todayKst, daysBetween } from '../lib/dates'
+import { extractIngredients, scoreRecipe } from '../lib/recipe-match'
+import { loadFridge } from '../lib/fridge'
 import type { Env, Vars } from '../lib/types'
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>()
@@ -31,52 +32,6 @@ interface Recipe {
 // 아이소레이트 수명 동안만 유지되는 캐시. 공공 API 는 하루 트래픽 제한이 있다.
 let recipeCache: { at: number; data: Recipe[] } | null = null
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000
-
-const PAREN = /\([^)]*\)/g
-const QUANTITY = /\s*[\d/.]+\s*(g|kg|ml|L|개|모|마리|줄기|큰술|작은술|쪽|cm|장|컵|봉지|포기).*$/
-const PREFIX = /^(다진|썬|채썬|간|삶은|데친|볶은|구운|찐|튀긴)\s*/
-
-function normalizeIngredient(text: string): string {
-  let t = text.trim()
-  t = t.replace(PAREN, '')
-  t = t.replace(QUANTITY, '')
-  t = t.replace(PREFIX, '')
-  t = t.replace(/\d+/g, '')
-  return t.replace(/^[\s,.]+|[\s,.]+$/g, '')
-}
-
-function extractIngredients(parts: string): string[] {
-  const out: string[] = []
-  for (let line of parts.replace(/\n/g, ',').split(',')) {
-    line = line.trim()
-    if (!line || line.length < 2) continue
-    if (line.endsWith(':') || line.startsWith('●') || line.startsWith('·')) {
-      line = line.replace(/^[●·]+/, '').replace(/:$/, '').trim()
-      if (line.length < 2) continue
-    }
-    const name = normalizeIngredient(line)
-    if (name && name.length >= 2) out.push(name)
-  }
-  return out
-}
-
-/** 단어 경계 + 접미사 매칭. "순두부" 는 "두부" 를 포함하지만 "삼겹살" 은 "돼지고기" 와 무관. */
-function isWordMatch(a: string, b: string): boolean {
-  if (a === b) return true
-  const aw = a.split(/\s+/).filter(Boolean)
-  const bw = b.split(/\s+/).filter(Boolean)
-  const bset = new Set(bw)
-  for (const w of aw) if (w.length >= 2 && bset.has(w)) return true
-  const aset = new Set(aw)
-  for (const w of bw) if (w.length >= 2 && aset.has(w)) return true
-  for (const x of aw) {
-    for (const y of bw) {
-      const [short, long] = x.length <= y.length ? [x, y] : [y, x]
-      if (short.length >= 2 && long.endsWith(short)) return true
-    }
-  }
-  return false
-}
 
 /* 아이소레이트 밖에서도 남는 카탈로그 사본.
 
@@ -187,52 +142,16 @@ app.get('/recommend', async (c) => {
   const familyId = requireFamily(c.get('user'))
   const limit = Math.min(Number(c.req.query('limit') || 6) || 6, 20)
 
-  const { results } = await c.env.DB.prepare(
-    'SELECT name, normalized_name, expiry_date FROM ingredients WHERE family_id = ?',
-  )
-    .bind(familyId)
-    .all<{ name: string; normalized_name: string | null; expiry_date: string }>()
-
-  const today = todayKst()
-  const fridge = (results ?? []).map((r) => (r.normalized_name || r.name).toLowerCase().trim())
-  const urgent = (results ?? [])
-    .filter((r) => daysBetween(today, r.expiry_date) <= 3)
-    .map((r) => (r.normalized_name || r.name).toLowerCase().trim())
-
+  const { fridge, urgent } = await loadFridge(c.env.DB, familyId)
   if (!fridge.length) return c.json([])
 
   const recipes = await fetchRecipes(c.env)
   if (!recipes.length) return c.json([])
 
-  const scored = recipes.map((rec) => {
-    const matched: string[] = []
-    const missing: string[] = []
-    const urgentUsed: string[] = []
-    for (const ri of rec.ingredients) {
-      const r = ri.toLowerCase().trim()
-      const hit = fridge.find((f) => isWordMatch(r, f))
-      if (hit) {
-        matched.push(ri)
-        if (urgent.includes(hit)) urgentUsed.push(ri)
-      } else {
-        missing.push(ri)
-      }
-    }
-    const total = rec.ingredients.length || 1
-    // 한 레시피가 같은 재료를 여러 줄에 적는 경우가 흔하다(양념/고명 등).
-    // 화면에 "두부, 양파, 두부, 양파" 로 보이지 않게 중복을 제거한다.
-    const uniq = (xs: string[]) => [...new Set(xs)]
-    const matchedU = uniq(matched)
-    return {
-      ...rec,
-      match_count: matchedU.length,
-      total_ingredients: total,
-      match_ratio: matched.length / total,
-      matched_items: matchedU,
-      missing_items: uniq(missing),
-      urgent_used: uniq(urgentUsed),
-    }
-  })
+  const scored = recipes.map((rec) => ({
+    ...rec,
+    ...scoreRecipe(rec.ingredients, fridge, urgent),
+  }))
 
   scored.sort(
     (a, b) =>

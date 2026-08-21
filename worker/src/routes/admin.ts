@@ -48,15 +48,47 @@ app.get('/stats', async (c) => {
 app.get('/users', async (c) => {
   const rows = await c.env.DB.prepare(`
     SELECT
-      u.id, u.email, u.nickname, u.role, u.created_at, u.family_id,
+      u.id, u.email, u.nickname, u.role, u.created_at, u.family_id, u.approved,
       f.name AS family_name,
       (f.master_id = u.id) AS is_family_master,
       (SELECT COUNT(*) FROM ingredients i WHERE i.family_id = u.family_id) AS ingredient_count
     FROM users u
     LEFT JOIN families f ON f.id = u.family_id
-    ORDER BY u.created_at ASC, u.id ASC
+    -- 승인 대기(0)를 맨 위로. 관리자가 스크롤해서 찾아야 하면 승인제가 안 굴러간다.
+    ORDER BY u.approved ASC, u.created_at ASC, u.id ASC
   `).all()
   return c.json(rows.results ?? [])
+})
+
+/* 가입 승인.
+ *
+ * 가입이 열려 있어서 URL 만 알면 누구나 계정을 만들 수 있었다. 공유 레시피가
+ * "모든 사용자가 읽는 쓰기 가능한 데이터" 라 그대로 두면 모르는 사람이 쓴 글을
+ * 가족이 읽게 된다. 승인 전에는 로그인도 안 되고 세션도 안 나간다. */
+app.patch('/users/:id/approve', async (c) => {
+  const targetId = c.req.param('id')
+  const body = await readJson<{ approved: boolean }>(c.req)
+  const approved = body.approved ? 1 : 0
+
+  const target = await c.env.DB
+    .prepare('SELECT id, role, approved FROM users WHERE id = ?')
+    .bind(targetId)
+    .first<{ id: string; role: string; approved: number }>()
+  if (!target) throw new ApiError(404, '사용자를 찾을 수 없습니다.')
+
+  // 관리자를 승인 해제하면 아무도 승인해줄 수 없는 상태가 될 수 있다.
+  if (!approved && target.role === 'admin') {
+    const others = await c.env.DB
+      .prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'admin' AND approved = 1 AND id != ?")
+      .bind(targetId)
+      .first<{ n: number }>()
+    if ((others?.n ?? 0) === 0) {
+      throw new ApiError(409, '승인된 관리자가 없어집니다. 다른 관리자를 먼저 승인하세요.')
+    }
+  }
+
+  await c.env.DB.prepare('UPDATE users SET approved = ? WHERE id = ?').bind(approved, targetId).run()
+  return c.json({ id: targetId, approved: !!approved })
 })
 
 app.patch('/users/:id/role', async (c) => {

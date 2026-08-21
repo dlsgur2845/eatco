@@ -1,10 +1,24 @@
 import { useEffect, useState } from 'react'
 import { useModal } from '../hooks/useModal'
 
-const CURRENT_VERSION = '1.5.0'
+const CURRENT_VERSION = '1.6.0'
 const STORAGE_KEY = 'eatco_changelog_seen'
 
 const CHANGELOG = [
+  {
+    version: '1.6.0',
+    date: '2026-08-21',
+    features: [
+      { icon: 'restaurant_menu', text: '나의 메뉴 추가 — 우리 집 요리를 올리면 모든 사용자가 봐요' },
+      { icon: 'visibility_off', text: '익명/기명 선택해서 올리기' },
+      { icon: 'how_to_reg', text: '가입 승인제 — 관리자가 승인해야 가입이 완료돼요' },
+    ],
+    improvements: [
+      '올린 메뉴는 먹을 수 있는 음식인지 자동으로 확인해요',
+      '레시피 카드 캐싱 — 탭을 오갈 때 다시 부르지 않아요',
+      '관리자 화면에서 식단을 올린 사용자도 삭제할 수 있어요',
+    ],
+  },
   {
     version: '1.5.0',
     date: '2026-03-31',
@@ -55,7 +69,6 @@ const CHANGELOG = [
       '가격 검색 정확도 개선 (부분 매칭 제거)',
       '직접등록 시 Gemini 기반 이름 정규화',
       '회원가입 비밀번호 에러 메시지 한국어 표시',
-      'API rate limiting 추가 (스캔/레시피)',
     ],
   },
   {
@@ -77,7 +90,6 @@ const CHANGELOG = [
       { icon: 'document_scanner', text: '영수증 스캔으로 식재료 자동 등록 (Gemini AI)' },
       { icon: 'restaurant', text: 'AI 레시피 추천 (냉장고 재료 기반)' },
       { icon: 'account_balance_wallet', text: '가계부 — 지출 차트, 가격 추이, 매장 비교' },
-      { icon: 'menu_book', text: '나만의 레시피 등록 (사진 업로드 지원)' },
       { icon: 'trending_up', text: '인플레이션 알림 (3개월 전 대비 가격 상승)' },
       { icon: 'savings', text: '월별 예산 설정 및 초과 경고' },
     ],
