@@ -32,6 +32,23 @@ D1 무료 플랜에도 Time Travel(30일)이 있지만 그건 우발적 삭제 �
 **Priority:** P2
 **Depends on:** None
 
+### R2 가 계정에서 활성화돼 있지 않다
+
+**What:** `wrangler.jsonc` 에 `eatco-uploads` 바인딩이 있지만 런타임에
+`code 10042: Please enable R2 through the Cloudflare Dashboard` 로 실패한다.
+
+**Why:** 지금은 쓰는 코드가 없어서 영향이 없다. 다만 **바인딩이 있고 배포도
+통과하기 때문에** 다음에 누가 R2 를 쓰려고 하면 조용히 실패한다. 실제로 레시피
+카탈로그 캐시를 R2 에 넣었다가 try/catch 에 삼켜져 아무 일도 안 하고 있었다.
+
+**Context:** 대시보드에서 R2 를 켜면 된다(무료 티어 10GB). 안 켤 거라면
+`wrangler.jsonc` 의 `r2_buckets` 와 `Env.UPLOADS` 타입을 지우는 게 정직하다.
+영수증 원본 이미지 보관 같은 걸 하려면 필요하다.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
 ## Notifications
 
 ### Web Push 가 설정된 적이 없다
