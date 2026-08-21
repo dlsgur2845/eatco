@@ -11,6 +11,19 @@ interface Props {
 const MAX_INGREDIENTS = 30
 const MAX_STEPS = 20
 
+/* 행마다 안정적인 id 를 준다.
+   배열 인덱스를 key 로 쓰면서 가운데 행을 지우면 React 가 DOM 을 인덱스로
+   재사용한다. 값은 controlled 라 맞게 보이지만, **한글 조합 중이던 IME 상태와
+   포커스가 옆 칸으로 옮겨간다.** 재료 이름은 대부분 한글이라 바로 밟는다. */
+interface Row {
+  id: number
+  value: string
+}
+let rowSeq = 0
+function newRow(): Row {
+  return { id: rowSeq++, value: '' }
+}
+
 export default function AddRecipeSheet({ onClose, onCreated }: Props) {
   const panelRef = useModal(true, onClose)
 
@@ -18,22 +31,23 @@ export default function AddRecipeSheet({ onClose, onCreated }: Props) {
   const [category, setCategory] = useState<string>(CATEGORIES[0])
   const [method, setMethod] = useState<string>(METHODS[0])
   // 빈 칸 두 개로 시작한다. 재료는 최소 2개라서, 하나만 보이면 "더 넣어야 하나?" 를 묻게 된다.
-  const [ingredients, setIngredients] = useState<string[]>(['', ''])
-  const [steps, setSteps] = useState<string[]>([''])
+  const [ingredients, setIngredients] = useState<Row[]>(() => [newRow(), newRow()])
+  const [steps, setSteps] = useState<Row[]>(() => [newRow()])
   const [tip, setTip] = useState('')
   const [anonymous, setAnonymous] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const filledIngredients = ingredients.map((s) => s.trim()).filter(Boolean)
-  const filledSteps = steps.map((s) => s.trim()).filter(Boolean)
+  const filledIngredients = ingredients.map((r) => r.value.trim()).filter(Boolean)
+  const filledSteps = steps.map((r) => r.value.trim()).filter(Boolean)
   const canSubmit =
     title.trim().length > 0 && filledIngredients.length >= 2 && filledSteps.length >= 1 && !saving
 
-  function setAt(list: string[], i: number, v: string): string[] {
-    const next = [...list]
-    next[i] = v
-    return next
+  function setAt(list: Row[], id: number, v: string): Row[] {
+    return list.map((r) => (r.id === id ? { ...r, value: v } : r))
+  }
+  function removeAt(list: Row[], id: number): Row[] {
+    return list.filter((r) => r.id !== id)
   }
 
   async function submit() {
@@ -120,7 +134,7 @@ export default function AddRecipeSheet({ onClose, onCreated }: Props) {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="mt-1.5 w-full px-3 py-3 rounded-xl text-base"
+                className="mt-1.5 w-full px-3 min-h-[48px] rounded-xl text-base"
                 style={{
                   backgroundColor: 'var(--color-surface-container-low)',
                   color: 'var(--color-on-surface)',
@@ -137,7 +151,7 @@ export default function AddRecipeSheet({ onClose, onCreated }: Props) {
               <select
                 value={method}
                 onChange={(e) => setMethod(e.target.value)}
-                className="mt-1.5 w-full px-3 py-3 rounded-xl text-base"
+                className="mt-1.5 w-full px-3 min-h-[48px] rounded-xl text-base"
                 style={{
                   backgroundColor: 'var(--color-surface-container-low)',
                   color: 'var(--color-on-surface)',
@@ -156,27 +170,44 @@ export default function AddRecipeSheet({ onClose, onCreated }: Props) {
             <p className="text-sm font-medium" style={{ color: 'var(--color-on-surface)' }}>
               재료 <span style={{ color: 'var(--color-on-surface-variant)' }}>(2개 이상)</span>
             </p>
-            {ingredients.map((v, i) => (
-              <input
-                key={i}
-                value={v}
-                onChange={(e) => setIngredients(setAt(ingredients, i, e.target.value))}
-                maxLength={50}
-                placeholder={i === 0 ? '예: 돼지고기 300g' : '재료를 입력하세요'}
-                aria-label={`재료 ${i + 1}`}
-                className="mt-1.5 w-full px-4 py-3 rounded-xl text-base"
-                style={{
-                  backgroundColor: 'var(--color-surface-container-low)',
-                  color: 'var(--color-on-surface)',
-                  border: '1px solid var(--color-outline-variant)',
-                }}
-              />
+            {ingredients.map((row, i) => (
+              <div key={row.id} className="flex gap-2 mt-1.5">
+                <input
+                  value={row.value}
+                  onChange={(e) => setIngredients(setAt(ingredients, row.id, e.target.value))}
+                  maxLength={50}
+                  placeholder={i === 0 ? '예: 돼지고기 300g' : '재료를 입력하세요'}
+                  aria-label={`재료 ${i + 1}`}
+                  className="flex-1 min-w-0 px-4 py-3 rounded-xl text-base"
+                  style={{
+                    backgroundColor: 'var(--color-surface-container-low)',
+                    color: 'var(--color-on-surface)',
+                    border: '1px solid var(--color-outline-variant)',
+                  }}
+                />
+                {ingredients.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setIngredients(removeAt(ingredients, row.id))}
+                    aria-label={`재료 ${i + 1} 삭제`}
+                    className="flex-shrink-0 w-12 min-h-[48px] rounded-xl flex items-center justify-center active:scale-95 transition-transform"
+                    style={{
+                      backgroundColor: 'var(--color-surface-container-low)',
+                      color: 'var(--color-on-surface-variant)',
+                    }}
+                  >
+                    <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                      close
+                    </span>
+                  </button>
+                )}
+              </div>
             ))}
             {ingredients.length < MAX_INGREDIENTS && (
               <button
                 type="button"
-                onClick={() => setIngredients([...ingredients, ''])}
-                className="mt-2 w-full py-3 rounded-xl text-sm font-medium"
+                onClick={() => setIngredients([...ingredients, newRow()])}
+                className="mt-2 w-full min-h-[48px] rounded-xl text-sm font-medium"
                 style={{ color: 'var(--color-primary)', backgroundColor: 'var(--color-surface-container-low)' }}
               >
                 + 재료 추가
@@ -189,8 +220,8 @@ export default function AddRecipeSheet({ onClose, onCreated }: Props) {
             <p className="text-sm font-medium" style={{ color: 'var(--color-on-surface)' }}>
               조리 순서
             </p>
-            {steps.map((v, i) => (
-              <div key={i} className="flex gap-2 mt-1.5 items-start">
+            {steps.map((row, i) => (
+              <div key={row.id} className="flex gap-2 mt-1.5 items-start">
                 <span
                   className="flex-shrink-0 w-7 h-7 mt-2.5 rounded-full flex items-center justify-center text-xs font-semibold"
                   style={{ backgroundColor: 'var(--color-primary)', color: 'white' }}
@@ -199,26 +230,42 @@ export default function AddRecipeSheet({ onClose, onCreated }: Props) {
                   {i + 1}
                 </span>
                 <textarea
-                  value={v}
-                  onChange={(e) => setSteps(setAt(steps, i, e.target.value))}
+                  value={row.value}
+                  onChange={(e) => setSteps(setAt(steps, row.id, e.target.value))}
                   maxLength={500}
                   rows={2}
                   placeholder={i === 0 ? '예: 냄비에 물을 붓고 끓입니다' : '다음 순서를 입력하세요'}
                   aria-label={`조리 순서 ${i + 1}`}
-                  className="flex-1 px-4 py-3 rounded-xl text-base resize-none"
+                  className="flex-1 min-w-0 px-4 py-3 rounded-xl text-base resize-none"
                   style={{
                     backgroundColor: 'var(--color-surface-container-low)',
                     color: 'var(--color-on-surface)',
                     border: '1px solid var(--color-outline-variant)',
                   }}
                 />
+                {steps.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setSteps(removeAt(steps, row.id))}
+                    aria-label={`조리 순서 ${i + 1} 삭제`}
+                    className="flex-shrink-0 w-12 min-h-[48px] rounded-xl flex items-center justify-center active:scale-95 transition-transform"
+                    style={{
+                      backgroundColor: 'var(--color-surface-container-low)',
+                      color: 'var(--color-on-surface-variant)',
+                    }}
+                  >
+                    <span aria-hidden="true" className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                      close
+                    </span>
+                  </button>
+                )}
               </div>
             ))}
             {steps.length < MAX_STEPS && (
               <button
                 type="button"
-                onClick={() => setSteps([...steps, ''])}
-                className="mt-2 w-full py-3 rounded-xl text-sm font-medium"
+                onClick={() => setSteps([...steps, newRow()])}
+                className="mt-2 w-full min-h-[48px] rounded-xl text-sm font-medium"
                 style={{ color: 'var(--color-primary)', backgroundColor: 'var(--color-surface-container-low)' }}
               >
                 + 순서 추가
