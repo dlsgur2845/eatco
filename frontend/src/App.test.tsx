@@ -6,7 +6,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ScrollToTopOnTabChange } from './App'
 
 // App.tsx 는 AuthGuard 에서 api 를 부른다. 여기서는 그 컴포넌트만 쓰므로 막아둔다.
-vi.mock('./api/client', () => ({ default: { get: vi.fn(), post: vi.fn() } }))
+// recipes.ts 가 registerFridgeChangeHandler 를 부르므로 같이 내보내야 한다.
+vi.mock('./api/client', () => ({
+  default: { get: vi.fn(), post: vi.fn() },
+  registerFridgeChangeHandler: vi.fn(),
+}))
 
 function Nav() {
   const navigate = useNavigate()

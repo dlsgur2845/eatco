@@ -78,9 +78,53 @@ function isWordMatch(a: string, b: string): boolean {
   return false
 }
 
+/* R2 에 올려두는 카탈로그 사본. 아이소레이트 캐시만으로는 부족해서 넣었다.
+
+   `recipeCache` 는 **아이소레이트 메모리**다. Cloudflare 는 아이소레이트를 수시로
+   재활용하므로 6시간 TTL 이 실제로 6시간 가는 게 아니다. 콜드 아이소레이트마다
+   공공 API 로 1,000건짜리 요청을 두 번 날린다. 그 API 는 하루 트래픽 제한이 있다.
+
+   R2 는 아이소레이트와 무관하게 남는다. 순서는 메모리 → R2 → 공공 API 이고,
+   공공 API 를 부르는 건 R2 사본까지 만료됐을 때뿐이다. */
+const R2_CATALOG_KEY = 'recipes/foodsafety-catalog.json'
+
+async function readCatalogFromR2(env: Env): Promise<Recipe[] | null> {
+  try {
+    const obj = await env.UPLOADS.get(R2_CATALOG_KEY)
+    if (!obj) return null
+    const savedAt = Number(obj.customMetadata?.savedAt ?? 0)
+    if (!savedAt || Date.now() - savedAt >= CACHE_TTL_MS) return null
+    const data = (await obj.json()) as Recipe[]
+    return Array.isArray(data) && data.length ? data : null
+  } catch (e) {
+    // 캐시는 있으면 좋은 것이지 없으면 안 되는 게 아니다. 실패하면 공공 API 로 간다.
+    console.warn('레시피 R2 캐시 읽기 실패:', e)
+    return null
+  }
+}
+
+async function writeCatalogToR2(env: Env, data: Recipe[]): Promise<void> {
+  try {
+    await env.UPLOADS.put(R2_CATALOG_KEY, JSON.stringify(data), {
+      httpMetadata: { contentType: 'application/json' },
+      customMetadata: { savedAt: String(Date.now()), count: String(data.length) },
+    })
+  } catch (e) {
+    console.warn('레시피 R2 캐시 쓰기 실패:', e)
+  }
+}
+
 async function fetchRecipes(env: Env): Promise<Recipe[]> {
   const now = Date.now()
   if (recipeCache && now - recipeCache.at < CACHE_TTL_MS) return recipeCache.data
+
+  // 아이소레이트가 새로 떴어도 R2 사본이 살아 있으면 공공 API 를 안 부른다.
+  const cached = await readCatalogFromR2(env)
+  if (cached) {
+    recipeCache = { at: now, data: cached }
+    return cached
+  }
+
   const key = env.RECIPE_API_KEY
   if (!key) return []
 
@@ -121,7 +165,11 @@ async function fetchRecipes(env: Env): Promise<Recipe[]> {
       break
     }
   }
-  if (out.length) recipeCache = { at: now, data: out }
+  if (out.length) {
+    recipeCache = { at: now, data: out }
+    // 다음 콜드 아이소레이트가 공공 API 를 다시 안 부르도록 사본을 남긴다.
+    await writeCatalogToR2(env, out)
+  }
   return out
 }
 

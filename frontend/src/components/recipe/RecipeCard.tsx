@@ -23,12 +23,22 @@ const SOURCE_ICON: Record<string, string> = {
 export default function RecipeCard({ recipe }: Props) {
   const [showDetail, setShowDetail] = useState(false)
   const pct = Math.round(recipe.match_ratio * 100)
-  const sourceLabel = SOURCE_LABEL[recipe.source] || recipe.source
+  /* `source` 는 서버가 실제로 안 보낸다 (응답 키 실측 확인). 타입을 optional 로
+     바꾸자 여기가 타입 에러로 드러났다 — manual_images 를 흰 화면으로 만든 것과
+     같은 종류의 거짓말이 두 곳 더 있었던 것이다. 없으면 출처 줄을 안 그린다. */
+  const sourceLabel = recipe.source ? SOURCE_LABEL[recipe.source] || recipe.source : ''
+  const sourceIcon = (recipe.source && SOURCE_ICON[recipe.source]) || 'public'
 
   return (
     <>
-      <div
-        className="flex-shrink-0 w-56 rounded-2xl overflow-hidden cursor-pointer transition-transform active:scale-95"
+      {/* button 이어야 한다. 예전엔 onClick 만 달린 div 라 키보드로 못 열고
+          스크린리더에는 컨트롤로 보이지도 않았다 (DESIGN.md §6: 클릭 가능한 div 에는
+          role·tabIndex·키 핸들러를 붙이거나 button 을 쓴다). 안에 다른 컨트롤이
+          없으므로 통째로 button 으로 바꾸는 게 가장 단순하다. */}
+      <button
+        type="button"
+        aria-label={`${recipe.name} 레시피 보기`}
+        className="flex-shrink-0 w-56 text-left rounded-2xl overflow-hidden transition-transform active:scale-95"
         style={{ backgroundColor: 'var(--color-surface-container-lowest)' }}
         onClick={() => setShowDetail(true)}
       >
@@ -77,7 +87,7 @@ export default function RecipeCard({ recipe }: Props) {
                 className="material-symbols-outlined"
                 style={{ fontSize: '14px', color: 'var(--color-outline)' }}
               >
-                {SOURCE_ICON[recipe.source] || 'public'}
+                {sourceIcon}
               </span>
               <span className="text-xs" style={{ color: 'var(--color-outline)' }}>
                 {sourceLabel}
@@ -85,7 +95,7 @@ export default function RecipeCard({ recipe }: Props) {
             </div>
           )}
         </div>
-      </div>
+      </button>
 
       {showDetail && (
         <RecipeDetailModal recipe={recipe} onClose={() => setShowDetail(false)} />
