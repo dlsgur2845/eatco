@@ -63,7 +63,9 @@ export default function RecipeCard({ recipe }: Props) {
 
           <div className="flex items-center justify-between mt-2">
             <span className="text-xs" style={{ color: 'var(--color-on-surface-variant)' }}>
-              {recipe.cooking_method} · {recipe.calories}kcal
+              {/* 칼로리가 없으면 단위도 안 쓴다. 예전엔 "굽기 · kcal" 이 나왔다 —
+                  사용자가 올린 레시피는 Gemini 가 추정에 실패하면 빈 값이다. */}
+              {recipe.calories ? `${recipe.cooking_method} · ${recipe.calories}kcal` : recipe.cooking_method}
             </span>
             <span
               className="text-xs font-semibold px-2 py-0.5 rounded-full"
