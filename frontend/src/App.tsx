@@ -1,5 +1,13 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
+import {
+  BrowserRouter,
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom'
 import api from './api/client'
 import LoginPage from './pages/LoginPage'
 import RegisterAccountPage from './pages/RegisterAccountPage'
@@ -80,9 +88,47 @@ function AuthGuard() {
   return <Outlet />
 }
 
+/**
+ * 탭을 옮기면 화면 맨 위에서 시작한다.
+ *
+ * `BrowserRouter` 는 스크롤을 건드리지 않는다. react-router 의 `ScrollRestoration`
+ * 은 데이터 라우터(`createBrowserRouter`) 전용이라 여기서는 못 쓴다. 그래서
+ * 라우트가 바뀌어도 `window.scrollY` 가 그대로 남는다.
+ *
+ * 식단 탭이 오늘 날짜로 984px 을 자동으로 내려놓기 때문에 이게 특히 아팠다.
+ * 실측(390×844, 식단에서 scrollY 984):
+ *   재고로 이동 → scrollY 707, "식재료" 제목이 화면 위 548px 밖
+ *   설정으로   → scrollY 811, "알림 설정" 제목이 652px 밖
+ *   냉장고로   → scrollY 0     (우연히 멀쩡했다)
+ *
+ * 냉장고가 멀쩡했던 건 고쳐져 있어서가 아니라, 로딩 스켈레톤이 3줄뿐이라
+ * 문서가 잠깐 짧아지면서 **브라우저가 스크롤을 0 으로 눌러줬기** 때문이다.
+ * 재고·설정은 헤더와 폼을 바로 그려서 문서가 계속 길고, 그래서 살아남았다.
+ * 즉 어느 탭이 맨 위에서 시작하느냐가 우연에 달려 있었다.
+ *
+ * **같은 탭 안의 이동은 건드리지 않는다.** 알림에서 온 딥링크가
+ * `/calendar/<id>` 이고, 상세를 닫으면 `/calendar` 로 replace 한다.
+ * 경로가 바뀔 때마다 위로 올리면 모달을 닫는 순간 보던 자리를 뺏긴다.
+ * 첫 경로 조각만 비교해서 탭이 실제로 바뀐 경우에만 올린다.
+ */
+export function ScrollToTopOnTabChange() {
+  const { pathname } = useLocation()
+  const lastTab = useRef<string | null>(null)
+
+  useEffect(() => {
+    const tab = pathname.split('/')[1] ?? ''
+    if (lastTab.current === tab) return
+    lastTab.current = tab
+    window.scrollTo({ top: 0, behavior: 'auto' })
+  }, [pathname])
+
+  return null
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTopOnTabChange />
       <Routes>
         {/* 공개 라우트 */}
         <Route path="/login" element={<LoginPage />} />
