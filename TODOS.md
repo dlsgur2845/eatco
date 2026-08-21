@@ -39,6 +39,40 @@ D1 HTTP API 를 직접 부르거나 GitHub Actions 로 빼야 한다.
 **Priority:** P2
 **Depends on:** None
 
+### 다크 모드가 없다 (iOS·Android 둘 다)
+
+**What:** `prefers-color-scheme` 선언이 프론트에 **0곳**이다. 기기를 다크로
+써도 앱은 항상 흰 화면이다.
+
+**Why:** 냉장고 앱은 밤에 많이 열린다. iOS/Android 둘 다 다크가 기본인
+사용자가 흔하고, 어두운 데서 흰 화면은 눈이 부시다. PWA 라 시스템 설정을
+그대로 따라가면 되는데 지금은 무시한다.
+
+**Context:** 색이 이미 전부 `--color-*` 토큰이라(index.css) 토큰만 다크값으로
+갈아끼우면 된다. 주의할 곳: 초록 브랜드 면(가족 화면 초대 카드)은 다크에서
+그대로 쓰면 너무 튄다. DESIGN.md 에 다크 팔레트를 먼저 정의하는 게 순서다.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** DESIGN.md 다크 팔레트 정의
+
+### 빈 상태 아이콘이 거의 안 보인다
+
+**What:** `notifications_off`(1.62:1), `photo_camera`(1.68:1),
+`restaurant`(1.95:1). 옆에 설명 글이 있어서 WCAG 위반은 아니지만(장식으로
+분류), 눈으로 보면 거의 안 보인다.
+
+**Why:** 빈 상태에서 아이콘은 "여기가 비었다" 를 한눈에 알리는 역할인데
+지금은 배경에 묻힌다. 예전에 10px 아이콘이 "의미를 알 수 없는 점 하나" 로
+보였던 것과 같은 종류다.
+
+**Context:** `opacity: 0.4~0.5` 와 `text-outline-variant` 가 겹쳐서 그렇다.
+둘 중 하나만 쓰면 된다.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** None
+
 ### 대시보드 HTML 이 엣지에 캐시된다
 
 **What:** 배포 직후 `https://eatco.dlsgur2845.workers.dev/` 를 그냥 받으면
