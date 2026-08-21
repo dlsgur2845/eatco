@@ -4,6 +4,7 @@ import {
   LineChart, Line,
 } from 'recharts'
 import api from '../api/client'
+import { josa } from '../lib/korean'
 
 interface MonthlyExpense { month: string; total: number; count: number }
 interface ItemPricePoint { date: string; price: number; store_name: string | null; quantity: string | null; name: string | null }
@@ -160,7 +161,9 @@ export default function ExpensesPage() {
             <div key={i} className="bg-tertiary-container/10 rounded-2xl p-4 flex items-center gap-3">
               <span className="material-symbols-outlined text-tertiary">trending_up</span>
               <p className="text-sm text-on-surface flex-1 min-w-0">
-                <strong>{a.name}</strong>이(가) 3개월 전보다 <strong className="text-tertiary">{a.change_pct}%</strong> 비싸졌어요
+                <strong>{a.name}</strong>
+                {josa(a.name, '이')} 3개월 전보다{' '}
+                <strong className="text-tertiary">{a.change_pct}%</strong> 비싸졌어요
                 <span className="text-on-surface-variant ml-2">
                   ({a.old_price.toLocaleString()}원 → {a.current_price.toLocaleString()}원)
                 </span>
@@ -235,8 +238,8 @@ export default function ExpensesPage() {
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={monthly}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-surface-container)" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} tickFormatter={v => v.slice(5)} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={v => formatPrice(v as number)} />
+                  <XAxis dataKey="month" tick={{ fontSize: 12 }} tickFormatter={v => v.slice(5)} />
+                  <YAxis tick={{ fontSize: 12 }} tickFormatter={v => formatPrice(v as number)} />
                   <Tooltip formatter={(v) => [`${Number(v).toLocaleString()}원`, '지출']} />
                   <Bar dataKey="total" fill="var(--color-primary-container)" radius={[8, 8, 0, 0]} />
                 </BarChart>
@@ -323,8 +326,8 @@ export default function ExpensesPage() {
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={itemPrices}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-surface-container)" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={v => v.slice(5)} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v as number).toLocaleString()}`} />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={v => v.slice(5)} />
+                  <YAxis tick={{ fontSize: 12 }} tickFormatter={v => `${(v as number).toLocaleString()}`} />
                   <Tooltip
                     formatter={(v) => [`${Number(v).toLocaleString()}원`, '가격']}
                     labelFormatter={l => `${l}`}

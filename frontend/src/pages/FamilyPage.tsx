@@ -84,7 +84,9 @@ function FamilyManageView({
                 현재 가족 구성원
               </h3>
               <span className="text-xs bg-primary-container/10 text-primary font-bold px-3 py-1 rounded-full">
-                {localFamily.members.length} MEMBERS
+                {/* "1 MEMBERS" 였다. 한국어 화면에 영어인 것도 문제지만
+                    1인데 복수형이라 더 어색했다. 한국어에는 복수형이 없다. */}
+                {localFamily.members.length}명
               </span>
             </div>
 
@@ -124,9 +126,12 @@ function FamilyManageView({
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {/* "MASTER" 였다. 바로 옆줄에 이미 "관리자 ·" 가 있어서
+                          영어인 것과 별개로 같은 말을 두 번 하고 있었다.
+                          tracking-widest 도 뺀다 — 한글은 자간을 벌리면 음절이 흩어진다. */}
                       {isAdmin && (
-                        <span className="text-xs text-primary font-bold tracking-widest bg-primary/5 px-2 py-1 rounded">
-                          MASTER
+                        <span className="text-xs text-primary font-bold bg-primary/5 px-2 py-1 rounded">
+                          방장
                         </span>
                       )}
                       {!isAdmin && !isMe && currentUser.id === localFamily.master_id && (
@@ -282,15 +287,31 @@ function FamilyManageView({
                       : '마스터만 이 설정을 변경할 수 있습니다.'}
                   </p>
                 </div>
+                {/* 실측 48×24px 이었고 `aria-label` 도 없었다 — 이번 감사에서
+                    앱 전체를 통틀어 이름 없는 컨트롤은 이거 하나였다.
+                    스위치는 보이는 크기(48×24)를 유지하되 탭 영역을 48px 로 키운다:
+                    바깥 button 이 48px 높이를 잡고, 안쪽 div 가 스위치 모양을 그린다.
+                    `role="switch"` + `aria-checked` 로 상태도 낭독되게 한다. */}
                 <button
                   type="button"
+                  role="switch"
+                  aria-checked={localFamily.allow_shared_edit}
+                  aria-label="구성원이 함께 수정하도록 허용"
                   onClick={() => toggleSetting('allow_shared_edit')}
                   disabled={currentUser.id !== localFamily.master_id}
-                  className={`w-12 h-6 rounded-full relative p-1 flex items-center transition-colors ${
-                    localFamily.allow_shared_edit ? 'bg-primary justify-end' : 'bg-surface-container-highest justify-start'
-                  } ${currentUser.id !== localFamily.master_id ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  className={`shrink-0 min-w-[48px] min-h-[48px] inline-flex items-center justify-center ${
+                    currentUser.id !== localFamily.master_id ? 'opacity-40 cursor-not-allowed' : ''
+                  }`}
                 >
-                  <div className="w-4 h-4 bg-white rounded-full" />
+                  <span
+                    className={`w-12 h-6 rounded-full p-1 flex items-center transition-colors ${
+                      localFamily.allow_shared_edit
+                        ? 'bg-primary justify-end'
+                        : 'bg-surface-container-highest justify-start'
+                    }`}
+                  >
+                    <span className="w-4 h-4 bg-white rounded-full block" />
+                  </span>
                 </button>
               </div>
 

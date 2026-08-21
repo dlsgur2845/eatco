@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import { useModal } from '../hooks/useModal'
 import type { AdminFamily, AdminStats, AdminUser, User } from '../types'
+import { withJosa } from '../lib/korean'
+import { formatDate as sharedFormatDate } from '../lib/format'
 
 /* ──────────────────────────────────────────────
    확인 모달
@@ -89,10 +91,11 @@ function StatTile({ label, value, icon }: { label: string; value: number; icon: 
   )
 }
 
-function formatDate(iso: string): string {
-  // D1 은 'YYYY-MM-DD HH:MM:SS' 또는 ISO 로 준다. 앞 10자만 쓰면 둘 다 맞는다.
-  return (iso || '').slice(0, 10)
-}
+/* 여기 자체 formatDate 가 따로 있었다 (`iso.slice(0, 10)`). `lib/format.ts` 의
+   docstring 이 "앱 전체가 이 하나를 쓴다" 라고 적어놓고 실제로는 세 곳 중 두 곳만
+   쓰고 있었던 것이다. 관리자 화면만 `2026-08-21` 로 남아 있었다.
+   D1 의 공백 구분자 형식은 공유 함수가 처리한다. */
+const formatDate = sharedFormatDate
 
 /* ──────────────────────────────────────────────
    사용자 목록
@@ -279,7 +282,7 @@ export default function AdminPage() {
         flash(`${pending.user.nickname}님을 삭제했어요.`)
       } else {
         await api.delete(`/admin/families/${pending.family.id}`)
-        flash(`${pending.family.name}을(를) 삭제했어요.`)
+        flash(`${withJosa(pending.family.name, '을')} 삭제했어요.`)
       }
       setPending(null)
       load()

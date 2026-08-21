@@ -3,8 +3,9 @@ import { freshness, freshnessColor, freshnessBg, daysLabel } from '../lib/freshn
 import { useModal } from '../hooks/useModal'
 import api from '../api/client'
 import { QuantityInput } from '../components/ingredients/QuantityInput'
-import { formatQuantity } from '../lib/format'
+import { formatQuantity, formatDate } from '../lib/format'
 import type { Category, Ingredient, IngredientCreate, IngredientUnit, StorageMethod } from '../types'
+import { withJosa } from '../lib/korean'
 
 /* ── Constants ── */
 const storageFilters: { value: StorageMethod | 'all'; label: string }[] = [
@@ -14,17 +15,24 @@ const storageFilters: { value: StorageMethod | 'all'; label: string }[] = [
   { value: 'room_temp', label: '실온' },
 ]
 
-const storageMethods: { value: StorageMethod; icon: string; label: string }[] = [
-  { value: 'refrigerated', icon: 'ac_unit', label: '냉장' },
-  { value: 'frozen', icon: 'kitchen', label: '냉동' },
-  { value: 'room_temp', icon: 'wb_sunny', label: '실온' },
-]
-
-const storageIcons: Record<StorageMethod, string> = {
-  refrigerated: 'ac_unit',
-  frozen: 'kitchen',
+/* 아이콘 의미가 뒤바뀌어 있었다.
+   `ac_unit` 은 눈송이(❄), `kitchen` 은 냉장고장 모양이다. 그런데 냉장에 눈송이를,
+   냉동에 냉장고장을 붙여놔서 실기기 캡처에서 **냉장 보관인 시금치·삼겹살에
+   눈송이가 떠 있었다.** 사용자는 라벨보다 아이콘을 먼저 본다. */
+const STORAGE_ICONS: Record<StorageMethod, string> = {
+  refrigerated: 'kitchen', // 냉장고장
+  frozen: 'ac_unit', // 눈송이
   room_temp: 'wb_sunny',
 }
+
+const storageMethods: { value: StorageMethod; icon: string; label: string }[] = [
+  { value: 'refrigerated', icon: STORAGE_ICONS.refrigerated, label: '냉장' },
+  { value: 'frozen', icon: STORAGE_ICONS.frozen, label: '냉동' },
+  { value: 'room_temp', icon: STORAGE_ICONS.room_temp, label: '실온' },
+]
+
+// 예전엔 같은 표가 두 벌이라 한쪽만 고치면 화면마다 아이콘이 달라졌다.
+const storageIcons = STORAGE_ICONS
 
 interface StorageGuide {
   keyword: string
@@ -106,7 +114,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
       room_temp: guide.room_temp_days,
     }
     const d = days[method]
-    if (d == null) return `${guide.keyword}은(는) 이 방법으로 보관을 권장하지 않아요`
+    if (d == null) return `${withJosa(guide.keyword, '은')} 이 방법으로 보관을 권장하지 않아요`
     return `${guide.keyword} ${storageMethods.find((s) => s.value === method)!.label} 보관 시 ${formatDays(d)}`
   }
 
@@ -772,7 +780,7 @@ export default function InventoryPage() {
                     {v.text}
                   </span>
                 </div>
-                <p className="text-xs text-on-surface-variant mb-1">등록일: {item.registered_at.slice(0, 10)}</p>
+                <p className="text-xs text-on-surface-variant mb-1">등록일: {formatDate(item.registered_at)}</p>
                 <p className="text-xs text-on-surface-variant mb-2">
                   남은 수량: <span className="font-semibold text-on-surface">{formatQuantity(item)}</span>
                 </p>

@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { ApiError, readJson } from '../lib/errors'
 import { nowIso } from '../lib/dates'
 import { requireFamily } from '../lib/identity'
+import { withJosa } from '../lib/korean'
 import type { Env, Vars } from '../lib/types'
 
 /**
@@ -136,7 +137,8 @@ app.post('/', async (c) => {
       familyId,
       'meal_plan',
       '새 식단이 올라왔어요',
-      `${user.nickname}님이 ${human(planDate)} ${SLOT_LABEL[slot]}에 ${title.slice(0, 60)}을(를) 올렸어요`,
+      // 예전엔 `${title}을(를)` 이라 화면에 "계란후라이을(를) 올렸어요" 로 나왔다.
+      `${user.nickname}님이 ${human(planDate)} ${SLOT_LABEL[slot]}에 ${withJosa(title.slice(0, 60), '을')} 올렸어요`,
       `/calendar/${id}`,
       user.id,
     ),

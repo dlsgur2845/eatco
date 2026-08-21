@@ -6,6 +6,8 @@ import { logEvent } from '../api/events'
 import { getRecommendations, type Recipe } from '../api/recipes'
 import { deleteItem, getItems, updateItem, type DashboardItem } from '../api/scan'
 import RecipeCard from '../components/recipe/RecipeCard'
+import { josa } from '../lib/korean'
+import { formatDate } from '../lib/format'
 
 interface InflationAlert { name: string; current_price: number; old_price: number; change_pct: number }
 interface BudgetInfo { monthly_budget: number | null; spent_this_month: number }
@@ -158,7 +160,8 @@ export default function MvpDashboardPage() {
             <div key={i} className="rounded-2xl px-4 py-3 flex items-center gap-3" style={{ backgroundColor: 'color-mix(in srgb, var(--color-tertiary-container) 10%, white)' }}>
               <span className="material-symbols-outlined text-sm" style={{ color: 'var(--color-tertiary)' }}>trending_up</span>
               <p className="text-xs" style={{ color: 'var(--color-on-surface)' }}>
-                <strong>{a.name}</strong>이(가) {a.change_pct}% 비싸졌어요
+                <strong>{a.name}</strong>
+                {josa(a.name, '이')} {a.change_pct}% 비싸졌어요
                 <span className="ml-1" style={{ color: 'var(--color-on-surface-variant)' }}>
                   ({a.old_price.toLocaleString()}원 → {a.current_price.toLocaleString()}원)
                 </span>
@@ -326,7 +329,12 @@ function ItemRow({
   const [editing, setEditing] = useState(false)
   const [editQty, setEditQty] = useState(item.quantity || '')
   const storageLabel = item.storage_method === 'refrigerated' ? '냉장' : item.storage_method === 'frozen' ? '냉동' : '실온'
-  const regDate = item.registered_at ? new Date(item.registered_at).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }) + '일' : ''
+  /* 예전엔 화면에 "8. 21.일" 로 나왔다.
+     toLocaleDateString('ko-KR', {month:'numeric', day:'numeric'}) 은 이미
+     "8. 21." 을 돌려주는데 거기에 '일' 을 또 붙이고 있었다.
+     재고 화면은 같은 값을 "2026-08-21" 로 보여주고 있어서 형식도 둘로 갈렸다.
+     한 곳에서 "8월 21일" 로 통일한다. */
+  const regDate = item.registered_at ? formatDate(item.registered_at) : ''
   const byWho = item.registered_by ? ` · ${item.registered_by}` : ''
   const qtyText = item.quantity ? ` · ${item.quantity}` : ''
   const priceText = item.price ? ` · ${item.price.toLocaleString()}원` : ''
