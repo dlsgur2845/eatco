@@ -8,7 +8,7 @@ import type { NotificationSetting } from '../types'
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<NotificationSetting[]>([])
-  const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null
+  const user = sessionStorage.getItem('user') ? JSON.parse(sessionStorage.getItem('user')!) : null
   const { permission, subscribed, loading: pushLoading, subscribe, unsubscribe, isSupported, isIOS } =
     usePushNotification()
 
@@ -37,7 +37,7 @@ export default function SettingsPage() {
     } catch {
       /* ignore */
     }
-    localStorage.removeItem('user')
+    sessionStorage.removeItem('user')
     window.location.href = '/login'
   }
 
@@ -142,16 +142,6 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
-          <Link
-            to="/expenses"
-            className="flex items-center justify-between p-5 hover:bg-primary/5 transition-colors"
-          >
-            <div className="flex items-center gap-4">
-              <span aria-hidden="true" className="material-symbols-outlined text-outline">account_balance_wallet</span>
-              <span className="font-medium">가계부</span>
-            </div>
-            <span aria-hidden="true" className="material-symbols-outlined text-outline text-sm">chevron_right</span>
-          </Link>
           <Link
             to="/family"
             className="flex items-center justify-between p-5 hover:bg-primary/5 transition-colors"

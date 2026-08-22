@@ -1,0 +1,16 @@
+-- 0007 — 닉네임 중복 가입 차단
+--
+-- 이메일은 0001 부터 테이블 수준 UNIQUE 가 있었다. 닉네임은 없었다 —
+-- 같은 이름으로 몇 명이든 가입할 수 있었고, 가족 화면에 "손보경" 이 둘
+-- 나란히 뜨면 누가 누군지 알 방법이 없다.
+--
+-- **대소문자를 구분하지 않는다.** "Anna" 와 "anna" 는 화면에서 같은 사람으로
+-- 읽힌다. 이메일은 코드에서 toLowerCase() 한 뒤 저장하므로 평문 UNIQUE 로
+-- 충분하지만, 닉네임은 사용자가 쓴 대소문자를 그대로 보여줘야 해서
+-- 저장은 원본대로 하고 **인덱스만 LOWER()** 로 건다.
+--
+-- 적용 전 프로덕션 확인: 사용자 2명, LOWER(nickname) distinct 2 — 충돌 없음.
+-- 충돌이 있으면 이 인덱스 생성이 실패하므로, 나중에 다른 DB 에 적용할 때는
+-- 먼저 확인할 것:
+--   SELECT LOWER(nickname), COUNT(*) FROM users GROUP BY 1 HAVING COUNT(*)>1;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_users_nickname_lower ON users(LOWER(nickname));

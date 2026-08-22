@@ -4,6 +4,7 @@ import { nowIso } from '../lib/dates'
 import type { Env, Vars } from '../lib/types'
 import { hashPassword, verifyPassword } from '../lib/password'
 import { createSession, sessionCookie, clearCookie } from '../lib/session'
+import { validateNickname } from '../lib/nickname'
 import { uniqueInviteCode, notificationSettingStatements, createSoloFamily, consumeInviteCode, rotateInviteCode } from '../lib/family'
 import { roleForNewUser, requireFamily } from '../lib/identity'
 
@@ -23,17 +24,32 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 publicAuth.post('/register', async (c) => {
   const b = await readJson<{ email: string; nickname: string; password: string; invite_code?: string }>(c.req)
   const email = String(b.email ?? '').trim().toLowerCase()
-  const nickname = String(b.nickname ?? '').trim()
+  const nicknameCheck = validateNickname(b.nickname)
+  if (!nicknameCheck.ok) throw new ApiError(422, nicknameCheck.message)
+  const nickname = nicknameCheck.value
   const password = String(b.password ?? '')
   const invite = String(b.invite_code ?? '').trim().toUpperCase()
 
   if (!EMAIL_RE.test(email)) throw new ApiError(422, '이메일 형식이 올바르지 않습니다.')
-  if (!nickname) throw new ApiError(422, '이름을 입력해주세요.')
   if (password.length < 8) throw new ApiError(422, '비밀번호는 8자 이상이어야 합니다.')
   if (password.length > 200) throw new ApiError(422, '비밀번호가 너무 깁니다.')
 
-  const dup = await c.env.DB.prepare('SELECT 1 FROM users WHERE email = ?').bind(email).first()
-  if (dup) throw new ApiError(409, '이미 가입된 이메일입니다.')
+  /* 이메일과 닉네임 둘 다 중복 금지.
+   *
+   * 진짜 방어선은 DB 다 — 이메일은 테이블 UNIQUE, 닉네임은 0007 의
+   * UNIQUE INDEX(LOWER(nickname)). 두 사람이 동시에 같은 값으로 가입하면
+   * 아래 SELECT 는 둘 다 통과하지만 INSERT 는 하나만 성공한다.
+   *
+   * 그런데도 여기서 미리 보는 이유는 **메시지** 때문이다. 제약에 걸리면
+   * 사용자에게는 500 이 나간다. "이미 가입된 이메일입니다" 를 보여주려면
+   * 먼저 물어봐야 한다. 경합에서 진 쪽은 아래 catch 가 받는다. */
+  const dupEmail = await c.env.DB.prepare('SELECT 1 FROM users WHERE email = ?').bind(email).first()
+  if (dupEmail) throw new ApiError(409, '이미 가입된 이메일입니다.')
+  const dupNick = await c.env.DB
+    .prepare('SELECT 1 FROM users WHERE LOWER(nickname) = LOWER(?)')
+    .bind(nickname)
+    .first()
+  if (dupNick) throw new ApiError(409, '이미 쓰이고 있는 닉네임이에요. 다른 이름을 써주세요.')
 
   const id = crypto.randomUUID()
   // 첫 가입자는 관리자 1호. 판정은 INSERT 직전에 한다.
@@ -61,15 +77,25 @@ publicAuth.post('/register', async (c) => {
   // 관리자 1호는 승인해줄 사람이 없으므로 자동 승인한다 — 안 그러면 아무도 못 들어온다.
   // 초대 링크로 온 사람도 자동 승인이다 (위 주석 참고).
   const approved = role === 'admin' || invitedFamily ? 1 : 0
-  await c.env.DB.prepare(
-    'INSERT INTO users (id, email, nickname, hashed_password, family_id, created_at, role, approved) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-  )
-    .bind(id, email, nickname.slice(0, 50), await hashPassword(password), invitedFamily?.id ?? null, nowIso(), role, approved)
-    .run()
+  try {
+    await c.env.DB.prepare(
+      'INSERT INTO users (id, email, nickname, hashed_password, family_id, created_at, role, approved) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    )
+      .bind(id, email, nickname, await hashPassword(password), invitedFamily?.id ?? null, nowIso(), role, approved)
+      .run()
+  } catch (e) {
+    // 위 SELECT 와 이 INSERT 사이에 누가 먼저 같은 값으로 들어온 경우.
+    // UNIQUE 제약이 잡아주고, 여기서 사람이 읽을 문장으로 바꾼다.
+    if (/UNIQUE|constraint/i.test(String(e))) {
+      throw new ApiError(409, '이미 쓰이고 있는 이메일 또는 닉네임이에요.')
+    }
+    throw e
+  }
 
   // 초대로 들어왔으면 가족이 이미 정해졌다. 1인 가족을 만들지 않는다.
   if (invitedFamily) {
-    c.header('Set-Cookie', sessionCookie(await createSession(c.env, id)))
+    // 가입 화면에는 "로그인 유지" 가 없다. 유지하지 않는 쪽이 기본이다.
+    c.header('Set-Cookie', sessionCookie(await createSession(c.env, id, false), false))
     return c.json(
       { id, email, nickname, family_id: invitedFamily.id, family_name: invitedFamily.name, role, approved: true },
       201,
@@ -97,7 +123,7 @@ publicAuth.post('/register', async (c) => {
   // 승인된 경우(= 관리자 1호)에만 즉시 만든다. 안 만들면 가입 직후 가족 스코프
   // 엔드포인트가 전부 400 이고, 프론트에는 가족 생성 온보딩 화면이 없다.
   const familyId = await createSoloFamily(c.env.DB, id, nickname.slice(0, 50))
-  c.header('Set-Cookie', sessionCookie(await createSession(c.env, id)))
+  c.header('Set-Cookie', sessionCookie(await createSession(c.env, id, false), false))
   return c.json({ id, email, nickname, family_id: familyId, role, approved: true }, 201)
 })
 
@@ -121,7 +147,7 @@ publicAuth.get('/family/invite/:code', async (c) => {
 })
 
 publicAuth.post('/login', async (c) => {
-  const b = await readJson<{ email: string; password: string }>(c.req)
+  const b = await readJson<{ email: string; password: string; remember?: boolean }>(c.req)
   const email = String(b.email ?? '').trim().toLowerCase()
   const password = String(b.password ?? '')
 
@@ -140,7 +166,12 @@ publicAuth.post('/login', async (c) => {
     throw new ApiError(403, '아직 승인되지 않은 계정이에요. 관리자 승인 후 이용할 수 있어요.')
   }
 
-  c.header('Set-Cookie', sessionCookie(await createSession(c.env, user.id)))
+  /* "로그인 유지" 를 켰을 때만 브라우저가 쿠키를 저장한다.
+     안 켜면 Max-Age 없는 세션 쿠키라 브라우저를 닫는 순간 사라진다.
+     예전엔 항상 7일이라, 공용 컴퓨터에서 브라우저만 닫으면 다음 사람이
+     그대로 로그인 상태로 들어갔다. */
+  const remember = b.remember === true
+  c.header('Set-Cookie', sessionCookie(await createSession(c.env, user.id, remember), remember))
   return c.json({ id: user.id, email: user.email, nickname: user.nickname, family_id: user.family_id, role: user.role })
 })
 
@@ -174,11 +205,90 @@ app.patch('/family/settings', async (c) => {
 app.patch('/me', async (c) => {
   const user = c.get('user')
   const body = await readJson<{ nickname: string }>(c.req)
-  const nickname = (body.nickname || '').trim()
-  if (!nickname) throw new ApiError(422, '이름을 입력해주세요.')
-  if (nickname.length > 50) throw new ApiError(422, '이름은 50자 이내로 입력해주세요.')
-  await c.env.DB.prepare('UPDATE users SET nickname = ? WHERE id = ?').bind(nickname, user.id).run()
+  const checked = validateNickname(body.nickname)
+  if (!checked.ok) throw new ApiError(422, checked.message)
+  const nickname = checked.value
+  if (nickname === user.nickname) return c.json({ ...user, nickname })
+
+  // 남이 쓰고 있는 닉네임으로는 못 바꾼다 (가입과 같은 규칙).
+  const taken = await c.env.DB
+    .prepare('SELECT 1 FROM users WHERE LOWER(nickname) = LOWER(?) AND id != ?')
+    .bind(nickname, user.id)
+    .first()
+  if (taken) throw new ApiError(409, '이미 쓰이고 있는 닉네임이에요. 다른 이름을 써주세요.')
+
+  /* 닉네임 사본이 **네 군데** 있다. 전부 같이 바꾼다.
+   *
+   *   meal_plans.created_by_name   — 식단을 올린 사람
+   *   meal_comments.created_by_name — 댓글 쓴 사람
+   *   shared_recipes.author_name    — 공유 레시피 작성자
+   *   ingredients.registered_by     — 식재료를 넣은 사람 (FK 가 아니라 이름 문자열이다)
+   *
+   * 안 바꾸면 손보경님이 이름을 바꿨을 때 냉장고에는 옛 이름이, 식단에는 새
+   * 이름이 남아서 "이거 누구지" 가 된다. 가족 앱이라 같은 사람이 여러 화면에
+   * 흩어져 나온다.
+   *
+   * ingredients 는 id 가 아니라 **이름으로** 매칭한다 (그 컬럼이 이름이다).
+   * 그래서 동명이인이 있으면 남의 것도 바뀐다 — 가족 단위라 실질적으로
+   * 일어나지 않지만, family_id 로 좁혀서 범위를 최소화한다.
+   *
+   * batch 는 원자적이다. 하나라도 실패하면 전부 롤백된다. */
+  const stmts: D1PreparedStatement[] = [
+    c.env.DB.prepare('UPDATE users SET nickname = ? WHERE id = ?').bind(nickname, user.id),
+    c.env.DB.prepare('UPDATE meal_plans SET created_by_name = ? WHERE created_by = ?').bind(nickname, user.id),
+    c.env.DB.prepare('UPDATE meal_comments SET created_by_name = ? WHERE created_by = ?').bind(nickname, user.id),
+    c.env.DB.prepare('UPDATE shared_recipes SET author_name = ? WHERE author_id = ?').bind(nickname, user.id),
+  ]
+  if (user.family_id) {
+    stmts.push(
+      c.env.DB.prepare('UPDATE ingredients SET registered_by = ? WHERE registered_by = ? AND family_id = ?')
+        .bind(nickname, user.nickname, user.family_id),
+    )
+  }
+  try {
+    await c.env.DB.batch(stmts)
+  } catch (e) {
+    if (/UNIQUE|constraint/i.test(String(e))) {
+      throw new ApiError(409, '이미 쓰이고 있는 닉네임이에요. 다른 이름을 써주세요.')
+    }
+    throw e
+  }
   return c.json({ ...user, nickname })
+})
+
+/* 비밀번호 변경.
+ *
+ * 현재 비밀번호를 반드시 확인한다. 세션만으로 바꾸게 하면, 자리를 비운
+ * 사이 남이 만진 브라우저로 비밀번호가 바뀌어 계정을 통째로 뺏긴다.
+ *
+ * 바꾼 뒤 **새 세션을 발급한다.** 안 그러면 옛 토큰이 그대로 살아서,
+ * 비밀번호를 바꾼 이유(누가 아는 것 같다)가 해결되지 않는다.
+ * 유지 여부는 지금 쿠키를 따라가지 않고 false 로 둔다 — 비밀번호를 방금
+ * 바꾼 시점에 오래 사는 쿠키를 새로 주는 건 방향이 반대다. */
+app.post('/me/password', async (c) => {
+  const user = c.get('user')
+  const b = await readJson<{ current_password: string; new_password: string }>(c.req)
+  const current = String(b.current_password ?? '')
+  const next = String(b.new_password ?? '')
+
+  if (next.length < 8) throw new ApiError(422, '새 비밀번호는 8자 이상이어야 해요.')
+  if (next.length > 200) throw new ApiError(422, '새 비밀번호가 너무 깁니다.')
+  if (next === current) throw new ApiError(422, '지금 쓰는 비밀번호와 달라야 해요.')
+
+  const row = await c.env.DB.prepare('SELECT hashed_password FROM users WHERE id = ?')
+    .bind(user.id)
+    .first<{ hashed_password: string }>()
+  if (!row?.hashed_password) throw new ApiError(400, '비밀번호를 쓰지 않는 계정이에요.')
+  if (!(await verifyPassword(current, row.hashed_password))) {
+    throw new ApiError(403, '현재 비밀번호가 올바르지 않아요.')
+  }
+
+  await c.env.DB.prepare('UPDATE users SET hashed_password = ? WHERE id = ?')
+    .bind(await hashPassword(next), user.id)
+    .run()
+
+  c.header('Set-Cookie', sessionCookie(await createSession(c.env, user.id, false), false))
+  return c.json({ ok: true })
 })
 
 app.post('/family', async (c) => {

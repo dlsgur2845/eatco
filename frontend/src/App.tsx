@@ -12,6 +12,7 @@ import api from './api/client'
 import LoginPage from './pages/LoginPage'
 import RegisterAccountPage from './pages/RegisterAccountPage'
 import InvitePage from './pages/InvitePage'
+import MyPage from './pages/MyPage'
 import Layout from './components/layout/Layout'
 import FamilyPage from './pages/FamilyPage'
 import InventoryPage from './pages/InventoryPage'
@@ -34,7 +35,10 @@ function ScanRoute() {
 }
 
 /**
- * 신원은 서버에 물어본다. localStorage 는 캐시일 뿐 신뢰의 근거가 아니다.
+ * 신원은 서버에 물어본다. sessionStorage 는 캐시일 뿐 신뢰의 근거가 아니다.
+ * **localStorage 를 쓰지 않는다** — 이메일·닉네임·가족 id 가 브라우저를 닫아도
+ * 디스크에 남는다. 공용 컴퓨터에서 다음 사람이 개발자도구로 그냥 읽는다.
+ * 탭이 닫히면 같이 사라지는 sessionStorage 가 이 캐시의 수명과 맞다.
  * 인증은 두 갈래를 지원한다:
  *   1) Cloudflare Access 가 앞에 있으면 그 신원
  *   2) 없으면 앱 자체 세션 쿠키 (PBKDF2 100k)
@@ -60,7 +64,7 @@ function AuthGuard() {
       .get('/auth/me')
       .then((r) => {
         if (!alive) return
-        localStorage.setItem('user', JSON.stringify(r.data))
+        sessionStorage.setItem('user', JSON.stringify(r.data))
         setState('ready')
       })
       .catch(() => {
@@ -165,6 +169,7 @@ export default function App() {
             />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/me" element={<MyPage />} />
             <Route path="/family" element={<FamilyPage />} />
             {/* 진짜 게이트는 서버(/api/admin/*)다. 이 라우트는 숨기지 않고,
                 관리자가 아니면 AdminPage 가 안내 화면을 띄운다. */}

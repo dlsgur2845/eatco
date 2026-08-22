@@ -33,7 +33,7 @@ export default function NotificationsPage() {
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const unread = useUnreadCount()
   const myId: string | null = (() => {
-    try { return JSON.parse(localStorage.getItem('user') || 'null')?.id ?? null } catch { return null }
+    try { return JSON.parse(sessionStorage.getItem('user') || 'null')?.id ?? null } catch { return null }
   })()
 
   const PAGE_SIZE = 20

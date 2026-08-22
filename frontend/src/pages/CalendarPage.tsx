@@ -221,7 +221,7 @@ export default function CalendarPage() {
   // 갈아치우면 제목도 토글도 사라져서 화면이 통째로 깜빡인다.
   const booted = useRef(false)
   /**
-   * 내 신원. AuthGuard 가 앱에 들어올 때 /auth/me 를 받아 localStorage 에
+   * 내 신원. AuthGuard 가 앱에 들어올 때 /auth/me 를 받아 sessionStorage 에
    * 넣어둔다. 여기서 또 부르면 주를 넘길 때마다 왕복이 하나씩 더 붙는다.
    *
    * 실측(iPhone 390x844): /auth/me 408ms, /api/calendar 243ms.
@@ -233,7 +233,7 @@ export default function CalendarPage() {
    */
   const me = useMemo<User | null>(() => {
     try {
-      return JSON.parse(localStorage.getItem('user') || 'null')
+      return JSON.parse(sessionStorage.getItem('user') || 'null')
     } catch {
       return null
     }

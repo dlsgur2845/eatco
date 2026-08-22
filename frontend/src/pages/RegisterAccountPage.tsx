@@ -38,12 +38,12 @@ export default function RegisterAccountPage() {
       )
       /* 승인 대기면 세션 쿠키가 안 나온다. 여기서 '/' 로 보내면 AuthGuard 가
          401 을 받아 로그인 화면으로 튕기고, 사용자는 가입이 실패한 줄 안다.
-         localStorage 에도 넣지 않는다 — 로그인한 적이 없는 계정이다. */
+         sessionStorage 에도 넣지 않는다 — 로그인한 적이 없는 계정이다. */
       if (res.data.approved === false) {
         setPending(true)
         return
       }
-      localStorage.setItem('user', JSON.stringify(res.data))
+      sessionStorage.setItem('user', JSON.stringify(res.data))
       navigate('/')
     } catch (err: any) {
       const detail = err.response?.data?.detail

@@ -10,7 +10,9 @@
     "typecheck": "tsc -p worker/tsconfig.json --noEmit"
   },
   "dependencies": {
-    "hono": "^4.6.14"
+    "@2toad/profanity": "^3.3.0",
+    "hono": "^4.6.14",
+    "korcen": "^1.0.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260815.1",

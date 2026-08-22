@@ -37,7 +37,7 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('user')
+      sessionStorage.removeItem('user')
     }
     return Promise.reject(error)
   },

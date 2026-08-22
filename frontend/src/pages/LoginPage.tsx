@@ -14,6 +14,10 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [showExpiredBanner, setShowExpiredBanner] = useState(sessionExpired)
   const [saveEmail, setSaveEmail] = useState(() => !!localStorage.getItem(SAVED_EMAIL_KEY))
+  /* "로그인 유지" 는 **기본이 꺼짐**이다. 예전엔 선택지 없이 항상 7일 유지였다.
+     이 값은 저장하지 않는다 — 저장하면 "이 브라우저는 유지하기로 했다" 가
+     디스크에 남고, 그건 유지를 안 고른 사람이 피하려던 바로 그것이다. */
+  const [keepLogin, setKeepLogin] = useState(false)
 
   const [loading, setLoading] = useState(false)
 
@@ -27,13 +31,13 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      const res = await api.post<User>('/auth/login', form)
+      const res = await api.post<User>('/auth/login', { ...form, remember: keepLogin })
       if (saveEmail) {
         localStorage.setItem(SAVED_EMAIL_KEY, form.email)
       } else {
         localStorage.removeItem(SAVED_EMAIL_KEY)
       }
-      localStorage.setItem('user', JSON.stringify(res.data))
+      sessionStorage.setItem('user', JSON.stringify(res.data))
       navigate('/')
     } catch {
       setError('이메일 또는 비밀번호가 올바르지 않습니다.')
@@ -127,16 +131,36 @@ export default function LoginPage() {
                 />
               </div>
 
-              {/* 이메일 저장 */}
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={saveEmail}
-                  onChange={(e) => setSaveEmail(e.target.checked)}
-                  className="w-4 h-4 rounded accent-primary"
-                />
-                <span className="text-sm text-on-surface-variant">이메일 저장</span>
-              </label>
+              {/* 이메일 저장 / 로그인 유지 — 다른 것이다.
+                  이메일 저장: 다음에 이메일만 미리 채워준다 (비밀번호는 다시 친다).
+                  로그인 유지: 브라우저를 닫아도 로그인 상태가 남는다.
+                  둘 다 min-h-[48px] — DESIGN.md §11. */}
+              <div className="flex flex-col gap-1">
+                <label className="flex items-center gap-2 cursor-pointer min-h-[48px]">
+                  <input
+                    type="checkbox"
+                    checked={saveEmail}
+                    onChange={(e) => setSaveEmail(e.target.checked)}
+                    className="w-5 h-5 rounded accent-primary"
+                  />
+                  <span className="text-sm text-on-surface-variant">이메일 저장</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer min-h-[48px]">
+                  <input
+                    type="checkbox"
+                    checked={keepLogin}
+                    onChange={(e) => setKeepLogin(e.target.checked)}
+                    className="w-5 h-5 rounded accent-primary"
+                  />
+                  <span className="text-sm text-on-surface-variant">
+                    로그인 유지
+                    <span className="block text-xs" style={{ color: 'var(--color-outline)' }}>
+                      끄면 브라우저를 닫을 때 로그아웃돼요
+                    </span>
+                  </span>
+                </label>
+              </div>
 
               {error && <p className="text-tertiary text-sm text-center">{error}</p>}
 
