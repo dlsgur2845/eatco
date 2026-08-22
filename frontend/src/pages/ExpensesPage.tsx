@@ -253,7 +253,12 @@ export default function ExpensesPage() {
           <div className="bg-surface-container-lowest rounded-[2rem] p-6">
             <h3 className="text-sm font-semibold text-on-surface-variant mb-4">월 예산 설정</h3>
             <div className="flex gap-3 items-center">
+              {/* placeholder 는 접근 가능한 이름이 아니다 — 숫자를 넣는 순간
+                  사라지므로 스크린리더에는 이름 없는 "숫자 입력" 으로만 남는다.
+                  옆의 h3 는 형제라서 연결되지 않는다. */}
+              <label htmlFor="monthly-budget" className="sr-only">월 예산 금액</label>
               <input
+                id="monthly-budget"
                 type="number"
                 value={budgetInput}
                 onChange={e => setBudgetInput(e.target.value)}
