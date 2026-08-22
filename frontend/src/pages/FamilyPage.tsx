@@ -170,7 +170,7 @@ function FamilyManageView({
                               alert('내보내기에 실패했습니다.')
                             }
                           }}
-                          className="text-xs px-3 py-1.5 rounded-lg text-tertiary hover:bg-tertiary/10 transition-colors"
+                          className="text-xs px-3 min-h-[48px] rounded-lg text-tertiary hover:bg-tertiary/10 transition-colors"
                         >
                           내보내기
                         </button>
@@ -302,7 +302,7 @@ function FamilyManageView({
                   type="button"
                   onClick={rotateInvite}
                   disabled={rotating}
-                  className="mt-4 w-full min-h-[48px] rounded-xl text-sm font-semibold bg-white/20 text-white active:scale-95 transition-transform disabled:opacity-50"
+                  className="mt-4 w-full min-h-[48px] rounded-xl text-sm font-semibold bg-white/10 border border-white/50 text-white active:scale-95 transition-transform disabled:opacity-50"
                 >
                   {rotating ? '만드는 중…' : '새 링크 만들기'}
                 </button>

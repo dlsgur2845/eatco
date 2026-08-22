@@ -155,11 +155,12 @@ export default function RegisterAccountPage() {
 
               {/* 이름 */}
               <div className="flex flex-col gap-2">
-                <label className="font-body text-xs font-semibold text-on-surface-variant pl-1">
+                <label htmlFor="signup-nickname" className="font-body text-xs font-semibold text-on-surface-variant pl-1">
                   이름
                 </label>
                 <input
                   type="text"
+                  id="signup-nickname"
                   required
                   value={form.nickname}
                   onChange={(e) => setForm({ ...form, nickname: e.target.value })}
@@ -170,11 +171,12 @@ export default function RegisterAccountPage() {
 
               {/* 이메일 */}
               <div className="flex flex-col gap-2">
-                <label className="font-body text-xs font-semibold text-on-surface-variant pl-1">
+                <label htmlFor="signup-email" className="font-body text-xs font-semibold text-on-surface-variant pl-1">
                   이메일 주소
                 </label>
                 <input
                   type="email"
+                  id="signup-email"
                   required
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -185,10 +187,11 @@ export default function RegisterAccountPage() {
 
               {/* 비밀번호 */}
               <div className="flex flex-col gap-2">
-                <label className="font-body text-xs font-semibold text-on-surface-variant pl-1">
+                <label htmlFor="signup-password" className="font-body text-xs font-semibold text-on-surface-variant pl-1">
                   비밀번호
                 </label>
                 <input
+                  id="signup-password"
                   type="password"
                   required
                   minLength={8}
@@ -224,7 +227,7 @@ export default function RegisterAccountPage() {
                 이미 계정이 있으신가요?
                 <button
                   onClick={() => navigate('/login')}
-                  className="text-primary font-bold ml-2 hover:underline"
+                  className="text-primary font-bold ml-2 hover:underline inline-flex items-center min-h-[48px] px-2"
                 >
                   로그인
                 </button>
