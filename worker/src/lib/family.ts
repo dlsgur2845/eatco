@@ -22,6 +22,52 @@ export async function uniqueInviteCode(db: D1Database): Promise<string> {
   throw new Error('초대코드 생성 실패')
 }
 
+/**
+ * 초대코드를 **원자적으로 소비**한다. 성공하면 곧바로 새 코드로 갈아끼우고
+ * 가족을 돌려준다. 이미 쓰인 코드면 null.
+ *
+ * 링크는 일회용이다. 그래서 "읽고 나서 쓰기" 로 하면 안 된다 — 두 사람이
+ * 같은 링크를 동시에 누르면 둘 다 SELECT 를 통과한다. UPDATE 의 WHERE 에
+ * 옛 코드를 넣어 비교-후-교체(CAS)로 만든다. 먼저 도착한 하나만 changes=1 을
+ * 받고, 나머지는 0 을 받아 조용히 실패한다.
+ *
+ * `meta.changes` 는 Workers 런타임 D1 바인딩이 준다 (auth.ts 의 kick 이 이미
+ * 같은 방식을 쓴다). wrangler CLI 의 --local 출력에는 안 담기니, 이걸
+ * CLI 로 확인하려 하지 말 것.
+ */
+export async function consumeInviteCode(
+  db: D1Database,
+  code: string,
+): Promise<{ id: string; name: string } | null> {
+  const fam = await db
+    .prepare('SELECT id, name FROM families WHERE invite_code = ?')
+    .bind(code)
+    .first<{ id: string; name: string }>()
+  if (!fam) return null
+
+  const next = await uniqueInviteCode(db)
+  const res = await db
+    .prepare('UPDATE families SET invite_code = ? WHERE id = ? AND invite_code = ?')
+    .bind(next, fam.id, code)
+    .run()
+  // 0 이면 그 사이에 누가 먼저 썼다. 링크는 하나뿐이므로 지금 사람은 실패한다.
+  if (!res.meta.changes) return null
+  return fam
+}
+
+/**
+ * 구성원이 바뀌면 코드를 돌린다.
+ *
+ * 합류·탈퇴·내보내기 뒤에 부른다. 옛 링크가 계속 살아 있으면 "일회용" 이
+ * 아니게 된다. 코드를 눈으로 보고 타이핑하던 시절엔 잘 안 샜지만, URL 은
+ * 브라우저 기록·링크 미리보기·스크린샷으로 훨씬 쉽게 샌다.
+ */
+export async function rotateInviteCode(db: D1Database, familyId: string): Promise<string> {
+  const next = await uniqueInviteCode(db)
+  await db.prepare('UPDATE families SET invite_code = ? WHERE id = ?').bind(next, familyId).run()
+  return next
+}
+
 /** 가족 생성 시 기본 알림 설정. backend/app/seed.py 의 DEFAULT_NOTIFICATION_DAYS 와 동일. */
 export const DEFAULT_NOTIFICATION_DAYS = [0, 1, 3, 5, 7, 14, 21, 30]
 

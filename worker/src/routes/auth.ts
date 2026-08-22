@@ -4,8 +4,8 @@ import { nowIso } from '../lib/dates'
 import type { Env, Vars } from '../lib/types'
 import { hashPassword, verifyPassword } from '../lib/password'
 import { createSession, sessionCookie, clearCookie } from '../lib/session'
-import { uniqueInviteCode, notificationSettingStatements, createSoloFamily } from '../lib/family'
-import { roleForNewUser } from '../lib/identity'
+import { uniqueInviteCode, notificationSettingStatements, createSoloFamily, consumeInviteCode, rotateInviteCode } from '../lib/family'
+import { roleForNewUser, requireFamily } from '../lib/identity'
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>()
 
@@ -21,10 +21,11 @@ export const publicAuth = new Hono<{ Bindings: Env; Variables: Vars }>()
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
 publicAuth.post('/register', async (c) => {
-  const b = await readJson<{ email: string; nickname: string; password: string }>(c.req)
+  const b = await readJson<{ email: string; nickname: string; password: string; invite_code?: string }>(c.req)
   const email = String(b.email ?? '').trim().toLowerCase()
   const nickname = String(b.nickname ?? '').trim()
   const password = String(b.password ?? '')
+  const invite = String(b.invite_code ?? '').trim().toUpperCase()
 
   if (!EMAIL_RE.test(email)) throw new ApiError(422, '이메일 형식이 올바르지 않습니다.')
   if (!nickname) throw new ApiError(422, '이름을 입력해주세요.')
@@ -37,14 +38,43 @@ publicAuth.post('/register', async (c) => {
   const id = crypto.randomUUID()
   // 첫 가입자는 관리자 1호. 판정은 INSERT 직전에 한다.
   const role = await roleForNewUser(c.env.DB)
+
+  /* 초대 링크로 온 가입이면 코드를 **먼저** 소비한다.
+   *
+   * 계정을 만들고 나서 코드를 확인하면, 이미 쓰인 링크로 가입했을 때
+   * 승인 대기 계정만 덩그러니 남는다. 순서를 뒤집어서 코드가 죽었으면
+   * 계정을 아예 안 만든다.
+   *
+   * 소비에 성공하면 **관리자 승인을 건너뛴다.** 가족 구성원이 보낸 초대
+   * 자체를 인가로 본다는 결정이다. 링크가 일회용이라 성립한다 — 새어나간
+   * 링크도 한 번밖에 못 쓰고, 쓰이는 순간 코드가 바뀌며, 가족 화면에
+   * 모르는 사람이 나타나므로 들킨다. */
+  let invitedFamily: { id: string; name: string } | null = null
+  if (invite) {
+    invitedFamily = await consumeInviteCode(c.env.DB, invite)
+    if (!invitedFamily) {
+      throw new ApiError(409, '이미 사용됐거나 만료된 초대 링크예요. 가족에게 새 링크를 요청해주세요.')
+    }
+  }
+
   // 가입 승인제. 예전엔 URL 만 알면 누구나 계정을 만들고 바로 들어왔다.
   // 관리자 1호는 승인해줄 사람이 없으므로 자동 승인한다 — 안 그러면 아무도 못 들어온다.
-  const approved = role === 'admin' ? 1 : 0
+  // 초대 링크로 온 사람도 자동 승인이다 (위 주석 참고).
+  const approved = role === 'admin' || invitedFamily ? 1 : 0
   await c.env.DB.prepare(
-    'INSERT INTO users (id, email, nickname, hashed_password, family_id, created_at, role, approved) VALUES (?, ?, ?, ?, NULL, ?, ?, ?)',
+    'INSERT INTO users (id, email, nickname, hashed_password, family_id, created_at, role, approved) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
   )
-    .bind(id, email, nickname.slice(0, 50), await hashPassword(password), nowIso(), role, approved)
+    .bind(id, email, nickname.slice(0, 50), await hashPassword(password), invitedFamily?.id ?? null, nowIso(), role, approved)
     .run()
+
+  // 초대로 들어왔으면 가족이 이미 정해졌다. 1인 가족을 만들지 않는다.
+  if (invitedFamily) {
+    c.header('Set-Cookie', sessionCookie(await createSession(c.env, id)))
+    return c.json(
+      { id, email, nickname, family_id: invitedFamily.id, family_name: invitedFamily.name, role, approved: true },
+      201,
+    )
+  }
 
   // 승인 대기 상태면 여기서 끝낸다.
   //
@@ -69,6 +99,25 @@ publicAuth.post('/register', async (c) => {
   const familyId = await createSoloFamily(c.env.DB, id, nickname.slice(0, 50))
   c.header('Set-Cookie', sessionCookie(await createSession(c.env, id)))
   return c.json({ id, email, nickname, family_id: familyId, role, approved: true }, 201)
+})
+
+/* 초대 링크 미리보기. **소비하지 않는다.**
+ *
+ * 링크를 연 사람에게 "OO 가족에 참여할까요?" 를 보여주려면 가족 이름이
+ * 필요한데, 이름을 얻자고 코드를 태우면 확인 화면을 띄우는 것만으로 링크가
+ * 죽는다. 조회와 소비를 갈라놓는다.
+ *
+ * 인증이 없는 엔드포인트다. 내보내는 건 가족 이름 하나뿐이고, 코드는 32^8
+ * (약 1조) 이라 이름을 캐려고 훑는 건 현실성이 없다. 그래도 존재 여부만
+ * 답하고 다른 건 아무것도 붙이지 않는다. */
+publicAuth.get('/family/invite/:code', async (c) => {
+  const code = (c.req.param('code') || '').trim().toUpperCase()
+  if (!code) throw new ApiError(422, '초대 코드가 없습니다.')
+  const fam = await c.env.DB.prepare('SELECT name FROM families WHERE invite_code = ?')
+    .bind(code)
+    .first<{ name: string }>()
+  if (!fam) throw new ApiError(404, '이미 사용됐거나 만료된 초대 링크예요.')
+  return c.json({ family_name: fam.name })
 })
 
 publicAuth.post('/login', async (c) => {
@@ -171,10 +220,18 @@ app.post('/family/join', async (c) => {
   const code = (body.invite_code || '').trim().toUpperCase()
   if (!code) throw new ApiError(422, '초대코드를 입력해주세요.')
 
-  const fam = await c.env.DB.prepare('SELECT id, name FROM families WHERE invite_code = ?')
-    .bind(code)
-    .first<{ id: string; name: string }>()
-  if (!fam) throw new ApiError(404, '초대코드를 찾을 수 없습니다.')
+  /* 내 가족의 코드인지 **먼저** 본다. 소비부터 하면 "이미 이 가족" 으로
+     튕기면서도 코드는 이미 갈려버려서, 아무 일도 안 했는데 남들 링크만 죽는다. */
+  const mine = user.family_id
+    ? await c.env.DB.prepare('SELECT invite_code FROM families WHERE id = ?')
+        .bind(user.family_id)
+        .first<{ invite_code: string }>()
+    : null
+  if (mine?.invite_code === code) throw new ApiError(409, '이미 이 가족에 속해 있습니다.')
+
+  // 소비 = 확인 + 코드 교체를 한 번에. 링크는 일회용이다.
+  const fam = await consumeInviteCode(c.env.DB, code)
+  if (!fam) throw new ApiError(409, '이미 사용됐거나 만료된 초대 링크예요. 가족에게 새 링크를 요청해주세요.')
   if (fam.id === user.family_id) throw new ApiError(409, '이미 이 가족에 속해 있습니다.')
 
   const prev = user.family_id
@@ -241,6 +298,14 @@ app.post('/family/join', async (c) => {
   }
 
   await c.env.DB.batch(stmts)
+
+  /* 떠나온 가족이 살아남았다면 그쪽 코드도 돌린다. 구성원이 줄었으므로
+     "가족이 변경될 때마다" 에 해당한다. 삭제된 가족은 돌릴 게 없다. */
+  if (prev && prev !== fam.id) {
+    const still = await c.env.DB.prepare('SELECT 1 FROM families WHERE id = ?').bind(prev).first()
+    if (still) await rotateInviteCode(c.env.DB, prev)
+  }
+
   return c.json({ id: fam.id, name: fam.name })
 })
 
@@ -253,6 +318,22 @@ app.get('/family/members', async (c) => {
     .bind(user.family_id)
     .all()
   return c.json(rows.results ?? [])
+})
+
+/* 초대 링크 새로 만들기 (방장 전용).
+ *
+ * 자동 회전은 누군가 합류·탈퇴했을 때만 돈다. 아직 아무도 안 쓴 채로 새어나간
+ * 링크는 그 조건에 안 걸려서 계속 살아 있다. 잘못 공유했을 때 되돌릴 수단은
+ * 이것뿐이다. */
+app.post('/family/invite/rotate', async (c) => {
+  const user = c.get('user')
+  const famId = requireFamily(user)
+  const fam = await c.env.DB.prepare('SELECT master_id FROM families WHERE id = ?')
+    .bind(famId)
+    .first<{ master_id: string | null }>()
+  if (fam?.master_id !== user.id) throw new ApiError(403, '가족 마스터만 새 링크를 만들 수 있습니다.')
+  const code = await rotateInviteCode(c.env.DB, famId)
+  return c.json({ invite_code: code })
 })
 
 app.post('/family/leave', async (c) => {
@@ -276,6 +357,9 @@ app.post('/family/leave', async (c) => {
       .bind(next?.id ?? null, famId)
       .run()
   }
+  // 구성원이 줄었다. 옛 링크를 죽인다.
+  await rotateInviteCode(c.env.DB, famId)
+
   return c.json({ left: true })
 })
 
@@ -298,6 +382,9 @@ app.post('/family/kick/:id', async (c) => {
     .bind(targetId, famId)
     .run()
   if (!res.meta.changes) throw new ApiError(404, '해당 구성원을 찾을 수 없습니다.')
+  // 내보냈으면 그 사람이 가진 링크도 죽어야 한다.
+  await rotateInviteCode(c.env.DB, famId)
+
   return c.json({ kicked: true })
 })
 

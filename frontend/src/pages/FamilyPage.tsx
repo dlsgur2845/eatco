@@ -16,6 +16,7 @@ function FamilyManageView({
   onRefresh: () => void
 }) {
   const [copied, setCopied] = useState(false)
+  const [rotating, setRotating] = useState(false)
   const [joinCode, setJoinCode] = useState('')
   const [joinError, setJoinError] = useState('')
   const [showJoin, setShowJoin] = useState(false)
@@ -27,10 +28,34 @@ function FamilyManageView({
     setLocalFamily(family)
   }, [family])
 
+  /* 코드가 아니라 **링크**를 복사한다. 받는 사람이 코드를 옮겨적을 필요가
+     없어진다. origin 은 브라우저에서 읽는다 — 서버에 도메인을 심어두면
+     로컬·프리뷰·프로덕션이 서로 다른 주소를 뱉는다. */
+  const inviteUrl = `${window.location.origin}/invite/${localFamily.invite_code}`
+
+  // 새 링크 만들기는 방장만. 서버도 403 으로 막지만 버튼부터 안 보인다.
+  const isMaster = localFamily.master_id === currentUser.id
+
   const copyCode = () => {
-    navigator.clipboard.writeText(localFamily.invite_code)
+    navigator.clipboard.writeText(inviteUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  /* 링크 새로 만들기.
+     자동 회전은 누가 합류·탈퇴했을 때만 돈다. 아직 아무도 안 쓴 채 잘못
+     공유한 링크는 그 조건에 안 걸리므로 이걸로만 죽일 수 있다. */
+  const rotateInvite = async () => {
+    if (!window.confirm('새 링크를 만들면 지금까지 공유한 링크는 모두 못 쓰게 돼요. 계속할까요?')) return
+    setRotating(true)
+    try {
+      const r = await api.post<{ invite_code: string }>('/auth/family/invite/rotate')
+      setLocalFamily({ ...localFamily, invite_code: r.data.invite_code })
+    } catch {
+      /* 방장이 아니면 403. 버튼 자체를 방장에게만 보여주므로 조용히 넘긴다. */
+    } finally {
+      setRotating(false)
+    }
   }
 
   const handleJoinFamily = async (e: React.FormEvent) => {
@@ -255,7 +280,8 @@ function FamilyManageView({
                   </span>
                   <button
                     onClick={copyCode}
-                    className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-primary active:scale-95 transition-transform"
+                    aria-label="초대 링크 복사"
+                    className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-primary active:scale-95 transition-transform flex-shrink-0"
                   >
                     <span aria-hidden="true" className="material-symbols-outlined">
                       {copied ? 'check' : 'content_copy'}
@@ -264,8 +290,23 @@ function FamilyManageView({
                 </div>
               </div>
               <p className="text-white/90 text-xs text-center mt-3">
-                초대 코드를 가족에게 공유하세요
+                {copied ? '링크를 복사했어요. 가족에게 보내세요.' : '복사 버튼을 누르면 초대 링크가 복사돼요'}
               </p>
+              {/* 링크가 일회용이라는 걸 미리 말해준다. 한 명 들어온 뒤에
+                  "왜 안 되지" 로 만들지 않는다. */}
+              <p className="text-white/90 text-xs text-center mt-1">
+                링크는 한 사람만 쓸 수 있어요. 구성원이 바뀌면 새로 만들어져요.
+              </p>
+              {isMaster && (
+                <button
+                  type="button"
+                  onClick={rotateInvite}
+                  disabled={rotating}
+                  className="mt-4 w-full min-h-[48px] rounded-xl text-sm font-semibold bg-white/20 text-white active:scale-95 transition-transform disabled:opacity-50"
+                >
+                  {rotating ? '만드는 중…' : '새 링크 만들기'}
+                </button>
+              )}
             </div>
           </section>
 

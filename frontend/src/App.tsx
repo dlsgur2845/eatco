@@ -11,6 +11,7 @@ import {
 import api from './api/client'
 import LoginPage from './pages/LoginPage'
 import RegisterAccountPage from './pages/RegisterAccountPage'
+import InvitePage from './pages/InvitePage'
 import Layout from './components/layout/Layout'
 import FamilyPage from './pages/FamilyPage'
 import InventoryPage from './pages/InventoryPage'
@@ -133,6 +134,10 @@ export default function App() {
         {/* 공개 라우트 */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<RegisterAccountPage />} />
+        {/* 초대 링크. AuthGuard 밖에 둔다 — 로그인 안 한 사람이 열면
+            가입 화면으로 코드를 들고 넘어가야 하는데, 가드 안에 있으면
+            로그인 화면으로 튕기면서 코드가 사라진다. */}
+        <Route path="/invite/:code" element={<InvitePage />} />
 
         {/* Protected routes */}
         <Route element={<AuthGuard />}>

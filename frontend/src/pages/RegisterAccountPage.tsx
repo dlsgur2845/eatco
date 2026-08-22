@@ -1,19 +1,41 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import api from '../api/client'
 import type { User } from '../types'
 
 export default function RegisterAccountPage() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  /* 초대 링크에서 넘어온 코드. 사용자가 손으로 넣는 값이 아니라
+     /invite/:code 가 붙여준 값이다. 그래서 화면에는 보이되 수정은 막는다. */
+  const invite = (params.get('invite') || '').trim().toUpperCase()
+  const [familyName, setFamilyName] = useState('')
+  const [inviteDead, setInviteDead] = useState(false)
   const [form, setForm] = useState({ email: '', nickname: '', password: '' })
   const [error, setError] = useState('')
   const [pending, setPending] = useState(false)
+
+  // 코드가 어느 가족인지 미리 확인한다. 소비하지 않는 조회다.
+  useEffect(() => {
+    if (!invite) return
+    let alive = true
+    api
+      .get<{ family_name: string }>(`/auth/family/invite/${invite}`)
+      .then((r) => alive && setFamilyName(r.data.family_name))
+      .catch(() => alive && setInviteDead(true))
+    return () => {
+      alive = false
+    }
+  }, [invite])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     try {
-      const res = await api.post<User & { approved?: boolean }>('/auth/register', form)
+      const res = await api.post<User & { approved?: boolean }>(
+        '/auth/register',
+        invite ? { ...form, invite_code: invite } : form,
+      )
       /* 승인 대기면 세션 쿠키가 안 나온다. 여기서 '/' 로 보내면 AuthGuard 가
          401 을 받아 로그인 화면으로 튕기고, 사용자는 가입이 실패한 줄 안다.
          localStorage 에도 넣지 않는다 — 로그인한 적이 없는 계정이다. */
@@ -103,6 +125,34 @@ export default function RegisterAccountPage() {
             <div className="absolute top-0 left-0 w-1 h-full bg-primary-container" />
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-6 relative z-10">
+              {/* 가족 코드 — 초대 링크로 들어왔을 때만 보인다.
+                  **읽기 전용이다.** 사용자가 고칠 수 있으면 남의 가족 코드를
+                  넣어보는 입력창이 되고, 링크가 일회용인 의미가 없어진다.
+                  disabled 대신 readOnly 를 쓴다 — disabled 는 스크린리더가
+                  건너뛰어서 "어느 가족에 들어가는지" 를 못 듣는다. */}
+              {invite && (
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="signup-invite" className="font-body text-xs font-semibold text-on-surface-variant pl-1">
+                    가족 코드
+                  </label>
+                  <input
+                    id="signup-invite"
+                    type="text"
+                    readOnly
+                    aria-readonly="true"
+                    value={invite}
+                    className="w-full bg-surface-container border-none rounded-xl px-4 py-4 font-mono tracking-[0.2em] text-on-surface-variant cursor-not-allowed"
+                  />
+                  <p className="text-xs pl-1" style={{ color: inviteDead ? 'var(--color-tertiary)' : 'var(--color-primary)' }}>
+                    {inviteDead
+                      ? '이미 사용됐거나 만료된 링크예요. 가족에게 새 링크를 요청해주세요.'
+                      : familyName
+                        ? `«${familyName}»에 바로 참여해요`
+                        : '초대를 확인하는 중…'}
+                  </p>
+                </div>
+              )}
+
               {/* 이름 */}
               <div className="flex flex-col gap-2">
                 <label className="font-body text-xs font-semibold text-on-surface-variant pl-1">
