@@ -32,22 +32,27 @@ describe('글자 규칙', () => {
       expect(ok(s), s).toBe(false)
   })
 
-  it('길이 상한은 글자가 아니라 UTF-8 바이트로 센다', () => {
-    // 한글 완성형은 1자 = 3바이트. 14바이트면 한글 4자, 영문·숫자 14자.
+  it('한글은 2, 영문·숫자는 1로 세어 14까지', () => {
+    // 한글 7자 = 14, 영문·숫자 14자 = 14. 섞으면 그 사이.
     expect(ok('가')).toBe(false)              // 2자 미만
-    expect(ok('가나')).toBe(true)             //  6바이트
-    expect(ok('김철수야')).toBe(true)          // 12바이트
-    expect(ok('가나다라마')).toBe(false)        // 15바이트 — 초과
-    expect(ok('abcdefghijklmn')).toBe(true)   // 14바이트
-    expect(ok('abcdefghijklmno')).toBe(false) // 15바이트
-    expect(ok('한글abcdefgh')).toBe(true)      // 6+8 = 14바이트
-    expect(ok('한글abcdefghi')).toBe(false)    // 15바이트
+    expect(ok('가나')).toBe(true)             //  4
+    expect(ok('냉장고지킴이')).toBe(true)       // 12
+    expect(ok('가나다라마바사')).toBe(true)      // 14 — 한글 7자, 딱 상한
+    expect(ok('가나다라마바사아')).toBe(false)    // 16 — 한글 8자
+    expect(ok('abcdefghijklmn')).toBe(true)   // 14
+    expect(ok('abcdefghijklmno')).toBe(false) // 15
+    expect(ok('한글abcdefghij')).toBe(true)    // 4+10 = 14
+    expect(ok('한글abcdefghijk')).toBe(false)  // 15
   })
 
-  it('바이트 초과는 이유를 숫자로 말해준다', () => {
-    const r = validateNickname('냉장고지킴이') // 18바이트
+  it('너무 길면 바이트가 아니라 글자 수로 말해준다', () => {
+    // "바이트" 는 우리 구현 사정이다. 듣는 쪽에는 몇 글자까지인지만 필요하다.
+    const r = validateNickname('가나다라마바사아')
     expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.message).toContain('14바이트')
+    if (!r.ok) {
+      expect(r.message).toContain('한글 7자')
+      expect(r.message).not.toContain('바이트')
+    }
   })
 
   it('문자열이 아니거나 비면 거절한다', () => {

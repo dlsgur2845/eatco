@@ -3,12 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import type { User } from '../types'
 
-/* 서버(worker/src/lib/nickname.ts)의 MAX_BYTES 와 같은 값.
-   **거기서 import 하지 않는다** — 그 모듈은 비속어 사전 두 개(korcen,
+/* 서버(worker/src/lib/nickname.ts)의 규칙과 같은 값. 한글 1자를 2로,
+   영문·숫자를 1로 세어 14까지 = 한글 7자 / 영문·숫자 14자.
+
+   **서버에서 import 하지 않는다** — 그 모듈은 비속어 사전 두 개(korcen,
    @2toad/profanity)를 끌고 오고, 숫자 하나 때문에 브라우저 번들이
-   438 → 591 kB 로 뛴다(실측). 진짜 검증은 서버가 한다. 이 값은 화면에
-   보여주고 버튼을 잠그는 용도일 뿐이다. */
-const NICKNAME_MAX_BYTES = 14
+   438 → 591 kB 로 뛴다(실측). 진짜 검증은 서버가 한다. 여기 있는 건
+   버튼을 미리 잠그는 용도일 뿐이다. */
+const NICKNAME_MAX = 14
+const widthOf = (s: string) => [...s].reduce((n, ch) => n + (/[가-힣]/.test(ch) ? 2 : 1), 0)
 
 /**
  * 마이페이지 — 닉네임, 비밀번호, 로그아웃.
@@ -23,10 +26,9 @@ export default function MyPage() {
   const user: User | null = cached ? JSON.parse(cached) : null
 
   const [nickname, setNickname] = useState(user?.nickname ?? '')
-  /* 상한이 바이트라 maxLength 로는 못 막는다 (그건 글자 수를 센다).
-     대신 지금 몇 바이트인지 보여주고, 넘으면 버튼을 잠근다. */
-  const bytes = new TextEncoder().encode(nickname.trim()).length
-  const overBytes = bytes > NICKNAME_MAX_BYTES
+  /* 한글과 영문이 다르게 세어지므로 maxLength 로는 못 막는다.
+     넘으면 버튼을 잠그고 한 줄로 알려준다. */
+  const overBytes = widthOf(nickname.trim()) > NICKNAME_MAX
   const [nickBusy, setNickBusy] = useState(false)
   const [nickMsg, setNickMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
@@ -95,7 +97,7 @@ export default function MyPage() {
       <section className="bg-surface-container-lowest rounded-2xl p-5 mb-5">
         <h3 className="font-headline font-bold text-lg text-on-surface mb-1">닉네임</h3>
         <p className="text-xs text-on-surface-variant mb-4">
-          완성된 한글, 영문, 숫자만 쓸 수 있어요. 최대 {NICKNAME_MAX_BYTES}바이트 (한글 4자).
+          완성된 한글, 영문, 숫자만 쓸 수 있어요. 한글 7자, 영문·숫자 14자까지.
         </p>
         <label htmlFor="my-nickname" className="sr-only">닉네임</label>
         <input
@@ -105,12 +107,14 @@ export default function MyPage() {
           onChange={(e) => setNickname(e.target.value)}
           className={field}
         />
-        <p
-          className="text-xs mt-1.5 text-right"
-          style={{ color: overBytes ? 'var(--color-tertiary)' : 'var(--color-outline)' }}
-        >
-          {bytes} / {NICKNAME_MAX_BYTES}바이트
-        </p>
+        {/* 길이가 넘으면 그렇다고만 말한다. 숫자 카운터는 두지 않는다 —
+            "바이트" 는 우리 구현 사정이고, 화면에 12/14 같은 게 떠 있으면
+            한글과 영문이 왜 다르게 세어지는지 설명할 일이 생긴다. */}
+        {overBytes && (
+          <p className="text-xs mt-1.5" style={{ color: 'var(--color-tertiary)' }}>
+            닉네임이 너무 길어요.
+          </p>
+        )}
         {nickMsg && (
           <p
             role="status"

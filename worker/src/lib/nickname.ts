@@ -23,10 +23,16 @@ import { profanity } from '@2toad/profanity'
  */
 
 const MIN_LEN = 2
-/* 길이 상한은 **글자 수가 아니라 UTF-8 바이트 수**다.
-   한글 완성형은 1자에 3바이트라 14바이트 = 한글 4자 / 영문·숫자 14자.
-   (한국에서 흔한 "2바이트=한글 1자" 관례로 세면 7자가 되는데, 이 스택은
-   저장도 전송도 UTF-8 이라 실제 차지하는 바이트로 센다.) */
+/* 길이 상한은 글자 수가 아니라 **바이트 수**다. 14바이트.
+   한글 1자 = 2바이트로 센다 → 한글 7자 / 영문·숫자 14자 / 섞으면 그 사이.
+
+   왜 2바이트인가: 한국에서 "닉네임 14바이트" 라고 할 때의 그 관례가
+   EUC-KR/CP949 기준이고, 자바스크립트 문자열의 내부 표현(UTF-16)도
+   한글 1자가 2바이트다 ('가'.length === 1).
+   UTF-8 로 세면 한글이 3바이트라 4자밖에 안 돼서 이름으로 쓰기 어렵다.
+
+   저장은 UTF-8 이지만 그건 사용자가 알 바가 아니다. 이 숫자는 "얼마나 긴
+   이름까지 허용할 것인가" 를 정하는 규칙이지 저장 공간 계산이 아니다. */
 const MAX_BYTES = 14
 
 /* 한글 **완성형**, 영문, 숫자만. 공백·이모지·특수문자 전부 거절.
@@ -35,9 +41,11 @@ const MAX_BYTES = 14
    반각 자모(U+FFA0~)까지 자동으로 걸린다 — 범위를 하나씩 막을 필요가 없다. */
 const ALLOWED = /^[가-힣a-zA-Z0-9]+$/
 
-/** UTF-8 바이트 길이. 문자열 길이(UTF-16 코드 유닛)와 다르다. */
+/** 한글 1자 = 2, 그 외(영문·숫자) = 1. 허용 문자가 그 둘뿐이라 이걸로 충분하다. */
 function byteLength(s: string): number {
-  return new TextEncoder().encode(s).length
+  let n = 0
+  for (const ch of s) n += /[가-힣]/.test(ch) ? 2 : 1
+  return n
 }
 
 /**
@@ -82,7 +90,9 @@ export function validateNickname(raw: unknown): NicknameOk | NicknameError {
   if (!value) return { ok: false, message: '닉네임을 입력해주세요.' }
   if (value.length < MIN_LEN) return { ok: false, message: `닉네임은 ${MIN_LEN}자 이상이어야 해요.` }
   if (byteLength(value) > MAX_BYTES) {
-    return { ok: false, message: `닉네임은 ${MAX_BYTES}바이트 이내여야 해요. (한글 4자, 영문·숫자 14자)` }
+    /* 사용자에게 "바이트" 라고 말하지 않는다. 그건 우리 구현 사정이고,
+       듣는 쪽에는 "몇 글자까지 되는지" 만 필요하다. */
+    return { ok: false, message: '닉네임이 너무 길어요. 한글 7자, 영문·숫자 14자까지 쓸 수 있어요.' }
   }
   if (!ALLOWED.test(value)) {
     /* 자모만 쓴 경우를 따로 짚어준다. "한글만 썼는데 왜 안 되지" 가 되지 않게.
