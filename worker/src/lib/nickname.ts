@@ -23,12 +23,22 @@ import { profanity } from '@2toad/profanity'
  */
 
 const MIN_LEN = 2
-const MAX_LEN = 20
+/* 길이 상한은 **글자 수가 아니라 UTF-8 바이트 수**다.
+   한글 완성형은 1자에 3바이트라 14바이트 = 한글 4자 / 영문·숫자 14자.
+   (한국에서 흔한 "2바이트=한글 1자" 관례로 세면 7자가 되는데, 이 스택은
+   저장도 전송도 UTF-8 이라 실제 차지하는 바이트로 센다.) */
+const MAX_BYTES = 14
 
-/* 한국어(완성형 + 자모), 영어, 숫자만. 공백·이모지·특수문자 전부 거절.
-   자모를 허용하는 이유: "ㅋㅋ" 같은 건 한국어 닉네임으로 자연스럽다.
-   대신 비속어 쪽에서 ㅅㅂ·ㅄ 를 잡는다. */
-const ALLOWED = /^[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9]+$/
+/* 한글 **완성형**, 영문, 숫자만. 공백·이모지·특수문자 전부 거절.
+   자모(ㄱㄴㄷ, ㅎㅇ, ㅏㅏ)는 **불완전한 한글이라 거절한다.**
+   화이트리스트라서 호환 자모(ㄱ-ㅎㅏ-ㅣ)뿐 아니라 한글 자모 블록(U+1100~),
+   반각 자모(U+FFA0~)까지 자동으로 걸린다 — 범위를 하나씩 막을 필요가 없다. */
+const ALLOWED = /^[가-힣a-zA-Z0-9]+$/
+
+/** UTF-8 바이트 길이. 문자열 길이(UTF-16 코드 유닛)와 다르다. */
+function byteLength(s: string): number {
+  return new TextEncoder().encode(s).length
+}
 
 /**
  * 우회 정규화. 사전에 넣기 **전에** 돌린다.
@@ -71,8 +81,15 @@ export function validateNickname(raw: unknown): NicknameOk | NicknameError {
 
   if (!value) return { ok: false, message: '닉네임을 입력해주세요.' }
   if (value.length < MIN_LEN) return { ok: false, message: `닉네임은 ${MIN_LEN}자 이상이어야 해요.` }
-  if (value.length > MAX_LEN) return { ok: false, message: `닉네임은 ${MAX_LEN}자 이내로 입력해주세요.` }
+  if (byteLength(value) > MAX_BYTES) {
+    return { ok: false, message: `닉네임은 ${MAX_BYTES}바이트 이내여야 해요. (한글 4자, 영문·숫자 14자)` }
+  }
   if (!ALLOWED.test(value)) {
+    /* 자모만 쓴 경우를 따로 짚어준다. "한글만 썼는데 왜 안 되지" 가 되지 않게.
+       ㄱㄴㄷ, ㅎㅇ, ㅏㅏ 같은 것들이 여기로 온다. */
+    if (/[ㄱ-ㅎㅏ-ㅣ\u1100-\u11FF\uFFA0-\uFFDC]/.test(value)) {
+      return { ok: false, message: '자음·모음만으로는 만들 수 없어요. 완성된 한글을 써주세요.' }
+    }
     return { ok: false, message: '닉네임에는 한글, 영문, 숫자만 쓸 수 있어요.' }
   }
 
@@ -101,4 +118,4 @@ function safeCheck(fn: () => boolean): boolean {
   }
 }
 
-export { MIN_LEN as NICKNAME_MIN, MAX_LEN as NICKNAME_MAX }
+export { MIN_LEN as NICKNAME_MIN, MAX_BYTES as NICKNAME_MAX_BYTES, byteLength as nicknameBytes }

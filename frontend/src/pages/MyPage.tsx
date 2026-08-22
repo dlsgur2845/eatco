@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import type { User } from '../types'
 
+/* 서버(worker/src/lib/nickname.ts)의 MAX_BYTES 와 같은 값.
+   **거기서 import 하지 않는다** — 그 모듈은 비속어 사전 두 개(korcen,
+   @2toad/profanity)를 끌고 오고, 숫자 하나 때문에 브라우저 번들이
+   438 → 591 kB 로 뛴다(실측). 진짜 검증은 서버가 한다. 이 값은 화면에
+   보여주고 버튼을 잠그는 용도일 뿐이다. */
+const NICKNAME_MAX_BYTES = 14
+
 /**
  * 마이페이지 — 닉네임, 비밀번호, 로그아웃.
  *
@@ -16,6 +23,10 @@ export default function MyPage() {
   const user: User | null = cached ? JSON.parse(cached) : null
 
   const [nickname, setNickname] = useState(user?.nickname ?? '')
+  /* 상한이 바이트라 maxLength 로는 못 막는다 (그건 글자 수를 센다).
+     대신 지금 몇 바이트인지 보여주고, 넘으면 버튼을 잠근다. */
+  const bytes = new TextEncoder().encode(nickname.trim()).length
+  const overBytes = bytes > NICKNAME_MAX_BYTES
   const [nickBusy, setNickBusy] = useState(false)
   const [nickMsg, setNickMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
@@ -84,17 +95,22 @@ export default function MyPage() {
       <section className="bg-surface-container-lowest rounded-2xl p-5 mb-5">
         <h3 className="font-headline font-bold text-lg text-on-surface mb-1">닉네임</h3>
         <p className="text-xs text-on-surface-variant mb-4">
-          한글, 영문, 숫자만 쓸 수 있어요. 2~20자.
+          완성된 한글, 영문, 숫자만 쓸 수 있어요. 최대 {NICKNAME_MAX_BYTES}바이트 (한글 4자).
         </p>
         <label htmlFor="my-nickname" className="sr-only">닉네임</label>
         <input
           id="my-nickname"
           type="text"
           value={nickname}
-          maxLength={20}
           onChange={(e) => setNickname(e.target.value)}
           className={field}
         />
+        <p
+          className="text-xs mt-1.5 text-right"
+          style={{ color: overBytes ? 'var(--color-tertiary)' : 'var(--color-outline)' }}
+        >
+          {bytes} / {NICKNAME_MAX_BYTES}바이트
+        </p>
         {nickMsg && (
           <p
             role="status"
@@ -107,12 +123,12 @@ export default function MyPage() {
         <button
           type="button"
           onClick={saveNickname}
-          disabled={nickBusy || !nickname.trim() || nickname === user?.nickname}
+          disabled={nickBusy || !nickname.trim() || nickname === user?.nickname || overBytes}
           className="mt-4 w-full min-h-[48px] rounded-xl text-base font-semibold transition-opacity"
           style={{
             backgroundColor: 'var(--color-primary)',
             color: 'white',
-            opacity: nickBusy || !nickname.trim() || nickname === user?.nickname ? 0.4 : 1,
+            opacity: nickBusy || !nickname.trim() || nickname === user?.nickname || overBytes ? 0.4 : 1,
           }}
         >
           {nickBusy ? '바꾸는 중…' : '닉네임 바꾸기'}

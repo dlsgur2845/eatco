@@ -8,9 +8,22 @@ import { validateNickname } from '../../../worker/src/lib/nickname'
 const ok = (s: string) => validateNickname(s).ok
 
 describe('글자 규칙', () => {
-  it('한글·영문·숫자를 허용한다', () => {
-    for (const s of ['손보경', '송인혁', 'Anna', 'user123', '홍길동2', 'ㅋㅋ', '김밥천국'])
+  it('완성된 한글·영문·숫자를 허용한다', () => {
+    for (const s of ['손보경', '송인혁', 'Anna', 'user123', '홍길동2', '김밥천국'])
       expect(ok(s), s).toBe(true)
+  })
+
+  it('불완전한 한글(자모)을 거절한다', () => {
+    // ㄱㄴㄷ, ㅎㅇ, ㅏㅏ 같은 것. 화이트리스트라 호환 자모뿐 아니라
+    // 한글 자모 블록(U+1100~)과 반각 자모(U+FFA0~)도 같이 걸린다.
+    for (const s of ['ㄱㄴㄷ', 'ㅎㅇ', 'ㅏㅏ', 'ㅋㅋ', 'ㅅㅂ', '한글ㅇ', '\u1100\u1161', 'ﾰﾱ'])
+      expect(ok(s), s).toBe(false)
+  })
+
+  it('자모만 쓴 경우엔 그렇다고 말해준다', () => {
+    const r = validateNickname('ㅎㅇ')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.message).toContain('완성된 한글')
   })
 
   it('공백과 특수문자를 거절한다', () => {
@@ -19,11 +32,22 @@ describe('글자 규칙', () => {
       expect(ok(s), s).toBe(false)
   })
 
-  it('길이 하한과 상한을 지킨다', () => {
-    expect(ok('가')).toBe(false)
-    expect(ok('가나')).toBe(true)
-    expect(ok('가'.repeat(20))).toBe(true)
-    expect(ok('가'.repeat(21))).toBe(false)
+  it('길이 상한은 글자가 아니라 UTF-8 바이트로 센다', () => {
+    // 한글 완성형은 1자 = 3바이트. 14바이트면 한글 4자, 영문·숫자 14자.
+    expect(ok('가')).toBe(false)              // 2자 미만
+    expect(ok('가나')).toBe(true)             //  6바이트
+    expect(ok('김철수야')).toBe(true)          // 12바이트
+    expect(ok('가나다라마')).toBe(false)        // 15바이트 — 초과
+    expect(ok('abcdefghijklmn')).toBe(true)   // 14바이트
+    expect(ok('abcdefghijklmno')).toBe(false) // 15바이트
+    expect(ok('한글abcdefgh')).toBe(true)      // 6+8 = 14바이트
+    expect(ok('한글abcdefghi')).toBe(false)    // 15바이트
+  })
+
+  it('바이트 초과는 이유를 숫자로 말해준다', () => {
+    const r = validateNickname('냉장고지킴이') // 18바이트
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.message).toContain('14바이트')
   })
 
   it('문자열이 아니거나 비면 거절한다', () => {
@@ -34,6 +58,7 @@ describe('글자 규칙', () => {
 
 describe('비속어 — 한국어', () => {
   it('대표적인 것들을 막는다', () => {
+    // ㅅㅂ·ㅄ 는 이제 자모 규칙에서 먼저 걸린다. 거절되는 건 마찬가지다.
     for (const s of ['시발', '씨발', '병신', 'ㅅㅂ', 'ㅄ', '좆', '개새끼', '씹'])
       expect(ok(s), s).toBe(false)
   })
