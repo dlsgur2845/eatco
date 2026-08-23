@@ -4,9 +4,12 @@ import { useModal } from '../../hooks/useModal'
 interface Props {
   recipe: Recipe
   onClose: () => void
+  /* 상세 아래에 덧붙일 것. 공유 레시피만 검토 패널을 끼운다 —
+     추천 카드(식품안전나라)는 내 글이 아니라 검토할 게 없다. */
+  extra?: React.ReactNode
 }
 
-export default function RecipeDetailModal({ recipe, onClose }: Props) {
+export default function RecipeDetailModal({ recipe, onClose, extra }: Props) {
   const panelRef = useModal(true, onClose)
   const pct = Math.round(recipe.match_ratio * 100)
 
@@ -129,6 +132,7 @@ export default function RecipeDetailModal({ recipe, onClose }: Props) {
               </p>
             </div>
           )}
+          {extra}
         </div>
       </div>
     </div>

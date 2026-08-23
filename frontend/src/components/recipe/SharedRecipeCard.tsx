@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import RecipeCard from './RecipeCard'
-import { deleteSharedRecipe, type SharedRecipe } from '../../api/sharedRecipes'
+import { deleteSharedRecipe, type SharedRecipe, type SharedRecipeDetail } from '../../api/sharedRecipes'
+import RecipeReviewPanel from './RecipeReviewPanel'
+import AddRecipeSheet from './AddRecipeSheet'
 import { josa } from '../../lib/korean'
 
 interface Props {
@@ -8,13 +10,14 @@ interface Props {
   onDeleted: () => void
 }
 
-/* 검열 결과 배지.
-   approved 는 배지를 안 단다 — 정상이 기본이고, 모든 카드에 «승인» 이 붙으면
-   그 배지는 정보가 아니라 소음이다. pending/rejected 는 작성자에게만 보인다
-   (서버가 남의 pending 을 목록에 아예 안 넣는다). */
-const STATUS: Record<string, { label: string; color: string; bg: string }> = {
-  pending: {
-    label: '검토 중',
+/* 카드 배지.
+   'pending' 은 없어졌다 — 자동 검열이 사라지면서 그 상태 자체가 없다.
+   이제 말할 것은 **범위**(가족만/모두)와 거절이다.
+   공개된 글에는 배지를 안 단다 — 그게 기본 기대값이고, 모든 카드에
+   «공개» 가 붙으면 그 배지는 정보가 아니라 소음이다. */
+const BADGE: Record<string, { label: string; color: string; bg: string }> = {
+  family: {
+    label: '가족만',
     color: 'var(--color-on-surface-variant)',
     bg: 'color-mix(in srgb, var(--color-surface-container-low) 92%, black)',
   },
@@ -27,7 +30,16 @@ const STATUS: Record<string, { label: string; color: string; bg: string }> = {
 
 export default function SharedRecipeCard({ recipe, onDeleted }: Props) {
   const [busy, setBusy] = useState(false)
-  const badge = STATUS[recipe.status]
+  const [editing, setEditing] = useState<SharedRecipeDetail | null>(null)
+  /* 내 글에만 범위 배지를 단다. 남의 글은 어차피 공개된 것만 보이므로
+     «가족만» 이 뜰 일이 없고, 뜬다면 그건 우리 가족 글이라 이미 안다. */
+  const badge = recipe.is_mine
+    ? recipe.status === 'rejected'
+      ? BADGE.rejected
+      : recipe.visibility === 'family'
+        ? BADGE.family
+        : null
+    : null
 
   async function remove() {
     // window.confirm 은 이 저장소가 이미 쓰는 방식이다 (일관성).
@@ -53,7 +65,18 @@ export default function SharedRecipeCard({ recipe, onDeleted }: Props) {
        거절 카드는 사이에 block <p>(사유)가 있어서 우연히 줄바꿈돼 멀쩡해 보였다 —
        즉 검토 중 카드에서만 드러났다. 실측으로 확인한 값이다. */
     <div className="relative flex-shrink-0 w-56">
-      <RecipeCard recipe={recipe} />
+      <RecipeCard
+        recipe={recipe}
+        detailExtra={
+          recipe.is_mine ? (
+            <RecipeReviewPanel
+              recipeId={recipe.id}
+              onEdit={(d) => setEditing(d)}
+              onChanged={onDeleted}
+            />
+          ) : undefined
+        }
+      />
 
       {/* 작성자와 상태를 **둘 다 좌상단**에 둔다. 우상단은 삭제 버튼 전용이다.
           예전엔 상태 배지가 우상단을 차지해서, 검토 중·거절 카드만 삭제를
@@ -112,6 +135,14 @@ export default function SharedRecipeCard({ recipe, onDeleted }: Props) {
         </p>
       )}
 
+      {/* 고치기 시트. 등록과 같은 폼을 수정 모드로 연다. */}
+      {editing && (
+        <AddRecipeSheet
+          editing={editing}
+          onClose={() => setEditing(null)}
+          onCreated={onDeleted}
+        />
+      )}
     </div>
   )
 }

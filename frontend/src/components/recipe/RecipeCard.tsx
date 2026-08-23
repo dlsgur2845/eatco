@@ -4,6 +4,8 @@ import RecipeDetailModal from './RecipeDetailModal'
 
 interface Props {
   recipe: Recipe
+  /** 상세 모달 아래에 붙일 것. SharedRecipeCard 가 검토 패널을 넘긴다. */
+  detailExtra?: React.ReactNode
 }
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -20,7 +22,7 @@ const SOURCE_ICON: Record<string, string> = {
   fallback: 'public',
 }
 
-export default function RecipeCard({ recipe }: Props) {
+export default function RecipeCard({ recipe, detailExtra }: Props) {
   const [showDetail, setShowDetail] = useState(false)
   const pct = Math.round(recipe.match_ratio * 100)
   /* `source` 는 서버가 실제로 안 보낸다 (응답 키 실측 확인). 타입을 optional 로
@@ -100,7 +102,7 @@ export default function RecipeCard({ recipe }: Props) {
       </button>
 
       {showDetail && (
-        <RecipeDetailModal recipe={recipe} onClose={() => setShowDetail(false)} />
+        <RecipeDetailModal recipe={recipe} onClose={() => setShowDetail(false)} extra={detailExtra} />
       )}
     </>
   )

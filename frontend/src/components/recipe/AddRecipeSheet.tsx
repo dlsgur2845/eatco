@@ -1,10 +1,16 @@
 import { useState } from 'react'
 import { useModal } from '../../hooks/useModal'
-import { createSharedRecipe, CATEGORIES, METHODS } from '../../api/sharedRecipes'
+import {
+  createSharedRecipe, updateSharedRecipe, CATEGORIES, METHODS,
+  type SharedRecipeDetail,
+} from '../../api/sharedRecipes'
 
 interface Props {
   onClose: () => void
   onCreated: () => void
+  /* 있으면 **수정 모드**. 같은 폼을 쓰는 이유는 규칙이 하나뿐이어야 하기
+     때문이다 — 폼이 두 벌이면 등록에서 막히는 값이 수정으로는 통과한다. */
+  editing?: SharedRecipeDetail
 }
 
 /* 서버(shared-recipes.ts)와 같은 상한. 여기서 막는 건 편의고, 진짜 방어는 서버다. */
@@ -24,17 +30,22 @@ function newRow(): Row {
   return { id: rowSeq++, value: '' }
 }
 
-export default function AddRecipeSheet({ onClose, onCreated }: Props) {
+export default function AddRecipeSheet({ onClose, onCreated, editing }: Props) {
   const panelRef = useModal(true, onClose)
 
-  const [title, setTitle] = useState('')
-  const [category, setCategory] = useState<string>(CATEGORIES[0])
-  const [method, setMethod] = useState<string>(METHODS[0])
+  const [title, setTitle] = useState(editing?.name ?? '')
+  const [category, setCategory] = useState<string>(editing?.category ?? CATEGORIES[0])
+  const [method, setMethod] = useState<string>(editing?.cooking_method ?? METHODS[0])
   // 빈 칸 두 개로 시작한다. 재료는 최소 2개라서, 하나만 보이면 "더 넣어야 하나?" 를 묻게 된다.
-  const [ingredients, setIngredients] = useState<Row[]>(() => [newRow(), newRow()])
-  const [steps, setSteps] = useState<Row[]>(() => [newRow()])
-  const [tip, setTip] = useState('')
-  const [anonymous, setAnonymous] = useState(false)
+  const fill = (xs: string[] | undefined, min: number): Row[] => {
+    const rows = (xs ?? []).map((v) => ({ id: rowSeq++, value: v }))
+    while (rows.length < min) rows.push(newRow())
+    return rows
+  }
+  const [ingredients, setIngredients] = useState<Row[]>(() => fill(editing?.ingredients, 2))
+  const [steps, setSteps] = useState<Row[]>(() => fill(editing?.manual_steps, 1))
+  const [tip, setTip] = useState(editing?.tip ?? '')
+  const [anonymous, setAnonymous] = useState(editing?.author_label === '익명')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -54,16 +65,24 @@ export default function AddRecipeSheet({ onClose, onCreated }: Props) {
     if (!canSubmit) return
     setSaving(true)
     setError('')
+    const body = {
+      title: title.trim(),
+      category,
+      cooking_method: method,
+      ingredients: filledIngredients,
+      manual_steps: filledSteps,
+      tip: tip.trim(),
+      is_anonymous: anonymous,
+    }
     try {
-      await createSharedRecipe({
-        title: title.trim(),
-        category,
-        cooking_method: method,
-        ingredients: filledIngredients,
-        manual_steps: filledSteps,
-        tip: tip.trim(),
-        is_anonymous: anonymous,
-      })
+      if (editing) {
+        /* 서버가 내용 해시를 비교한다. 바뀐 게 없으면 changed:false 만 오고
+           공개 상태도 승인도 그대로다 — 저장을 눌렀다는 이유로 공개가
+           풀리지 않는다. */
+        await updateSharedRecipe(editing.id, body)
+      } else {
+        await createSharedRecipe(body)
+      }
       onCreated()
       onClose()
     } catch (e: unknown) {
@@ -87,7 +106,7 @@ export default function AddRecipeSheet({ onClose, onCreated }: Props) {
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        aria-label="나의 메뉴 추가"
+        aria-label={editing ? '메뉴 고치기' : '나의 메뉴 추가'}
         className="modal-scroll relative w-full max-w-md max-h-[90vh] rounded-t-3xl sm:rounded-3xl overflow-y-auto sm:mx-4"
         style={{
           backgroundColor: 'var(--color-surface-container-lowest)',
@@ -104,10 +123,12 @@ export default function AddRecipeSheet({ onClose, onCreated }: Props) {
             className="text-xl font-bold"
             style={{ fontFamily: 'var(--font-headline)', color: 'var(--color-on-surface)' }}
           >
-            나의 메뉴 추가
+            {editing ? '메뉴 고치기' : '나의 메뉴 추가'}
           </h2>
           <p className="text-sm mt-1" style={{ color: 'var(--color-on-surface-variant)' }}>
-            올린 메뉴는 모든 사용자가 볼 수 있어요.
+            {editing
+              ? '내용을 바꾸면 공개 검토를 다시 받아야 해요.'
+              : '먼저 우리 가족만 볼 수 있어요. 공개는 나중에 정할 수 있어요.'}
           </p>
 
           {/* 요리 이름 */}
@@ -348,14 +369,16 @@ export default function AddRecipeSheet({ onClose, onCreated }: Props) {
                 opacity: canSubmit ? 1 : 0.4,
               }}
             >
-              {saving ? '등록 중…' : '등록하기'}
+              {saving ? '저장 중…' : editing ? '저장하기' : '등록하기'}
             </button>
           </div>
 
           <p className="mt-3 text-xs text-center" style={{ color: 'var(--color-outline)' }}>
             {/* 검열이 게이트가 아니라 라벨이라는 걸 미리 말해둔다.
                 "검토 중" 배지를 처음 본 사용자가 실패로 오해하지 않게. */}
-            등록하면 먹을 수 있는 음식인지 자동으로 확인해요. 확인되면 바로 공개돼요.
+            {editing
+              ? '내용이 그대로면 검토를 다시 받지 않아요.'
+              : '등록하면 우리 가족에게만 보여요. 상세 화면에서 공개 검토를 받을 수 있어요.'}
           </p>
         </div>
       </div>

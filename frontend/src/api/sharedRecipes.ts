@@ -12,10 +12,30 @@ export interface SharedRecipe extends Recipe {
   /** 익명이면 '익명', 기명이면 닉네임. 서버가 이미 골라서 보낸다. */
   author_label: string
   is_mine: boolean
-  status: 'pending' | 'approved' | 'rejected'
+  /** 지금 누가 볼 수 있나. 기본은 가족. */
+  visibility: 'family' | 'public'
+  /** 공개 검토 결과. 'none' 은 아직 눌러본 적 없음. */
+  status: 'none' | 'approved' | 'rejected'
+  /** 승인이 아직 유효한가. 수정하면 false 가 된다. */
+  approval_valid: boolean
   /** 거절 사유. 작성자 본인에게만 온다. */
   status_reason: string | null
   created_at: string
+  updated_at: string
+}
+
+/** 개선 검토 한 건. */
+export interface Improvement {
+  id: string
+  body: string
+  created_at: string
+  /** 이 조언을 받은 뒤 레시피가 바뀌었나. */
+  stale: boolean
+}
+
+/** 상세 조회 결과 — 개선 이력은 작성자에게만 온다. */
+export interface SharedRecipeDetail extends SharedRecipe {
+  improvements: Improvement[]
 }
 
 export interface NewRecipe {
@@ -69,4 +89,48 @@ export async function createSharedRecipe(body: NewRecipe): Promise<{ id: string;
 export async function deleteSharedRecipe(id: string): Promise<void> {
   await api.delete(`/shared-recipes/${id}`)
   invalidateSharedRecipes()
+}
+
+export async function getSharedRecipe(id: string): Promise<SharedRecipeDetail> {
+  const r = await api.get<SharedRecipeDetail>(`/shared-recipes/${id}`)
+  return r.data
+}
+
+/** 수정. 내용이 그대로면 서버가 changed:false 만 돌려주고 아무것도 안 바꾼다. */
+export async function updateSharedRecipe(
+  id: string,
+  body: NewRecipe,
+): Promise<{ changed: boolean; visibility: 'family' | 'public'; status: string }> {
+  const r = await api.patch<{ changed: boolean; visibility: 'family' | 'public'; status: string }>(
+    `/shared-recipes/${id}`,
+    body,
+  )
+  invalidateSharedRecipes()
+  return r.data
+}
+
+/** 개선 검토. 요리마다 시간당 1회 — 넘으면 429 와 남은 시간이 온다. */
+export async function requestImprovement(id: string): Promise<{ notes: string[]; created_at: string }> {
+  const r = await api.post<{ id: string; notes: string[]; created_at: string }>(
+    `/shared-recipes/${id}/improve`,
+  )
+  return r.data
+}
+
+/** 공개 검토. reused:true 면 승인이 살아 있어서 Gemini 를 안 불렀다는 뜻. */
+export async function publishRecipe(
+  id: string,
+): Promise<{ visibility: string; status: string; reused?: boolean; reason?: string }> {
+  const r = await api.post<{ visibility: string; status: string; reused?: boolean; reason?: string }>(
+    `/shared-recipes/${id}/publish`,
+  )
+  invalidateSharedRecipes()
+  return r.data
+}
+
+/** 공개 내리기. 승인 기록은 남으므로 내용이 그대로면 다시 올릴 때 호출이 없다. */
+export async function unpublishRecipe(id: string): Promise<{ visibility: string }> {
+  const r = await api.post<{ visibility: string }>(`/shared-recipes/${id}/unpublish`)
+  invalidateSharedRecipes()
+  return r.data
 }
