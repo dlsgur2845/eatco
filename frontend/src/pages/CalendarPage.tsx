@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import api from '../api/client'
+import { searchRecipes, type Recipe } from '../api/recipes'
 import MealDetailModal from '../components/calendar/MealDetailModal'
 import Reveal from '../components/motion/Reveal'
 import { useModal } from '../hooks/useModal'
@@ -72,6 +73,67 @@ function AddMealModal({
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
+  /* 고른 레시피. **제목과 별개로 산다.** 고른 뒤 제목을 "엄마표 김치찌개" 로
+     고쳐도 연결은 그대로다 — 이름을 바꾼 것이지 다른 요리를 하는 게 아니다.
+     연결을 끊으려면 칩의 ✕ 를 누른다. */
+  const [picked, setPicked] = useState<Recipe | null>(null)
+  const [results, setResults] = useState<Recipe[]>([])
+  const [search, setSearch] = useState<'idle' | 'searching' | 'done' | 'error'>('idle')
+  /* 카탈로그(공공 API)를 다 못 읽었나. **0건과 "일부만 불러옴" 을 같은 화면으로
+     처리하면 안 된다** (DESIGN.md §5). 같으면 사용자는 "그런 레시피가 없구나" 로
+     결론짓는데 그건 거짓 정보다. */
+  const [catalogOk, setCatalogOk] = useState(true)
+  /* 응답 경합 방어. 빠르게 타이핑하면 늦게 뜬 옛 응답이 나중에 도착해서
+     새 결과를 덮는다. 이 파일의 load() 가 쓰는 것과 같은 패턴이다. */
+  const reqId = useRef(0)
+  // "다시 시도" 가 같은 질의를 다시 태우게 하는 스위치.
+  const [retryTick, setRetryTick] = useState(0)
+
+  const q = title.trim()
+
+  useEffect(() => {
+    // 이미 골랐으면 검색하지 않는다. 지금 타이핑은 이름을 다듬는 중이다.
+    if (picked || !q) {
+      setResults([])
+      setSearch('idle')
+      return
+    }
+    // 250ms 디바운스. 없으면 "김치찌개" 다섯 타에 요청이 다섯 번 나간다.
+    const t = setTimeout(async () => {
+      const id = ++reqId.current
+      setSearch('searching')
+      try {
+        const r = await searchRecipes(q)
+        if (id !== reqId.current) return
+        /* id 없는 결과는 식단에 붙일 수 없다 (조리법을 다시 찾을 열쇠가 없다).
+           서버는 항상 보내지만, 옛 모양의 캐시가 살아 있으면 빠질 수 있다 —
+           실제로 카탈로그 캐시에 RCP_SEQ 를 넣기 전 배포에서 그랬다.
+           조용히 버리지 않고 로그를 남긴다. */
+        const usable = r.items.filter((x) => !!x.id)
+        if (usable.length !== r.items.length) {
+          console.warn('id 없는 레시피 검색 결과를 버렸다:', r.items.length - usable.length)
+        }
+        setResults(usable)
+        setCatalogOk(r.catalog_ok)
+        setSearch('done')
+      } catch {
+        if (id !== reqId.current) return
+        setSearch('error')
+      }
+    }, 250)
+    return () => clearTimeout(t)
+  }, [q, picked, retryTick])
+
+  // 같은 질의를 다시 태운다. 사용자가 친 글자는 건드리지 않는다.
+  const retry = () => setRetryTick((n) => n + 1)
+
+  const pick = (r: Recipe) => {
+    setPicked(r)
+    setTitle(r.name)
+    setResults([])
+    setSearch('idle')
+  }
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     const t = title.trim()
@@ -79,7 +141,21 @@ function AddMealModal({
     setSaving(true)
     setErr('')
     try {
-      await api.post('/calendar', { plan_date: date, meal_slot: slot, title: t, memo: memo.trim() || null })
+      await api.post('/calendar', {
+        plan_date: date,
+        meal_slot: slot,
+        title: t,
+        memo: memo.trim() || null,
+        /* 셋을 함께 보내거나 아예 안 보낸다. 서버가 반쪽 상태를 422 로 막는다.
+           재료는 **여기서 스냅샷으로 굳어진다** — 부족 여부는 굳지 않는다. */
+        ...(picked && picked.id
+          ? {
+              recipe_source: picked.source === 'custom' ? 'custom' : 'foodsafety',
+              recipe_id: picked.id,
+              recipe_ingredients: picked.ingredients,
+            }
+          : {}),
+      })
       onSaved()
       onClose()
     } catch {
@@ -94,25 +170,120 @@ function AddMealModal({
         ref={panelRef as unknown as React.RefObject<HTMLFormElement>}
         tabIndex={-1}
         onSubmit={submit}
-        className="w-full max-w-md bg-surface-container-lowest rounded-t-[2rem] sm:rounded-[2rem] p-6 outline-none"
+        className="w-full max-w-md bg-surface-container-lowest rounded-t-[2rem] sm:rounded-[2rem] p-6 outline-none max-h-[88vh] overflow-y-auto modal-scroll"
       >
         <p className="text-xs text-on-surface-variant mb-1">
           {date} · {MEAL_SLOT_LABEL[slot]}
         </p>
         <h3 className="font-headline font-bold text-xl text-on-surface mb-5">뭘 먹을까요?</h3>
 
+        {/* 라벨은 placeholder 로 대신할 수 없다. 글자를 치는 순간 사라져서
+            스크린리더가 읽을 이름이 없어진다 (DESIGN.md §6). */}
+        <label htmlFor="meal-title" className="block text-xs font-semibold text-on-surface-variant mb-1">
+          메뉴
+        </label>
         <input
+          id="meal-title"
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="예: 김치찌개"
           maxLength={100}
-          className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-on-surface placeholder:text-outline outline-none focus:ring-2 focus:ring-primary mb-3"
+          autoComplete="off"
+          className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-on-surface placeholder:text-outline outline-none focus:ring-2 focus:ring-primary"
         />
+
+        {picked ? (
+          <RecipeAttached recipe={picked} onDetach={() => setPicked(null)} />
+        ) : (
+          <>
+            <p className="text-xs text-on-surface-variant mt-1.5">
+              레시피를 고르면 지금 부족한 재료를 알려드려요.
+            </p>
+
+            {search === 'searching' && (
+              <p role="status" className="text-xs text-on-surface-variant mt-3">
+                레시피를 찾는 중…
+              </p>
+            )}
+
+            {search === 'error' && (
+              <div className="mt-3 flex items-center gap-3">
+                <p role="status" className="text-xs text-error flex-1">
+                  레시피를 검색하지 못했어요.
+                </p>
+                <button
+                  type="button"
+                  onClick={retry}
+                  className="min-h-[48px] px-4 text-xs font-bold text-on-surface rounded-full bg-surface-container-high active:scale-95 transition-transform"
+                >
+                  다시 시도
+                </button>
+              </div>
+            )}
+
+            {search === 'done' && results.length === 0 && (
+              <p role="status" className="text-xs text-on-surface-variant mt-3">
+                {/* 친 글자를 그대로 되돌려주되 짧게 자른다. 안 자르면 긴 이름을
+                    붙여넣었을 때 이 문단이 화면을 덮어서, 정작 알려주려던
+                    "그대로 적어서 올릴 수 있어요" 가 안 보인다. */}
+                「{q.length > 20 ? q.slice(0, 20) + '…' : q}」로 찾은 레시피가 없어요.
+                그대로 적어서 올릴 수 있어요.
+              </p>
+            )}
+
+            {search === 'done' && results.length > 0 && (
+              <>
+                <p role="status" className="sr-only">
+                  레시피 {results.length}건을 찾았어요.
+                </p>
+                {!catalogOk && (
+                  <p className="text-xs text-tertiary mt-3">
+                    레시피 목록을 일부만 불러왔어요.
+                  </p>
+                )}
+                {/* 카드가 아니라 평평한 행이다. 행 자체가 곧 버튼이라 카드 장식이
+                    할 일이 없다. 등장 애니메이션도 안 건다 — 타이핑마다 바뀌는
+                    목록에 모션을 걸면 소음이 된다. */}
+                <ul className="mt-2 divide-y divide-outline-variant/40">
+                  {results.map((r) => (
+                    <li key={`${r.source ?? 'x'}:${r.id ?? r.name}`}>
+                      <button
+                        type="button"
+                        onClick={() => pick(r)}
+                        className="w-full min-h-[48px] flex items-center gap-3 text-left px-1 py-2 active:scale-[0.98] transition-transform"
+                      >
+                        <span className="flex-1 min-w-0">
+                          <span className="block truncate text-sm font-medium text-on-surface">
+                            {r.name}
+                          </span>
+                          <span className="block text-xs text-on-surface-variant">
+                            {r.source === 'custom' ? '우리 가족 레시피' : '식품안전나라'}
+                            {r.missing_items.length > 0
+                              ? ` · ${r.missing_items.length}개 부족`
+                              : ' · 재료 다 있어요'}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-xs font-semibold text-on-surface-variant">
+                          {Math.round(r.match_ratio * 100)}%
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </>
+        )}
+
+        <label htmlFor="meal-memo" className="block text-xs font-semibold text-on-surface-variant mt-4 mb-1">
+          메모 (선택)
+        </label>
         <textarea
+          id="meal-memo"
           value={memo}
           onChange={(e) => setMemo(e.target.value)}
-          placeholder="메모 (선택) · 예: 두부 사와야 함"
+          placeholder="예: 두부 사와야 함"
           rows={2}
           maxLength={500}
           className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-on-surface placeholder:text-outline outline-none focus:ring-2 focus:ring-primary resize-none"
@@ -124,7 +295,11 @@ function AddMealModal({
           </p>
         )}
 
-        <div className="flex gap-3 mt-5">
+        {/* 바닥에 붙인다. 후보가 8건 뜨면 "올리기" 가 접힌 화면 밖으로 밀려나는데,
+            **직접 입력이 가장 흔한 경우**라 그때 스크롤을 시키면 안 된다.
+            "라면" 을 적고 바로 올리는 길이 후보 목록에 막히면 이 화면의
+            설계 전제(입력창 하나로 둘 다)가 무너진다. */}
+        <div className="sticky bottom-0 -mx-6 -mb-6 px-6 pt-3 pb-6 bg-surface-container-lowest border-t border-outline-variant/40 flex gap-3 mt-5">
           <button
             type="button"
             onClick={onClose}
@@ -141,6 +316,42 @@ function AddMealModal({
           </button>
         </div>
       </form>
+    </div>
+  )
+}
+
+/**
+ * 고른 레시피 — 칩 + 부족한 재료.
+ *
+ * 여기 보이는 "부족" 은 **고른 순간의 냉장고 기준**이다. 등록하고 나면
+ * 식단 상세가 열릴 때마다 그때의 냉장고로 다시 계산한다. 그래서 장을 보면
+ * 다음에 열 때 목록이 줄어 있다.
+ */
+function RecipeAttached({ recipe, onDetach }: { recipe: Recipe; onDetach: () => void }) {
+  const missing = recipe.missing_items
+  return (
+    /* 레시피 이름을 여기 다시 쓰지 않는다. 바로 위 입력창이 이미 그 이름이라
+       같은 글자가 두 줄로 겹친다. 이 블록이 존재한다는 것 자체가 "레시피가
+       붙었다" 는 표시다. ✕ 아이콘 대신 글자 버튼을 쓰는 것도 같은 이유다 —
+       아이콘 하나로는 무엇이 닫히는지가 안 보인다. */
+    <div className="mt-3 rounded-xl bg-surface-container-low p-3">
+      <div className="flex items-start gap-2">
+        <p className="flex-1 min-w-0 text-xs font-semibold text-on-surface pt-3">
+          {missing.length > 0
+            ? `부족한 재료 ${missing.length}개`
+            : `재료가 다 있어요 (${recipe.match_count}/${recipe.total_ingredients})`}
+        </p>
+        <button
+          type="button"
+          onClick={onDetach}
+          className="shrink-0 min-h-[48px] px-3 -my-1 inline-flex items-center justify-center text-xs font-bold text-on-surface-variant active:scale-95 transition-transform"
+        >
+          연결 해제
+        </button>
+      </div>
+      {missing.length > 0 && (
+        <p className="text-xs text-on-surface-variant break-words">{missing.join(' · ')}</p>
+      )}
     </div>
   )
 }
@@ -180,6 +391,14 @@ function DaySlots({
                   <span className="flex-1 min-w-0 truncate text-sm font-medium text-on-surface">
                     {p.title}
                   </span>
+                  {/* 부족한 재료가 있을 때만 띄운다. 0 이면 아무것도 안 그린다 —
+                      할 일이 없다는 뜻이고, 매 줄에 ✓ 를 그리면 정작 봐야 할
+                      "부족" 이 묻힌다. 자세한 건 상세에서 본다. */}
+                  {!!p.missing_count && (
+                    <span className="shrink-0 text-xs font-semibold text-tertiary">
+                      {p.missing_count}개 부족
+                    </span>
+                  )}
                   {!!p.comment_count && (
                     <span className="shrink-0 inline-flex items-center gap-0.5 text-xs text-on-surface-variant">
                       <span aria-hidden="true" className="material-symbols-outlined text-[14px]">chat_bubble</span>

@@ -155,6 +155,30 @@ export interface MealPlan {
   created_by_name: string
   created_at: string
   comment_count?: number
+  /** 붙은 레시피 기준 부족한 재료 수. **레시피가 없으면 아예 안 온다.**
+      0 은 "재료가 다 있다" 는 뜻이라 undefined 와 구분해야 한다. */
+  missing_count?: number
+  recipe_source?: string | null
+  recipe_id?: string | null
+}
+
+/**
+ * 식단에 붙은 레시피.
+ *
+ * 서버가 저장하는 건 재료 목록뿐이고, matched/missing 은 **화면을 열 때마다
+ * 지금 냉장고로 다시 계산해서** 보낸다. 장을 보면 다음에 열 때 부족 목록에서
+ * 빠진다. 그래서 이 값을 클라이언트가 캐시하면 안 된다.
+ */
+export interface MealPlanRecipe {
+  source: 'foodsafety' | 'custom'
+  id: string
+  ingredients: string[]
+  match_count: number
+  total_ingredients: number
+  match_ratio: number
+  matched_items: string[]
+  missing_items: string[]
+  urgent_used: string[]
 }
 
 export interface MealComment {
@@ -167,4 +191,6 @@ export interface MealComment {
 
 export interface MealPlanDetail extends MealPlan {
   comments: MealComment[]
+  /** 레시피를 안 붙였으면 null. 서버가 항상 이 키를 보낸다. */
+  recipe: MealPlanRecipe | null
 }

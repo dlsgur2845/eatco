@@ -1,6 +1,11 @@
 import api, { registerFridgeChangeHandler } from './client'
 
 export interface Recipe {
+  /* 레시피를 다시 찾는 열쇠. foodsafety 면 RCP_SEQ, custom 이면 shared_recipes.id.
+     **optional 이다** — `/recipes/recommend` 응답에도 들어 있지만, 옛 응답이
+     캐시에 남아 있을 수 있다. 이 저장소는 서버가 안 보내는 필드를 필수로
+     단언했다가 상세 화면이 흰 화면이 된 적이 있다 (`manual_images`). */
+  id?: string
   name: string
   category: string
   cooking_method: string
@@ -62,4 +67,29 @@ export async function getRecommendations(): Promise<Recipe[]> {
     })
 
   return inFlight
+}
+
+
+/* ── 검색 ──────────────────────────────────────────────────────────
+   식단에 붙일 레시피를 고르는 용도. 두 카탈로그(우리 가족 + 식품안전나라)를
+   서버가 합쳐서 준다.
+
+   `catalog_ok` 가 왜 필요한가: 공공 API 가 죽었을 때 결과가 0건이면 화면은
+   "그런 레시피가 없어요" 라고 말한다. 그건 거짓 정보다. 0건과 "일부만
+   불러옴" 을 다르게 말할 수 있어야 한다 (DESIGN.md §5).
+   서버가 **항상** 보내므로 optional 이 아니다. */
+export interface RecipeSearchResult {
+  items: Recipe[]
+  catalog_ok: boolean
+}
+
+export async function searchRecipes(q: string, signal?: AbortSignal): Promise<RecipeSearchResult> {
+  const r = await api.get<RecipeSearchResult>('/recipes/search', { params: { q }, signal })
+  return r.data
+}
+
+/** 식단에 붙은 레시피의 조리법. 못 찾거나 권한 밖이면 404 를 던진다. */
+export async function getRecipeOne(source: string, id: string): Promise<Recipe> {
+  const r = await api.get<Recipe>('/recipes/one', { params: { source, id } })
+  return r.data
 }

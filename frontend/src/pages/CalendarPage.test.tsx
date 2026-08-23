@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import CalendarPage from './CalendarPage'
@@ -8,6 +8,8 @@ vi.mock('../api/client', () => ({
   default: { get: vi.fn(), post: vi.fn(), delete: vi.fn() },
 }))
 import api from '../api/client'
+vi.mock('../api/recipes', () => ({ searchRecipes: vi.fn() }))
+import { searchRecipes } from '../api/recipes'
 
 /**
  * jsdom 은 레이아웃을 계산하지 않는다 — getBoundingClientRect 는 전부 0,
@@ -249,5 +251,181 @@ describe('CalendarPage — 라벨', () => {
       expect(empty.textContent).toContain(md(past))
       expect(empty.textContent).not.toContain('이번 주')
     })
+  })
+})
+
+
+/* ──────────────────────────────────────────────
+   식단 추가 — 레시피 검색
+
+   입력창 하나가 두 가지를 다 한다: 타이핑하면 후보가 뜨고, 고르면 붙고,
+   무시하고 올리면 직접 입력이다. 직접 입력에 탭을 하나 더 물리지 않는 게
+   이 설계의 핵심이라, "고르지 않아도 올라간다" 를 반드시 지킨다.
+   ────────────────────────────────────────────── */
+
+const RECIPE = {
+  id: '3000',
+  name: '김치양배추볶음',
+  source: 'foodsafety' as const,
+  category: '반찬',
+  cooking_method: '볶음',
+  calories: '120',
+  image_url: '',
+  ingredients: ['배추김치', '양배추', '대파'],
+  manual_steps: ['볶는다'],
+  tip: '',
+  match_count: 1,
+  total_ingredients: 3,
+  match_ratio: 1 / 3,
+  matched_items: ['배추김치'],
+  missing_items: ['양배추', '대파'],
+  urgent_used: [],
+}
+
+async function openAddModal() {
+  renderPage()
+  await waitFor(() => expect(api.get).toHaveBeenCalled())
+  const add = screen.getAllByRole('button', { name: /식단 추가$/ })[0]
+  fireEvent.click(add)
+  return await screen.findByLabelText('메뉴')
+}
+
+function type(input: HTMLElement, value: string) {
+  fireEvent.change(input, { target: { value } })
+}
+
+describe('식단 추가 — 레시피 검색', () => {
+  it('타이핑하면 후보가 뜨고, 고르면 부족한 재료를 보여준다', async () => {
+    vi.mocked(searchRecipes).mockResolvedValue({ items: [RECIPE], catalog_ok: true })
+    const input = await openAddModal()
+    type(input, '김치')
+
+    const hit = await screen.findByRole('button', { name: /김치양배추볶음/ })
+    expect(screen.getByText(/식품안전나라/)).toBeTruthy()
+    fireEvent.click(hit)
+
+    expect(await screen.findByText('부족한 재료 2개')).toBeTruthy()
+    expect(screen.getByText('양배추 · 대파')).toBeTruthy()
+    // 고르면 제목이 채워진다
+    expect((screen.getByLabelText('메뉴') as HTMLInputElement).value).toBe('김치양배추볶음')
+  })
+
+  it('고르면 레시피 정보를 셋 다 함께 보낸다', async () => {
+    vi.mocked(searchRecipes).mockResolvedValue({ items: [RECIPE], catalog_ok: true })
+    vi.mocked(api.post).mockResolvedValue({ data: {} } as never)
+    const input = await openAddModal()
+    type(input, '김치')
+      fireEvent.click(await screen.findByRole('button', { name: /김치양배추볶음/ }))
+    await screen.findByText('부족한 재료 2개')
+    fireEvent.click(screen.getByRole('button', { name: '올리기' }))
+
+    await waitFor(() => expect(api.post).toHaveBeenCalled())
+    const body = vi.mocked(api.post).mock.calls[0][1] as Record<string, unknown>
+    expect(body.recipe_source).toBe('foodsafety')
+    expect(body.recipe_id).toBe('3000')
+    expect(body.recipe_ingredients).toEqual(['배추김치', '양배추', '대파'])
+  })
+
+  it('후보를 무시하고 그대로 올리면 직접 입력이다 (레시피 필드가 안 나간다)', async () => {
+    vi.mocked(searchRecipes).mockResolvedValue({ items: [RECIPE], catalog_ok: true })
+    vi.mocked(api.post).mockResolvedValue({ data: {} } as never)
+    const input = await openAddModal()
+    type(input, '라면')
+    fireEvent.click(screen.getByRole('button', { name: '올리기' }))
+
+    await waitFor(() => expect(api.post).toHaveBeenCalled())
+    const body = vi.mocked(api.post).mock.calls[0][1] as Record<string, unknown>
+    expect(body.title).toBe('라면')
+    expect('recipe_source' in body).toBe(false)
+  })
+
+  it('연결을 떼면 부족 재료가 사라지고 제목은 남는다', async () => {
+    vi.mocked(searchRecipes).mockResolvedValue({ items: [RECIPE], catalog_ok: true })
+    const input = await openAddModal()
+    type(input, '김치')
+      fireEvent.click(await screen.findByRole('button', { name: /김치양배추볶음/ }))
+    await screen.findByText('부족한 재료 2개')
+
+    fireEvent.click(screen.getByRole('button', { name: '연결 해제' }))
+    await waitFor(() => expect(screen.queryByText('부족한 재료 2개')).toBeNull())
+    expect((screen.getByLabelText('메뉴') as HTMLInputElement).value).toBe('김치양배추볶음')
+  })
+
+  /* 검색 실패와 0건을 같은 화면으로 처리하면 사용자는 "그런 레시피가 없구나" 로
+     결론짓는다. 그건 거짓 정보다 (DESIGN.md §5). */
+  it('검색이 실패하면 0건 문구가 아니라 오류를 보여준다', async () => {
+    vi.mocked(searchRecipes).mockRejectedValue(new Error('네트워크'))
+    const input = await openAddModal()
+    type(input, '김치')
+
+    expect(await screen.findByText(/검색하지 못했어요/)).toBeTruthy()
+    expect(screen.queryByText(/찾은 레시피가 없어요/)).toBeNull()
+    expect(screen.getByRole('button', { name: '다시 시도' })).toBeTruthy()
+  })
+
+  it('0건이면 직접 입력으로 갈 길을 알려준다', async () => {
+    vi.mocked(searchRecipes).mockResolvedValue({ items: [], catalog_ok: true })
+    const input = await openAddModal()
+    type(input, 'zzzz')
+    expect(await screen.findByText(/그대로 적어서 올릴 수 있어요/)).toBeTruthy()
+  })
+
+  it('카탈로그를 일부만 읽었으면 그렇다고 말한다', async () => {
+    vi.mocked(searchRecipes).mockResolvedValue({ items: [RECIPE], catalog_ok: false })
+    const input = await openAddModal()
+    type(input, '김치')
+    expect(await screen.findByText(/일부만 불러왔어요/)).toBeTruthy()
+  })
+
+  /* 빠르게 타이핑하면 늦게 뜬 옛 응답이 나중에 도착해서 새 결과를 덮을 수 있다. */
+  it('늦게 도착한 옛 검색 응답은 버린다', async () => {
+    let resolveOld: (v: { items: typeof RECIPE[]; catalog_ok: boolean }) => void = () => {}
+    const old = new Promise<{ items: typeof RECIPE[]; catalog_ok: boolean }>((r) => {
+      resolveOld = r
+    })
+    vi.mocked(searchRecipes)
+      .mockReturnValueOnce(old)
+      .mockResolvedValue({ items: [{ ...RECIPE, id: '1', name: '나중결과' }], catalog_ok: true })
+
+    const input = await openAddModal()
+    type(input, '김')
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 300))
+    })
+    type(input, '김치')
+    await screen.findByRole('button', { name: /나중결과/ })
+
+    await act(async () => {
+      resolveOld({ items: [{ ...RECIPE, id: '9', name: '옛결과' }], catalog_ok: true })
+      await new Promise((r) => setTimeout(r, 30))
+    })
+    expect(screen.queryByText('옛결과')).toBeNull()
+    expect(screen.getByText('나중결과')).toBeTruthy()
+  })
+})
+
+describe('주간 카드 — 부족 재료 배지', () => {
+  const plan = (extra: Record<string, unknown>) => ({
+    id: 'p1', plan_date: today, meal_slot: 'dinner', title: '김치찌개', comment_count: 0, ...extra,
+  })
+
+  it('부족한 재료가 있으면 개수를 띄운다', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: [plan({ missing_count: 2 })] } as never)
+    renderPage()
+    expect(await screen.findByText('2개 부족')).toBeTruthy()
+  })
+
+  it('레시피가 없으면 배지가 없다', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: [plan({})] } as never)
+    renderPage()
+    await screen.findByText('김치찌개')
+    expect(screen.queryByText(/개 부족/)).toBeNull()
+  })
+
+  it('부족한 게 0 이면 배지가 없다 — 할 일이 없다는 뜻이다', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: [plan({ missing_count: 0 })] } as never)
+    renderPage()
+    await screen.findByText('김치찌개')
+    expect(screen.queryByText(/개 부족/)).toBeNull()
   })
 })

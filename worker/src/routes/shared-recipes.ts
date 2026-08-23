@@ -4,6 +4,14 @@ import { nowIso } from '../lib/dates'
 import { generateJson, fastModels } from '../lib/gemini'
 import { scoreRecipe } from '../lib/recipe-match'
 import { contentHash, approvalStillValid, type RecipeContent } from '../lib/recipe-content'
+import { cleanText, safeStringArray } from '../lib/sanitize'
+import {
+  RECIPE_COLUMNS,
+  VISIBLE_WHERE,
+  findSharedForViewer,
+  publicRecipe,
+  type SharedRecipeRow,
+} from '../lib/shared-recipe-scope'
 import { loadFridge } from '../lib/fridge'
 import type { Env, User, Vars } from '../lib/types'
 
@@ -49,89 +57,9 @@ const LIST_LIMIT = 50
 /** 개선 검토는 요리별 시간당 1회. Gemini 쿼터를 영수증 스캔과 나눠 쓴다. */
 const IMPROVE_COOLDOWN_MS = 60 * 60 * 1000
 
-interface RecipeRow {
-  id: string
-  family_id: string | null
-  visibility: string
-  content_hash: string
-  approved_hash: string | null
-  updated_at: string
-  title: string
-  category: string
-  cooking_method: string
-  ingredients: string
-  manual_steps: string
-  tip: string | null
-  calories: string | null
-  author_id: string | null
-  author_name: string
-  is_anonymous: number
-  status: string
-  status_reason: string | null
-  created_at: string
-}
 
-/**
- * DB 행 → 응답. **응답을 만드는 유일한 곳이다.**
- *
- * 이 저장소는 `SELECT *` 한 뒤 그대로 c.json() 하는 습관이 있다
- * (calendar.ts:70, scan.ts:159). 그 습관이 이 테이블에 한 번만 적용되면
- * 익명 글의 author_id 가 모든 독자에게 나간다. 그래서 행을 펼치지 않는다.
- */
-function publicRecipe(r: RecipeRow, viewerId: string, fridge: string[], urgent: string[]) {
-  const mine = r.author_id != null && r.author_id === viewerId
-  const ingredients = safeParse(r.ingredients)
-  return {
-    id: r.id,
-    name: r.title,
-    category: r.category,
-    cooking_method: r.cooking_method,
-    calories: r.calories ?? '',
-    image_url: '',
-    ingredients,
-    manual_steps: safeParse(r.manual_steps),
-    manual_images: [] as string[],
-    tip: r.tip ?? '',
-    source: 'custom' as const,
-    // 익명이면 이름을 아예 만들지 않는다. 작성자 본인에게만 "내가 올린" 을 알려준다.
-    author_label: r.is_anonymous ? '익명' : r.author_name,
-    is_mine: mine,
-    status: r.status,
-    visibility: r.visibility,
-    /* 승인이 아직 유효한가. 수정하면 approved_hash 와 어긋나므로 false 가 된다.
-       화면이 "수정해서 공개가 풀렸어요" 를 말할 근거다. */
-    approval_valid: approvalStillValid(r),
-    // 거절 사유는 작성자에게만. 남의 글이 왜 거절됐는지 알 이유가 없다.
-    status_reason: mine ? r.status_reason : null,
-    created_at: r.created_at,
-    updated_at: r.updated_at,
-    /* 추천 목록과 **같은 모양**으로 내보낸다. 이게 없으면 RecipeCard 와
-       RecipeDetailModal 이 match_ratio 없는 객체를 받고, 두 컴포넌트에 전부
-       분기가 생긴다. 계산은 lib/recipe-match.ts 한 곳에서 한다. */
-    ...scoreRecipe(ingredients, fridge, urgent),
-  }
-}
 
-function safeParse(json: string): string[] {
-  try {
-    const v = JSON.parse(json)
-    return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []
-  } catch {
-    return []
-  }
-}
 
-/* 제어문자와 꺾쇠를 턴다. 지금 렌더러는 JSX 라 안전하지만, 다음 렌더러는 모른다.
-   범위는 \x00-\x1f 와 \x7f(DEL). **이스케이프로 쓴다** — 리터럴 제어문자를
-   그대로 넣으면 파일에 NUL 바이트가 박혀서 git 이 이 파일을 바이너리로 보고
-   diff 도 blame 도 안 준다. 실제로 한 번 그렇게 커밋됐다. */
-function clean(s: string, max: number): string {
-  return s
-    .replace(/[\x00-\x1f\x7f]/g, ' ')
-    .replace(/[<>]/g, '')
-    .trim()
-    .slice(0, max)
-}
 
 /** HMAC(SECRET_KEY, userId). FK 가 없어서 탈퇴해도 남고, 새어나가도 의미가 없다. */
 async function authorKey(env: Env, userId: string): Promise<string> {
@@ -190,17 +118,14 @@ app.get('/', async (c) => {
     ? await loadFridge(c.env.DB, user.family_id)
     : { fridge: [], urgent: [] }
   const { results } = await c.env.DB.prepare(
-    `SELECT id, family_id, visibility, content_hash, approved_hash, updated_at,
-            title, category, cooking_method, ingredients, manual_steps, tip, calories,
-            author_id, author_name, author_key, is_anonymous, status, status_reason, created_at
+    `SELECT ${RECIPE_COLUMNS}
        FROM shared_recipes
-      WHERE family_id = ?
-         OR (visibility = 'public' AND status = 'approved' AND approved_hash = content_hash)
+      WHERE ${VISIBLE_WHERE}
       ORDER BY created_at DESC
       LIMIT ?`,
   )
     .bind(user.family_id ?? '', LIST_LIMIT)
-    .all<RecipeRow>()
+    .all<SharedRecipeRow>()
   return c.json((results ?? []).map((r) => publicRecipe(r, user.id, fridge, urgent)))
 })
 
@@ -211,16 +136,14 @@ app.get('/mine', async (c) => {
     ? await loadFridge(c.env.DB, user.family_id)
     : { fridge: [], urgent: [] }
   const { results } = await c.env.DB.prepare(
-    `SELECT id, family_id, visibility, content_hash, approved_hash, updated_at,
-            title, category, cooking_method, ingredients, manual_steps, tip, calories,
-            author_id, author_name, author_key, is_anonymous, status, status_reason, created_at
+    `SELECT ${RECIPE_COLUMNS}
        FROM shared_recipes
       WHERE author_id = ?
       ORDER BY created_at DESC
       LIMIT ?`,
   )
     .bind(user.id, LIST_LIMIT)
-    .all<RecipeRow>()
+    .all<SharedRecipeRow>()
   return c.json((results ?? []).map((r) => publicRecipe(r, user.id, fridge, urgent)))
 })
 
@@ -255,7 +178,7 @@ async function parseRecipeBody(c: Ctx): Promise<ParsedRecipe> {
     is_anonymous?: boolean
   }>(c.req)
 
-  const title = clean(String(b.title ?? ''), MAX_TITLE)
+  const title = cleanText(String(b.title ?? ''), MAX_TITLE)
   if (!title) throw new ApiError(422, '요리 이름을 입력해주세요.')
 
   const category = String(b.category ?? '')
@@ -274,18 +197,18 @@ async function parseRecipeBody(c: Ctx): Promise<ParsedRecipe> {
   }
   const ingredients = b.ingredients
     .slice(0, MAX_INGREDIENTS)
-    .map((x) => clean(String(x), MAX_INGREDIENT_LEN))
+    .map((x) => cleanText(String(x), MAX_INGREDIENT_LEN))
     .filter(Boolean)
   const steps = b.manual_steps
     .slice(0, MAX_STEPS)
-    .map((x) => clean(String(x), MAX_STEP_LEN))
+    .map((x) => cleanText(String(x), MAX_STEP_LEN))
     .filter(Boolean)
 
   // 재료가 2개 미만이면 매칭률이 "재료 0/1개 (0%)" 같은 거짓말이 된다.
   if (ingredients.length < 2) throw new ApiError(422, '재료를 2개 이상 입력해주세요.')
   if (steps.length < 1) throw new ApiError(422, '조리 순서를 1개 이상 입력해주세요.')
 
-  const tip = clean(String(b.tip ?? ''), MAX_TIP)
+  const tip = cleanText(String(b.tip ?? ''), MAX_TIP)
   return { title, category, method, ingredients, steps, tip, isAnon: !!b.is_anonymous }
 }
 
@@ -338,20 +261,13 @@ app.post('/', async (c) => {
 /* 레시피 하나. 상세 화면이 쓴다 — 개선 검토 이력도 같이 준다. */
 app.get('/:id', async (c) => {
   const user = c.get('user')
-  const row = await c.env.DB
-    .prepare(
-      `SELECT id, family_id, visibility, content_hash, approved_hash, updated_at,
-              title, category, cooking_method, ingredients, manual_steps, tip, calories,
-              author_id, author_name, author_key, is_anonymous, status, status_reason, created_at
-         FROM shared_recipes WHERE id = ?`,
-    )
-    .bind(c.req.param('id'))
-    .first<RecipeRow>()
+  /* 가시성은 `lib/shared-recipe-scope.ts` 한 곳에서만 판단한다.
+     여기 있던 JS 검사(`family_id 일치 || approvalStillValid(row)`)는 **버그였다.**
+     `approvalStillValid` 는 visibility 를 안 보는데 unpublish 는 visibility 만
+     바꾸므로, 공개했다 내린 레시피가 id 만으로 아무에게나 계속 열렸다.
+     자세한 내용은 findSharedForViewer 의 주석에 있다. */
+  const row = await findSharedForViewer(c.env.DB, user.family_id, user.id, c.req.param('id'))
   if (!row) throw new ApiError(404, '레시피를 찾을 수 없습니다.')
-
-  // 볼 수 있는가: 내 가족 것이거나, 공개 승인이 유효한 것.
-  const visible = row.family_id === c.get('user').family_id || approvalStillValid(row)
-  if (!visible) throw new ApiError(404, '레시피를 찾을 수 없습니다.')
 
   const { fridge, urgent } = user.family_id
     ? await loadFridge(c.env.DB, user.family_id)
@@ -483,8 +399,8 @@ app.post('/:id/improve', async (c) => {
   const text = [
     `제목: ${row.title}`,
     `분류: ${row.category} / ${row.cooking_method}`,
-    `재료: ${safeParse(row.ingredients).join(', ')}`,
-    `조리: ${safeParse(row.manual_steps).map((x, i) => `${i + 1}. ${x}`).join(' ')}`,
+    `재료: ${safeStringArray(row.ingredients).join(', ')}`,
+    `조리: ${safeStringArray(row.manual_steps).map((x, i) => `${i + 1}. ${x}`).join(' ')}`,
     `팁: ${row.tip ?? '(없음)'}`,
   ].join('\n')
 
@@ -561,8 +477,8 @@ app.post('/:id/publish', async (c) => {
 
   const text = [
     `제목: ${row.title}`,
-    `재료: ${safeParse(row.ingredients).join(', ')}`,
-    `조리: ${safeParse(row.manual_steps).join(' ')}`,
+    `재료: ${safeStringArray(row.ingredients).join(', ')}`,
+    `조리: ${safeStringArray(row.manual_steps).join(' ')}`,
     `팁: ${row.tip ?? ''}`,
   ].join('\n')
 

@@ -1,142 +1,27 @@
 import { Hono } from 'hono'
+import { ApiError } from '../lib/errors'
 import { requireFamily } from '../lib/identity'
-import { extractIngredients, scoreRecipe } from '../lib/recipe-match'
+import { scoreRecipe } from '../lib/recipe-match'
+import { fetchCatalog, findInCatalog, searchCatalog, type CatalogRecipe } from '../lib/recipe-catalog'
+import { MAX_QUERY_CHARS, rankByQuery } from '../lib/recipe-search'
+import { findSharedForViewer, publicRecipe, searchShared } from '../lib/shared-recipe-scope'
 import { loadFridge } from '../lib/fridge'
 import type { Env, Vars } from '../lib/types'
 
-const app = new Hono<{ Bindings: Env; Variables: Vars }>()
-
 /**
- * 식품안전나라 COOKRCP01 기반 레시피 추천.
+ * 레시피 추천 / 검색 / 단건.
  *
- * Gemini 보충 생성은 뺐다 — 배포된 Worker 에서 Gemini 가 지역 차단되기 때문이다
- * (영수증 스캔은 그래서 브라우저에서 직접 호출한다). 공공 API 만으로도
- * 1,000여 개 레시피에서 냉장고 재료 매칭이 된다.
+ * 카탈로그를 읽는 코드는 `lib/recipe-catalog.ts` 로 옮겼다 — 식단 화면도
+ * 같은 카탈로그를 쓰는데, `routes/calendar.ts` 가 이 파일을 import 하면
+ * 라우트가 라우트를 부르는 꼴이 되기 때문이다.
  */
 
-interface Recipe {
-  name: string
-  category: string
-  cooking_method: string
-  calories: string
-  image_url: string
-  ingredients: string[]
-  manual_steps: string[]
-  /* 단계별 사진. 공공 API 가 MANUAL_IMG01~20 으로 주는데 파싱하지 않고 있었다.
-     상세 화면에는 이걸 그리는 코드가 이미 있었고, 서버가 안 보내니
-     `manual_images[i]` 에서 터져 흰 화면이 됐다. */
-  manual_images: string[]
-  tip: string
-}
+const app = new Hono<{ Bindings: Env; Variables: Vars }>()
 
-// 아이소레이트 수명 동안만 유지되는 캐시. 공공 API 는 하루 트래픽 제한이 있다.
-let recipeCache: { at: number; data: Recipe[] } | null = null
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000
-
-/* 아이소레이트 밖에서도 남는 카탈로그 사본.
-
-   `recipeCache` 는 **아이소레이트 메모리**다. Cloudflare 는 아이소레이트를 수시로
-   재활용하므로 6시간 TTL 이 실제로 6시간 가는 게 아니다. 콜드 아이소레이트마다
-   공공 API 로 1,000건짜리 요청을 두 번 날린다. 그 API 는 하루 트래픽 제한이 있다.
-
-   처음엔 R2(`env.UPLOADS`)에 넣으려 했는데 **이 계정은 R2 가 활성화돼 있지 않다.**
-   바인딩은 wrangler.jsonc 에 있고 배포도 통과하지만 런타임에
-   `code 10042: Please enable R2 through the Cloudflare Dashboard` 로 실패한다.
-   try/catch 에 삼켜져서 조용히 아무 일도 안 하고 있었다.
-
-   Cache API 는 계정 설정 없이 바로 된다. 콜로 단위라 전역은 아니지만, 가족이
-   대부분 한 지역에서 접속하므로 실질적으로 같은 효과다.
-   순서는 메모리 → Cache API → 공공 API. */
-const CATALOG_CACHE_URL = 'https://eatco.internal/cache/foodsafety-catalog'
-const CACHE_TTL_SEC = Math.floor(CACHE_TTL_MS / 1000)
-
-async function readCatalogFromCache(): Promise<Recipe[] | null> {
-  try {
-    const hit = await caches.default.match(new Request(CATALOG_CACHE_URL))
-    if (!hit) return null
-    const data = (await hit.json()) as Recipe[]
-    return Array.isArray(data) && data.length ? data : null
-  } catch (e) {
-    // 캐시는 있으면 좋은 것이지 없으면 안 되는 게 아니다. 실패하면 공공 API 로 간다.
-    console.warn('레시피 캐시 읽기 실패:', e)
-    return null
-  }
-}
-
-async function writeCatalogToCache(data: Recipe[]): Promise<void> {
-  try {
-    await caches.default.put(
-      new Request(CATALOG_CACHE_URL),
-      new Response(JSON.stringify(data), {
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': `max-age=${CACHE_TTL_SEC}`,
-        },
-      }),
-    )
-  } catch (e) {
-    console.warn('레시피 캐시 쓰기 실패:', e)
-  }
-}
-
-async function fetchRecipes(env: Env): Promise<Recipe[]> {
-  const now = Date.now()
-  if (recipeCache && now - recipeCache.at < CACHE_TTL_MS) return recipeCache.data
-
-  // 아이소레이트가 새로 떴어도 콜로 캐시가 살아 있으면 공공 API 를 안 부른다.
-  const cached = await readCatalogFromCache()
-  if (cached) {
-    recipeCache = { at: now, data: cached }
-    return cached
-  }
-
-  const key = env.RECIPE_API_KEY
-  if (!key) return []
-
-  const out: Recipe[] = []
-  // 총 1,146개. 1000개씩 2번이면 충분하다 (무료 티어 subrequest 50개 한도 안).
-  for (const [start, end] of [[1, 1000], [1001, 1200]]) {
-    const url = `https://openapi.foodsafetykorea.go.kr/api/${key}/COOKRCP01/json/${start}/${end}`
-    try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(20_000) })
-      if (!res.ok) break
-      const json = (await res.json()) as { COOKRCP01?: { row?: Record<string, string>[] } }
-      for (const r of json.COOKRCP01?.row ?? []) {
-        const steps: string[] = []
-        const stepImages: string[] = []
-        for (let i = 1; i <= 20; i++) {
-          const n = String(i).padStart(2, '0')
-          const s = r[`MANUAL${n}`]
-          if (s && s.trim()) {
-            steps.push(s.trim())
-            // 사진은 단계마다 있을 수도 없을 수도 있다. 인덱스를 맞춰 빈 문자열로 채운다.
-            stepImages.push((r[`MANUAL_IMG${n}`] ?? '').trim())
-          }
-        }
-        out.push({
-          name: r.RCP_NM ?? '',
-          category: r.RCP_PAT2 ?? '기타',
-          cooking_method: r.RCP_WAY2 ?? '기타',
-          calories: r.INFO_ENG ?? '',
-          image_url: r.ATT_FILE_NO_MK || r.ATT_FILE_NO_MAIN || '',
-          ingredients: extractIngredients(r.RCP_PARTS_DTLS ?? ''),
-          manual_steps: steps,
-          manual_images: stepImages,
-          tip: r.RCP_NA_TIP ?? '',
-        })
-      }
-    } catch (e) {
-      console.warn('레시피 API 실패:', e)
-      break
-    }
-  }
-  if (out.length) {
-    recipeCache = { at: now, data: out }
-    // 다음 콜드 아이소레이트가 공공 API 를 다시 안 부르도록 사본을 남긴다.
-    await writeCatalogToCache(out)
-  }
-  return out
-}
+/** 검색 결과 상한. 식단 추가 모달 안에 들어가는 목록이라 짧아야 한다. */
+const SEARCH_LIMIT = 8
+/** 공유 레시피 쪽 스캔 상한. 병합 전에 자른다. */
+const SHARED_SCAN_LIMIT = 30
 
 app.get('/recommend', async (c) => {
   const familyId = requireFamily(c.get('user'))
@@ -145,7 +30,7 @@ app.get('/recommend', async (c) => {
   const { fridge, urgent } = await loadFridge(c.env.DB, familyId)
   if (!fridge.length) return c.json([])
 
-  const recipes = await fetchRecipes(c.env)
+  const recipes = await fetchCatalog(c.env)
   if (!recipes.length) return c.json([])
 
   const scored = recipes.map((rec) => ({
@@ -160,6 +45,99 @@ app.get('/recommend', async (c) => {
       b.match_count - a.match_count,
   )
   return c.json(scored.filter((s) => s.match_count > 0).slice(0, limit))
+})
+
+/**
+ * 검색 — 식단에 붙일 레시피를 고르는 용도.
+ *
+ * 두 카탈로그를 합쳐서 준다:
+ *   1. `shared_recipes` — 내 가족 것 + 공개 승인된 것 (`lib/shared-recipe-scope`)
+ *   2. 식품안전나라 1,146건 (메모리 → Cache API → 공공 API)
+ *
+ * **`/recommend` 와 달리 냉장고가 비어도 검색은 된다.** 그때는 전부 "부족" 인데,
+ * 그게 오히려 맞는 정보다.
+ *
+ * 카탈로그를 못 읽어도 공유 결과는 돌려준다. 전부 실패로 만들면 살아 있는
+ * 결과까지 버리게 된다. 대신 `catalog_ok:false` 로 알린다 — 화면이 "0건" 과
+ * "일부만 불러옴" 을 구분해서 말해야 하기 때문이다. 같은 화면으로 처리하면
+ * 사용자는 "그런 레시피가 없구나" 로 결론짓는다. 그건 거짓 정보다.
+ */
+app.get('/search', async (c) => {
+  const user = c.get('user')
+  // 두 카탈로그가 같은 문자열을 보도록 여기서 한 번만 자른다.
+  const q = (c.req.query('q') ?? '').trim().slice(0, MAX_QUERY_CHARS)
+  if (!q) return c.json({ items: [], catalog_ok: true })
+
+  const { fridge, urgent } = user.family_id
+    ? await loadFridge(c.env.DB, user.family_id)
+    : { fridge: [], urgent: [] }
+
+  // 공유 레시피는 DB 가 필터하고, 카탈로그는 이미 캐시된 배열을 필터한다.
+  const sharedRows = await searchShared(c.env.DB, user.family_id, q, SHARED_SCAN_LIMIT)
+  const shared = rankByQuery(sharedRows, (r) => r.title, q, SEARCH_LIMIT).map((r) =>
+    publicRecipe(r, user.id, fridge, urgent),
+  )
+
+  const catalog = await fetchCatalog(c.env)
+  const catalogOk = catalog.length > 0
+  const fromCatalog = searchCatalog(catalog, q, SEARCH_LIMIT).map((r) => ({
+    ...r,
+    source: 'foodsafety' as const,
+    ...scoreRecipe(r.ingredients, fridge, urgent),
+  }))
+
+  /* 우리 집에서 올린 레시피를 앞에 둔다. 같은 이름이면 남의 것보다 우리 것이
+     사용자가 찾던 것일 가능성이 높다. 각 행에 출처 라벨이 보이므로 헷갈리지 않는다.
+     단 **절반까지만** 준다. 그냥 이어 붙이면 우리 가족 레시피가 8건 매칭되는
+     순간 1,146건짜리 카탈로그가 화면에서 통째로 사라진다. */
+  const sharedSlots = Math.ceil(SEARCH_LIMIT / 2)
+  const head = shared.slice(0, sharedSlots)
+  const items = [...head, ...fromCatalog].slice(0, SEARCH_LIMIT)
+  return c.json({ items, catalog_ok: catalogOk })
+})
+
+/**
+ * 단건 — 식단에 붙은 레시피의 조리법을 다시 볼 때.
+ *
+ * **`GET /calendar/:id` 가 이걸 대신 부르지 않는다.** 상세를 열 때마다
+ * 1,146건 카탈로그를 읽으면 식단 화면이 공공 API 에 묶인다. 조리법은
+ * 사용자가 "조리법 보기" 를 눌렀을 때만 가져온다.
+ *
+ * `source=custom` 은 **반드시** 목록과 같은 가시성 규칙을 탄다 (`findShared`).
+ * 안 그러면 공개했다 내린 레시피가 id 만으로 계속 읽힌다 —
+ * 그 id 는 공개돼 있던 동안 이미 모두가 봤다.
+ */
+app.get('/one', async (c) => {
+  const user = c.get('user')
+  const source = c.req.query('source') ?? ''
+  const id = (c.req.query('id') ?? '').trim()
+  if (!id) throw new ApiError(422, '레시피를 지정해주세요.')
+
+  const { fridge, urgent } = user.family_id
+    ? await loadFridge(c.env.DB, user.family_id)
+    : { fridge: [], urgent: [] }
+
+  if (source === 'custom') {
+    const row = await findSharedForViewer(c.env.DB, user.family_id, user.id, id)
+    if (!row) {
+      console.warn('공유 레시피 단건 조회 실패 (없거나 권한 밖):', id)
+      throw new ApiError(404, '레시피를 찾을 수 없어요.')
+    }
+    return c.json(publicRecipe(row, user.id, fridge, urgent))
+  }
+
+  if (source === 'foodsafety') {
+    const catalog = await fetchCatalog(c.env)
+    if (!catalog.length) throw new ApiError(503, '레시피를 불러오지 못했어요. 잠시 후 다시 시도해주세요.')
+    const hit: CatalogRecipe | null = findInCatalog(catalog, id)
+    if (!hit) {
+      console.warn('식품안전나라 레시피를 카탈로그에서 못 찾음:', id)
+      throw new ApiError(404, '레시피를 찾을 수 없어요.')
+    }
+    return c.json({ ...hit, source: 'foodsafety' as const, ...scoreRecipe(hit.ingredients, fridge, urgent) })
+  }
+
+  throw new ApiError(422, '레시피 출처가 올바르지 않습니다.')
 })
 
 export default app

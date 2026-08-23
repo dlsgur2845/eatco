@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import api from '../../api/client'
+import { getRecipeOne, type Recipe } from '../../api/recipes'
+import RecipeDetailModal from '../recipe/RecipeDetailModal'
 import { useModal } from '../../hooks/useModal'
-import { MEAL_SLOT_LABEL, type MealPlanDetail, type User } from '../../types'
+import { MEAL_SLOT_LABEL, type MealPlanDetail, type MealPlanRecipe, type User } from '../../types'
 
 /**
  * 식단 상세 + 댓글.
@@ -151,7 +153,9 @@ export default function MealDetailModal({
                   {detail.memo}
                 </p>
               )}
-              <p className="text-xs text-outline mb-6">{detail.created_by_name}님이 올림</p>
+              <p className="text-xs text-outline mb-4">{detail.created_by_name}님이 올림</p>
+
+              {detail.recipe && <AttachedRecipe recipe={detail.recipe} title={detail.title} />}
 
               <h4 className="text-sm font-semibold text-on-surface-variant mb-3">
                 댓글 {detail.comments.length}
@@ -200,7 +204,11 @@ export default function MealDetailModal({
               </p>
             )}
             <form onSubmit={addComment} className="flex gap-2 items-center">
+              {/* placeholder 는 글자를 치는 순간 사라져서 라벨이 못 된다
+                  (DESIGN.md §6). 화면에는 안 보이지만 이름은 있어야 한다. */}
+              <label htmlFor="meal-comment" className="sr-only">댓글</label>
               <input
+                id="meal-comment"
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 placeholder="댓글 남기기"
@@ -225,6 +233,82 @@ export default function MealDetailModal({
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+/**
+ * 식단에 붙은 레시피 — 부족한 재료 + 조리법.
+ *
+ * **여기 보이는 "부족" 은 지금 냉장고 기준이다.** 서버가 저장한 건 재료
+ * 목록뿐이고, 이 화면을 열 때마다 다시 계산해서 온다. 그래서 장을 보고
+ * 두부를 넣으면 다음에 열 때 두부가 목록에서 빠져 있다.
+ *
+ * 조리법은 여기서 자동으로 안 부른다. 상세를 열 때마다 1,146건짜리 카탈로그를
+ * 읽으면 식단 화면이 공공 API 에 묶인다. 눌렀을 때만 /recipes/one 으로 간다.
+ */
+function AttachedRecipe({ recipe, title }: { recipe: MealPlanRecipe; title: string }) {
+  const [full, setFull] = useState<Recipe | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState('')
+  const missing = recipe.missing_items
+
+  const openRecipe = async () => {
+    if (loading) return
+    setLoading(true)
+    setErr('')
+    try {
+      setFull(await getRecipeOne(recipe.source, recipe.id))
+    } catch {
+      /* 못 불러와도 위의 재료 목록은 그대로 있다. 스냅샷이 있기 때문이다 —
+         공공 API 가 죽어도 "뭘 사야 하는지" 는 계속 보인다. */
+      setErr('조리법을 불러오지 못했어요. 잠시 후 다시 시도해주세요.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="rounded-2xl bg-surface-container-low p-4 mb-6">
+      {missing.length > 0 ? (
+        <>
+          <p className="text-sm font-bold text-on-surface">부족한 재료 {missing.length}개</p>
+          <p className="text-sm text-on-surface-variant mt-1 break-words">{missing.join(' · ')}</p>
+        </>
+      ) : (
+        <p className="text-sm font-bold text-on-surface">재료가 다 있어요</p>
+      )}
+
+      <p className="text-xs text-on-surface-variant mt-3 mb-1.5">
+        재료 {recipe.match_count}/{recipe.total_ingredients}개 보유
+      </p>
+      <ul className="flex flex-wrap gap-x-3 gap-y-1">
+        {recipe.ingredients.map((ing, i) => {
+          const have = recipe.matched_items.includes(ing)
+          return (
+            <li key={i} className="text-xs" style={{ color: have ? 'var(--color-on-surface)' : 'var(--color-on-surface-variant)' }}>
+              <span aria-hidden="true">{have ? '✓' : '✕'}</span>
+              <span className="sr-only">{have ? '있음' : '없음'}</span> {ing}
+            </li>
+          )
+        })}
+      </ul>
+
+      <button
+        type="button"
+        onClick={openRecipe}
+        disabled={loading}
+        className="mt-3 min-h-[48px] w-full flex items-center justify-center rounded-full bg-surface-container-high text-on-surface text-sm font-bold active:scale-95 transition-transform disabled:opacity-40"
+      >
+        {loading ? '불러오는 중…' : '조리법 보기'}
+      </button>
+      {err && (
+        <p role="status" className="text-xs text-error mt-2">
+          {err}
+        </p>
+      )}
+
+      {full && <RecipeDetailModal recipe={{ ...full, name: full.name || title }} onClose={() => setFull(null)} />}
     </div>
   )
 }

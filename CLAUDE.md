@@ -1,6 +1,8 @@
 # Eatco
 
-가족용 냉장고/식재료 관리 웹앱. React 19 + FastAPI + PostgreSQL.
+가족용 냉장고/식재료 관리 PWA. React 19 + Cloudflare Workers(Hono) + D1(SQLite).
+
+(예전 설명은 "FastAPI + PostgreSQL" 이었다. 백엔드를 Workers 로 옮기면서 둘 다 사라졌다.)
 
 ## Skill routing
 
