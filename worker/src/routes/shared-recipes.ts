@@ -177,7 +177,17 @@ async function moderate(env: Env, id: string, text: string): Promise<void> {
       .bind(status, parsed.edible ? null : reason, kcal ?? '', nowIso(), id)
       .run()
   } catch (e) {
-    // pending 으로 남는다. 시간 지난 pending 은 목록에서 관리자가 본다.
+    /* pending 으로 남는다. **그리고 아무도 다시 안 본다.**
+     *
+     * 예전 주석은 "시간 지난 pending 은 목록에서 관리자가 본다" 였는데
+     * 거짓이다 — 관리자 화면에 공유 레시피 목록이 아예 없다(admin.ts 에
+     * shared_recipes 참조 0건). 재시도하는 Cron 도 없다 (Cron 은 알림만 돈다).
+     *
+     * 그래서 Gemini 가 죽은 동안 올라온 멀쩡한 레시피는 작성자에게만
+     * "검토 중" 으로 보인 채 영원히 남는다. 목록 쿼리가
+     * `WHERE status='approved' OR author_id = ?` 라 남에게는 안 보인다.
+     * 되살릴 방법은 지우고 다시 올리는 것뿐인데, 작성자는 그래야 한다는 걸
+     * 알 방법이 없다. TODOS 의 "오래된 pending 레시피를 아무도 안 본다" 다. */
     console.warn('레시피 검열 실패 (pending 유지):', id, e)
   }
 }
