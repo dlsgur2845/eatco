@@ -6,7 +6,7 @@ import {
   normalizeQuery,
   parseRecipeAttachment,
   queryRank,
-  rankByQuery,
+  rankAll,
   readRecipeAttachment,
 } from '../../../worker/src/lib/recipe-search'
 import { cleanText, safeStringArray } from '../../../worker/src/lib/sanitize'
@@ -88,10 +88,10 @@ describe('queryRank', () => {
   })
 })
 
-describe('rankByQuery', () => {
+describe('rankAll — 페이지를 넘길 수 있으려면 전체 순서가 안정적이어야 한다', () => {
   const names = ['돼지고기김치찜', '김치찌개', '김치볶음밥', '된장국', '김치전']
   const items = names.map((name) => ({ name }))
-  const run = (q: string, limit = 10) => rankByQuery(items, (x) => x.name, q, limit).map((x) => x.name)
+  const run = (q: string) => rankAll(items, (x) => x.name, q).map((x) => x.name)
 
   it('접두사 먼저, 같은 등급에서는 짧은 이름 먼저', () => {
     expect(run('김치')).toEqual(['김치전', '김치찌개', '김치볶음밥', '돼지고기김치찜'])
@@ -99,15 +99,24 @@ describe('rankByQuery', () => {
   it('매칭 없는 건 버린다', () => {
     expect(run('김치')).not.toContain('된장국')
   })
-  it('limit 을 지킨다', () => {
-    expect(run('김치', 2)).toHaveLength(2)
+  it('자르지 않고 전부 준다 — 자르는 건 offset 을 아는 호출부의 일이다', () => {
+    expect(run('김치')).toHaveLength(4)
   })
   it('빈 질의는 빈 배열', () => {
     expect(run('')).toEqual([])
   })
-  it('limit 이 0 이하여도 터지지 않는다', () => {
-    expect(run('김치', 0)).toEqual([])
-    expect(run('김치', -5)).toEqual([])
+
+  /* 페이지네이션의 핵심 계약: 같은 질의를 두 번 물어도 순서가 같아야 한다.
+     안 그러면 2페이지가 1페이지와 겹치거나 건너뛴다. */
+  it('같은 질의는 항상 같은 순서를 준다', () => {
+    expect(run('김치')).toEqual(run('김치'))
+  })
+  it('페이지로 잘라 이어붙이면 전체와 같다', () => {
+    const all = run('김치')
+    const p1 = all.slice(0, 2)
+    const p2 = all.slice(2, 4)
+    expect([...p1, ...p2]).toEqual(all)
+    expect(new Set([...p1, ...p2]).size).toBe(all.length) // 겹침 없음
   })
 })
 

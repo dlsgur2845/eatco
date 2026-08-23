@@ -80,11 +80,21 @@ export async function getRecommendations(): Promise<Recipe[]> {
    서버가 **항상** 보내므로 optional 이 아니다. */
 export interface RecipeSearchResult {
   items: Recipe[]
+  /** 이 질의의 전체 매칭 수. 한 페이지 크기가 아니라 **다 합친 수**다. */
+  total: number
+  /** 더 받을 게 남았나. total 과 offset 으로도 계산되지만 서버가 판정한다. */
+  has_more: boolean
   catalog_ok: boolean
 }
 
-export async function searchRecipes(q: string, signal?: AbortSignal): Promise<RecipeSearchResult> {
-  const r = await api.get<RecipeSearchResult>('/recipes/search', { params: { q }, signal })
+/**
+ * 레시피 검색 한 페이지.
+ *
+ * 페이지가 필요한 이유: 흔한 질의가 실측으로 46~96건이다 («김치» 46, «닭» 62,
+ * «국» 78, «두부» 88, «밥» 96). 한 번에 8건만 보여주면 원하는 걸 못 찾는다.
+ */
+export async function searchRecipes(q: string, offset = 0): Promise<RecipeSearchResult> {
+  const r = await api.get<RecipeSearchResult>('/recipes/search', { params: { q, offset } })
   return r.data
 }
 

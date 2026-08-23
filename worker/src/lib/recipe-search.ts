@@ -39,6 +39,18 @@ export function escapeLike(q: string): string {
 export const MAX_QUERY_CHARS = 40
 
 /**
+ * 한 페이지에 보여주는 검색 결과 수.
+ *
+ * 8 이었다가 10 으로 올렸다. 실측하니 흔한 질의가 **8건보다 훨씬 많다** —
+ * "김치" 46건, "닭" 62건, "국" 78건, "두부" 88건, "밥" 96건 (1,156개 카탈로그
+ * 기준, 공유 레시피 제외). 8건은 «다 못 찾겠다» 는 말이 나올 수밖에 없는 크기였다.
+ */
+export const SEARCH_PAGE_SIZE = 10
+
+/** offset 상한. 이보다 깊이 가려면 질의를 좁히는 게 맞다. */
+export const MAX_SEARCH_OFFSET = 500
+
+/**
  * D1 의 LIKE 패턴 바이트 상한. **실측값이다.**
  *
  * SQLite 의 SQLITE_MAX_LIKE_PATTERN_LENGTH 기본값은 50,000 인데 D1 은 **50** 이다.
@@ -89,12 +101,18 @@ export function queryRank(name: string, normalizedQuery: string): number {
 }
 
 /**
- * 적합도 → 짧은 이름 순으로 정렬한다. 매칭 없는 건 버린다.
+ * 적합도 → 짧은 이름 순으로 **전부** 정렬한다. 매칭 없는 건 버린다.
  *
  * 같은 적합도에서 짧은 이름을 앞에 두는 이유: "김치찌개" 가 "묵은지김치찌개
  * 만들기" 보다 사용자가 친 것에 가깝다. 동점이면 원래 순서를 지킨다(안정 정렬).
+ *
+ * **자르지 않고 다 준다.** 페이지를 넘기려면 전체 순서가 안정적이어야 하기
+ * 때문이다 — 페이지마다 다시 자르면 2페이지가 1페이지와 겹치거나 건너뛴다.
+ * 자르는 건 호출부가 offset 과 함께 한다. 1,156개 문자열 정렬은 무료 CPU
+ * 예산(10ms) 안에서 무시할 수 있는 비용이고, 비싼 건 그 다음의 재료 매칭이라
+ * **잘라낸 한 페이지에만** scoreRecipe 를 돌린다.
  */
-export function rankByQuery<T>(items: T[], nameOf: (x: T) => string, q: string, limit: number): T[] {
+export function rankAll<T>(items: T[], nameOf: (x: T) => string, q: string): T[] {
   const nq = normalizeQuery(q)
   if (!nq) return []
   const scored: { item: T; rank: number; len: number; i: number }[] = []
@@ -104,7 +122,7 @@ export function rankByQuery<T>(items: T[], nameOf: (x: T) => string, q: string, 
     if (rank >= 0) scored.push({ item: items[i], rank, len: name.length, i })
   }
   scored.sort((a, b) => a.rank - b.rank || a.len - b.len || a.i - b.i)
-  return scored.slice(0, Math.max(0, limit)).map((s) => s.item)
+  return scored.map((s) => s.item)
 }
 
 /* ──────────────────────────────────────────────

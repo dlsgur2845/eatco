@@ -2,8 +2,8 @@ import { Hono } from 'hono'
 import { ApiError } from '../lib/errors'
 import { requireFamily } from '../lib/identity'
 import { scoreRecipe } from '../lib/recipe-match'
-import { fetchCatalog, findInCatalog, searchCatalog, type CatalogRecipe } from '../lib/recipe-catalog'
-import { MAX_QUERY_CHARS, rankByQuery } from '../lib/recipe-search'
+import { fetchCatalog, findInCatalog, type CatalogRecipe } from '../lib/recipe-catalog'
+import { MAX_QUERY_CHARS, MAX_SEARCH_OFFSET, SEARCH_PAGE_SIZE, rankAll } from '../lib/recipe-search'
 import { findSharedForViewer, publicRecipe, searchShared } from '../lib/shared-recipe-scope'
 import { loadFridge } from '../lib/fridge'
 import type { Env, Vars } from '../lib/types'
@@ -18,10 +18,15 @@ import type { Env, Vars } from '../lib/types'
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>()
 
-/** 검색 결과 상한. 식단 추가 모달 안에 들어가는 목록이라 짧아야 한다. */
-const SEARCH_LIMIT = 8
-/** 공유 레시피 쪽 스캔 상한. 병합 전에 자른다. */
-const SHARED_SCAN_LIMIT = 30
+/**
+ * 공유 레시피 쪽 스캔 상한.
+ *
+ * 30 이었는데 페이지를 넘길 수 있게 되면서 올렸다 — 30 에서 자르면 31번째
+ * 우리 가족 레시피는 몇 페이지를 넘겨도 영영 안 보인다.
+ * LIKE 는 인덱스를 못 타서 어차피 테이블 전체를 스캔하므로, 이 숫자를 올려도
+ * D1 이 읽는 행 수는 거의 그대로다 (가족 단위라 테이블 자체가 작다).
+ */
+const SHARED_SCAN_LIMIT = 200
 
 app.get('/recommend', async (c) => {
   const familyId = requireFamily(c.get('user'))
@@ -66,7 +71,12 @@ app.get('/search', async (c) => {
   const user = c.get('user')
   // 두 카탈로그가 같은 문자열을 보도록 여기서 한 번만 자른다.
   const q = (c.req.query('q') ?? '').trim().slice(0, MAX_QUERY_CHARS)
-  if (!q) return c.json({ items: [], catalog_ok: true })
+  if (!q) return c.json({ items: [], total: 0, has_more: false, catalog_ok: true })
+
+  const rawOffset = Number(c.req.query('offset') ?? 0)
+  const offset = Number.isFinite(rawOffset)
+    ? Math.min(Math.max(0, Math.floor(rawOffset)), MAX_SEARCH_OFFSET)
+    : 0
 
   const { fridge, urgent } = user.family_id
     ? await loadFridge(c.env.DB, user.family_id)
@@ -74,26 +84,39 @@ app.get('/search', async (c) => {
 
   // 공유 레시피는 DB 가 필터하고, 카탈로그는 이미 캐시된 배열을 필터한다.
   const sharedRows = await searchShared(c.env.DB, user.family_id, q, SHARED_SCAN_LIMIT)
-  const shared = rankByQuery(sharedRows, (r) => r.title, q, SEARCH_LIMIT).map((r) =>
-    publicRecipe(r, user.id, fridge, urgent),
-  )
+  const shared = rankAll(sharedRows, (r) => r.title, q)
 
   const catalog = await fetchCatalog(c.env)
   const catalogOk = catalog.length > 0
-  const fromCatalog = searchCatalog(catalog, q, SEARCH_LIMIT).map((r) => ({
-    ...r,
-    source: 'foodsafety' as const,
-    ...scoreRecipe(r.ingredients, fridge, urgent),
-  }))
+  const fromCatalog = rankAll(catalog, (r) => r.name, q)
 
   /* 우리 집에서 올린 레시피를 앞에 둔다. 같은 이름이면 남의 것보다 우리 것이
      사용자가 찾던 것일 가능성이 높다. 각 행에 출처 라벨이 보이므로 헷갈리지 않는다.
-     단 **절반까지만** 준다. 그냥 이어 붙이면 우리 가족 레시피가 8건 매칭되는
-     순간 1,146건짜리 카탈로그가 화면에서 통째로 사라진다. */
-  const sharedSlots = Math.ceil(SEARCH_LIMIT / 2)
-  const head = shared.slice(0, sharedSlots)
-  const items = [...head, ...fromCatalog].slice(0, SEARCH_LIMIT)
-  return c.json({ items, catalog_ok: catalogOk })
+     예전에는 «절반까지만» 이라는 상한을 뒀는데, 그건 **더 볼 방법이 없어서**
+     우리 가족 레시피가 카탈로그를 통째로 밀어내는 걸 막던 임시방편이었다.
+     이제 페이지를 넘길 수 있으므로 그 상한은 필요 없다 — 순서만 안정적이면 된다. */
+  /* 두 출처를 섞기 전에 어느 쪽인지 표시해 둔다. 섞고 나서 `'title' in r` 같은
+     구조로 되짚으면, 나중에 한쪽 타입에 필드가 하나 늘 때 조용히 틀린다. */
+  const merged = [
+    ...shared.map((row) => ({ kind: 'shared' as const, row })),
+    ...fromCatalog.map((row) => ({ kind: 'catalog' as const, row })),
+  ]
+  const total = merged.length
+
+  /* **잘라낸 한 페이지에만** 재료 매칭을 돌린다. 전체(수십~수백 건)에 돌리면
+     10ms CPU 예산 안에서 할 일이 아니고, 어차피 화면에 안 나가는 값이다. */
+  const items = merged.slice(offset, offset + SEARCH_PAGE_SIZE).map((e) =>
+    e.kind === 'shared'
+      ? publicRecipe(e.row, user.id, fridge, urgent)
+      : { ...e.row, source: 'foodsafety' as const, ...scoreRecipe(e.row.ingredients, fridge, urgent) },
+  )
+
+  return c.json({
+    items,
+    total,
+    has_more: offset + items.length < total,
+    catalog_ok: catalogOk,
+  })
 })
 
 /**

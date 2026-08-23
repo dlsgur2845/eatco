@@ -9,7 +9,7 @@ vi.mock('../api/client', () => ({
 }))
 import api from '../api/client'
 vi.mock('../api/recipes', () => ({ searchRecipes: vi.fn() }))
-import { searchRecipes } from '../api/recipes'
+import { searchRecipes, type RecipeSearchResult } from '../api/recipes'
 
 /**
  * jsdom 은 레이아웃을 계산하지 않는다 — getBoundingClientRect 는 전부 0,
@@ -296,7 +296,7 @@ function type(input: HTMLElement, value: string) {
 
 describe('식단 추가 — 레시피 검색', () => {
   it('타이핑하면 후보가 뜨고, 고르면 부족한 재료를 보여준다', async () => {
-    vi.mocked(searchRecipes).mockResolvedValue({ items: [RECIPE], catalog_ok: true })
+    vi.mocked(searchRecipes).mockResolvedValue({ items: [RECIPE], total: 1, has_more: false, catalog_ok: true })
     const input = await openAddModal()
     type(input, '김치')
 
@@ -311,7 +311,7 @@ describe('식단 추가 — 레시피 검색', () => {
   })
 
   it('고르면 레시피 정보를 셋 다 함께 보낸다', async () => {
-    vi.mocked(searchRecipes).mockResolvedValue({ items: [RECIPE], catalog_ok: true })
+    vi.mocked(searchRecipes).mockResolvedValue({ items: [RECIPE], total: 1, has_more: false, catalog_ok: true })
     vi.mocked(api.post).mockResolvedValue({ data: {} } as never)
     const input = await openAddModal()
     type(input, '김치')
@@ -327,7 +327,7 @@ describe('식단 추가 — 레시피 검색', () => {
   })
 
   it('후보를 무시하고 그대로 올리면 직접 입력이다 (레시피 필드가 안 나간다)', async () => {
-    vi.mocked(searchRecipes).mockResolvedValue({ items: [RECIPE], catalog_ok: true })
+    vi.mocked(searchRecipes).mockResolvedValue({ items: [RECIPE], total: 1, has_more: false, catalog_ok: true })
     vi.mocked(api.post).mockResolvedValue({ data: {} } as never)
     const input = await openAddModal()
     type(input, '라면')
@@ -340,7 +340,7 @@ describe('식단 추가 — 레시피 검색', () => {
   })
 
   it('연결을 떼면 부족 재료가 사라지고 제목은 남는다', async () => {
-    vi.mocked(searchRecipes).mockResolvedValue({ items: [RECIPE], catalog_ok: true })
+    vi.mocked(searchRecipes).mockResolvedValue({ items: [RECIPE], total: 1, has_more: false, catalog_ok: true })
     const input = await openAddModal()
     type(input, '김치')
       fireEvent.click(await screen.findByRole('button', { name: /김치양배추볶음/ }))
@@ -364,14 +364,14 @@ describe('식단 추가 — 레시피 검색', () => {
   })
 
   it('0건이면 직접 입력으로 갈 길을 알려준다', async () => {
-    vi.mocked(searchRecipes).mockResolvedValue({ items: [], catalog_ok: true })
+    vi.mocked(searchRecipes).mockResolvedValue({ items: [], total: 0, has_more: false, catalog_ok: true })
     const input = await openAddModal()
     type(input, 'zzzz')
     expect(await screen.findByText(/그대로 적어서 올릴 수 있어요/)).toBeTruthy()
   })
 
   it('카탈로그를 일부만 읽었으면 그렇다고 말한다', async () => {
-    vi.mocked(searchRecipes).mockResolvedValue({ items: [RECIPE], catalog_ok: false })
+    vi.mocked(searchRecipes).mockResolvedValue({ items: [RECIPE], total: 1, has_more: false, catalog_ok: false })
     const input = await openAddModal()
     type(input, '김치')
     expect(await screen.findByText(/일부만 불러왔어요/)).toBeTruthy()
@@ -379,13 +379,13 @@ describe('식단 추가 — 레시피 검색', () => {
 
   /* 빠르게 타이핑하면 늦게 뜬 옛 응답이 나중에 도착해서 새 결과를 덮을 수 있다. */
   it('늦게 도착한 옛 검색 응답은 버린다', async () => {
-    let resolveOld: (v: { items: typeof RECIPE[]; catalog_ok: boolean }) => void = () => {}
-    const old = new Promise<{ items: typeof RECIPE[]; catalog_ok: boolean }>((r) => {
+    let resolveOld: (v: RecipeSearchResult) => void = () => {}
+    const old = new Promise<RecipeSearchResult>((r) => {
       resolveOld = r
     })
     vi.mocked(searchRecipes)
       .mockReturnValueOnce(old)
-      .mockResolvedValue({ items: [{ ...RECIPE, id: '1', name: '나중결과' }], catalog_ok: true })
+      .mockResolvedValue({ items: [{ ...RECIPE, id: '1', name: '나중결과' }], total: 1, has_more: false, catalog_ok: true })
 
     const input = await openAddModal()
     type(input, '김')
@@ -396,7 +396,7 @@ describe('식단 추가 — 레시피 검색', () => {
     await screen.findByRole('button', { name: /나중결과/ })
 
     await act(async () => {
-      resolveOld({ items: [{ ...RECIPE, id: '9', name: '옛결과' }], catalog_ok: true })
+      resolveOld({ items: [{ ...RECIPE, id: '9', name: '옛결과' }], total: 1, has_more: false, catalog_ok: true })
       await new Promise((r) => setTimeout(r, 30))
     })
     expect(screen.queryByText('옛결과')).toBeNull()
@@ -427,5 +427,117 @@ describe('주간 카드 — 부족 재료 배지', () => {
     renderPage()
     await screen.findByText('김치찌개')
     expect(screen.queryByText(/개 부족/)).toBeNull()
+  })
+})
+
+
+/* ──────────────────────────────────────────────
+   검색 페이지네이션
+
+   왜 필요한가: 1,156개 카탈로그에서 흔한 질의가 실측 46~96건이다
+   («김치» 46, «닭» 62, «국» 78, «두부» 88, «밥» 96). 한 페이지만 보여주면
+   원하는 걸 못 찾는다.
+   ────────────────────────────────────────────── */
+
+const mk = (n: number, from = 0) =>
+  Array.from({ length: n }, (_, i) => ({ ...RECIPE, id: String(from + i), name: `요리${from + i}` }))
+
+describe('식단 추가 — 검색 페이지네이션', () => {
+  it('전체 개수와 지금 보는 개수를 말해준다', async () => {
+    vi.mocked(searchRecipes).mockResolvedValue({ items: mk(10), total: 46, has_more: true, catalog_ok: true })
+    const input = await openAddModal()
+    type(input, '김치')
+    expect(await screen.findByText('레시피 46건 중 10건')).toBeTruthy()
+  })
+
+  it('«더 보기» 가 남은 개수를 말한다', async () => {
+    vi.mocked(searchRecipes).mockResolvedValue({ items: mk(10), total: 46, has_more: true, catalog_ok: true })
+    const input = await openAddModal()
+    type(input, '김치')
+    expect(await screen.findByRole('button', { name: '더 보기 (36건 남음)' })).toBeTruthy()
+  })
+
+  it('더 보기를 누르면 다음 페이지가 **덧붙는다** (갈아끼우지 않는다)', async () => {
+    vi.mocked(searchRecipes)
+      .mockResolvedValueOnce({ items: mk(10), total: 46, has_more: true, catalog_ok: true })
+      .mockResolvedValueOnce({ items: mk(10, 10), total: 46, has_more: true, catalog_ok: true })
+    const input = await openAddModal()
+    type(input, '김치')
+    await screen.findByText('요리0')
+
+    fireEvent.click(await screen.findByRole('button', { name: /더 보기/ }))
+    await screen.findByText('요리10')
+    // 1페이지가 살아 있어야 한다
+    expect(screen.getByText('요리0')).toBeTruthy()
+    expect(await screen.findByText('레시피 46건 중 20건')).toBeTruthy()
+  })
+
+  /* 서버가 센 개수로 offset 을 잡아야 한다. 화면에 남은 개수를 쓰면
+     id 없는 결과를 걸러낸 만큼 어긋나서 같은 페이지를 또 받는다. */
+  it('offset 은 서버가 준 개수로 센다 (걸러낸 개수가 아니라)', async () => {
+    vi.mocked(searchRecipes)
+      .mockResolvedValueOnce({
+        // 10건 중 2건은 id 가 없어서 화면에서 걸러진다
+        items: [...mk(8), { ...RECIPE, id: undefined as unknown as string, name: 'x' }, { ...RECIPE, id: '', name: 'y' }],
+        total: 46, has_more: true, catalog_ok: true,
+      })
+      .mockResolvedValueOnce({ items: mk(10, 10), total: 46, has_more: true, catalog_ok: true })
+    const input = await openAddModal()
+    type(input, '김치')
+    await screen.findByText('요리0')
+
+    fireEvent.click(await screen.findByRole('button', { name: /더 보기/ }))
+    await waitFor(() => expect(vi.mocked(searchRecipes).mock.calls.length).toBe(2))
+    // 화면엔 8건뿐이지만 서버는 10건을 줬으므로 offset 은 10 이어야 한다
+    expect(vi.mocked(searchRecipes).mock.calls[1]).toEqual(['김치', 10])
+  })
+
+  it('같은 것이 두 번 와도 한 번만 보인다', async () => {
+    vi.mocked(searchRecipes)
+      .mockResolvedValueOnce({ items: mk(3), total: 6, has_more: true, catalog_ok: true })
+      // 2페이지가 밀려서 1페이지 마지막(요리2)이 다시 왔다
+      .mockResolvedValueOnce({ items: mk(3, 2), total: 6, has_more: false, catalog_ok: true })
+    const input = await openAddModal()
+    type(input, '김치')
+    await screen.findByText('요리0')
+    fireEvent.click(await screen.findByRole('button', { name: /더 보기/ }))
+    await screen.findByText('요리4')
+    expect(screen.getAllByText('요리2')).toHaveLength(1)
+  })
+
+  it('마지막 페이지면 «더 보기» 가 사라진다', async () => {
+    vi.mocked(searchRecipes).mockResolvedValue({ items: mk(3), total: 3, has_more: false, catalog_ok: true })
+    const input = await openAddModal()
+    type(input, '김치')
+    await screen.findByText('요리0')
+    expect(screen.queryByRole('button', { name: /더 보기/ })).toBeNull()
+  })
+
+  it('질의를 바꾸면 처음부터 다시 센다', async () => {
+    vi.mocked(searchRecipes)
+      .mockResolvedValueOnce({ items: mk(10), total: 46, has_more: true, catalog_ok: true })
+      .mockResolvedValueOnce({ items: mk(2, 100), total: 2, has_more: false, catalog_ok: true })
+    const input = await openAddModal()
+    type(input, '김치')
+    await screen.findByText('레시피 46건 중 10건')
+
+    type(input, '스파게티')
+    await screen.findByText('레시피 2건 중 2건')
+    expect(screen.queryByText('요리0')).toBeNull()
+    expect(screen.queryByRole('button', { name: /더 보기/ })).toBeNull()
+  })
+
+  it('더 보기가 실패해도 이미 받은 결과는 남는다', async () => {
+    vi.mocked(searchRecipes)
+      .mockResolvedValueOnce({ items: mk(10), total: 46, has_more: true, catalog_ok: true })
+      .mockRejectedValueOnce(new Error('네트워크'))
+    const input = await openAddModal()
+    type(input, '김치')
+    await screen.findByText('요리0')
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /더 보기/ }))
+    })
+    expect(await screen.findByText('더 불러오지 못했어요.')).toBeTruthy()
+    expect(screen.getByText('요리0')).toBeTruthy()
   })
 })

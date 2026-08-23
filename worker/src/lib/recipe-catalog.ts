@@ -1,5 +1,4 @@
 import { extractIngredients } from './recipe-match'
-import { rankByQuery } from './recipe-search'
 import type { Env } from './types'
 
 /**
@@ -155,11 +154,6 @@ export async function fetchCatalog(env: Env): Promise<CatalogRecipe[]> {
     await writeToCache(out)
   }
   return out
-}
-
-/** 이름으로 검색. 접두사 우선 → 짧은 이름 순. */
-export function searchCatalog(all: CatalogRecipe[], q: string, limit: number): CatalogRecipe[] {
-  return rankByQuery(all, (r) => r.name, q, limit)
 }
 
 /** RCP_SEQ 로 한 건. 없으면 null. */

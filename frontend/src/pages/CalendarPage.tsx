@@ -79,6 +79,20 @@ function AddMealModal({
   const [picked, setPicked] = useState<Recipe | null>(null)
   const [results, setResults] = useState<Recipe[]>([])
   const [search, setSearch] = useState<'idle' | 'searching' | 'done' | 'error'>('idle')
+  /* 이 질의의 **전체** 매칭 수. 한 페이지 크기가 아니다.
+     흔한 질의가 실측 46~96건이라 «몇 건 중 몇 건» 을 말해줘야 사용자가
+     더 넘길지 질의를 좁힐지 정할 수 있다. */
+  const [total, setTotal] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [moreErr, setMoreErr] = useState('')
+  /* 서버에 물어볼 다음 offset. **results.length 를 쓰면 안 된다** —
+     id 없는 결과를 걸러내므로 화면에 남은 개수와 서버가 센 개수가 어긋난다. */
+  const nextOffset = useRef(0)
+  /* 지금 results 가 어느 질의의 것인가. «더 보기» 는 화면에 떠 있는 그 질의를
+     이어받아야 한다. 입력창의 q 를 쓰면, 디바운스가 도는 250ms 사이에
+     «더 보기» 를 누를 때 **새 질의를 옛 offset 으로** 물어보게 된다. */
+  const loadedFor = useRef('')
   /* 카탈로그(공공 API)를 다 못 읽었나. **0건과 "일부만 불러옴" 을 같은 화면으로
      처리하면 안 된다** (DESIGN.md §5). 같으면 사용자는 "그런 레시피가 없구나" 로
      결론짓는데 그건 거짓 정보다. */
@@ -95,6 +109,8 @@ function AddMealModal({
     // 이미 골랐으면 검색하지 않는다. 지금 타이핑은 이름을 다듬는 중이다.
     if (picked || !q) {
       setResults([])
+      setTotal(0)
+      setHasMore(false)
       setSearch('idle')
       return
     }
@@ -114,7 +130,13 @@ function AddMealModal({
           console.warn('id 없는 레시피 검색 결과를 버렸다:', r.items.length - usable.length)
         }
         setResults(usable)
+        setTotal(r.total)
+        setHasMore(r.has_more)
         setCatalogOk(r.catalog_ok)
+        // 서버가 센 개수로 다음 offset 을 잡는다 (걸러낸 개수가 아니라).
+        nextOffset.current = r.items.length
+        loadedFor.current = q
+        setMoreErr('')
         setSearch('done')
       } catch {
         if (id !== reqId.current) return
@@ -126,6 +148,36 @@ function AddMealModal({
 
   // 같은 질의를 다시 태운다. 사용자가 친 글자는 건드리지 않는다.
   const retry = () => setRetryTick((n) => n + 1)
+
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return
+    const at = reqId.current
+    // 화면에 떠 있는 결과의 질의를 이어받는다. 입력창의 q 가 아니다.
+    const forQuery = loadedFor.current
+    const offset = nextOffset.current
+    setLoadingMore(true)
+    setMoreErr('')
+    try {
+      const r = await searchRecipes(forQuery, offset)
+      // 그 사이 새 검색이 나갔으면 이 응답은 버린다.
+      if (at !== reqId.current || loadedFor.current !== forQuery) return
+      nextOffset.current = offset + r.items.length
+      setResults((prev) => {
+        /* 겹침 방어. 페이지를 받는 사이에 우리 가족 레시피가 하나 늘면 서버
+           목록이 밀려서 같은 것이 두 번 올 수 있다. 키로 걸러낸다. */
+        const seen = new Set(prev.map((x) => `${x.source ?? ''}:${x.id ?? ''}`))
+        const fresh = r.items.filter((x) => !!x.id && !seen.has(`${x.source ?? ''}:${x.id}`))
+        return [...prev, ...fresh]
+      })
+      setTotal(r.total)
+      setHasMore(r.has_more)
+    } catch {
+      if (at !== reqId.current) return
+      setMoreErr('더 불러오지 못했어요.')
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   const pick = (r: Recipe) => {
     setPicked(r)
@@ -234,11 +286,14 @@ function AddMealModal({
 
             {search === 'done' && results.length > 0 && (
               <>
-                <p role="status" className="sr-only">
-                  레시피 {results.length}건을 찾았어요.
+                {/* 전체 개수를 눈에 보이게 둔다. «46건 중 10건» 을 알아야
+                    더 넘길지 질의를 좁힐지 정할 수 있다. 예전에는 sr-only 라
+                    보는 사람은 8건이 전부인 줄 알았다. */}
+                <p role="status" className="text-xs text-on-surface-variant mt-3">
+                  레시피 {total}건 중 {results.length}건
                 </p>
                 {!catalogOk && (
-                  <p className="text-xs text-tertiary mt-3">
+                  <p className="text-xs text-tertiary mt-1">
                     레시피 목록을 일부만 불러왔어요.
                   </p>
                 )}
@@ -271,6 +326,22 @@ function AddMealModal({
                     </li>
                   ))}
                 </ul>
+
+                {hasMore && (
+                  <button
+                    type="button"
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="mt-2 w-full min-h-[48px] flex items-center justify-center rounded-xl bg-surface-container-low text-sm font-bold text-on-surface active:scale-[0.98] transition-transform disabled:opacity-40"
+                  >
+                    {loadingMore ? '불러오는 중…' : `더 보기 (${total - results.length}건 남음)`}
+                  </button>
+                )}
+                {moreErr && (
+                  <p role="status" className="text-xs text-error mt-2">
+                    {moreErr}
+                  </p>
+                )}
               </>
             )}
           </>
