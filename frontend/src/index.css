@@ -106,6 +106,13 @@ body {
 .material-symbols-outlined {
   white-space: nowrap;
   line-height: 1;
+  /* 폰트가 끝내 안 오면(3초 block 이 끝나면) 브라우저가 대체 폰트로 떨어지고
+     합자가 없으니 아이콘 **이름**이 글자로 나온다. 글리프는 설계상 1em 폭이라,
+     그 이상은 잘라서 "notifications" 가 통째로 뿜어져 나오지 않게 한다.
+     정상 로드된 아이콘에는 아무 영향이 없다. */
+  display: inline-block;
+  max-width: 1em;
+  overflow: hidden;
 }
 
 /* iOS 는 16px 미만 입력에 포커스하면 뷰포트를 확대하고 되돌리지 않는다.

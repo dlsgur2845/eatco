@@ -21,7 +21,17 @@
       href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
     />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <!-- 아이콘 폰트만 display=block. 본문 폰트(위 줄)는 swap 이 맞다.
+
+         Material Symbols 는 **합자**로 그린다 — 요소의 텍스트가 곧 아이콘
+         이름이다. swap 은 폰트가 오기 전에 대체 폰트로 즉시 그리는데,
+         대체 폰트에는 그 합자가 없으므로 "notifications",
+         "account_balance_wallet" 같은 이름이 글자 그대로 보인다.
+         새로고침할 때마다 우측 상단에 잠깐 뜨던 게 이것이다 (폭 24px → 124px).
+
+         block 은 폰트를 기다리는 동안 아무것도 안 그린다(약 3초). 아이콘은
+         잠깐 비어 있는 게 엉뚱한 영어 단어가 보이는 것보다 낫다. -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=block" rel="stylesheet" />
   </head>
   <body>
     <div id="root"></div>
