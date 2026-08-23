@@ -43,7 +43,7 @@ export default function PushTimeSelector({ initialTime, disabled }: Props) {
           </option>
         ))}
       </select>
-      {saving && <span className="text-xs text-on-surface-variant">저장 중...</span>}
+      {saving && <span className="text-xs text-on-surface-variant">저장 중…</span>}
     </div>
   )
 }

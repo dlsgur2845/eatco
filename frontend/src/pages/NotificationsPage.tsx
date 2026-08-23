@@ -248,7 +248,7 @@ export default function NotificationsPage() {
               disabled={loadingMore}
               className="w-full py-3 text-sm font-medium text-primary hover:bg-primary/5 rounded-xl transition-colors disabled:opacity-50"
             >
-              {loadingMore ? '불러오는 중...' : '더 보기'}
+              {loadingMore ? '불러오는 중…' : '더 보기'}
             </button>
           )}
         </div>

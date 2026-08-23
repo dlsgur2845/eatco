@@ -168,7 +168,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
               onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
               onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
               className="w-full border-none p-0 text-lg font-medium bg-transparent focus:ring-0 placeholder:text-outline"
-              placeholder="예: 우유, 고등어, 삼겹살..."
+              placeholder="예: 우유, 고등어, 삼겹살…"
               autoComplete="off"
             />
             {/* 자동완성 드롭다운 */}
@@ -331,7 +331,7 @@ function RegisterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
             className="w-full py-4 rounded-full bg-primary text-on-primary font-headline font-bold text-lg shadow-xl active:scale-95 transition-transform duration-200 flex items-center justify-center gap-3 disabled:opacity-50"
           >
             <span aria-hidden="true" className="material-symbols-outlined">check_circle</span>
-            {submitting ? '등록 중...' : '등록하기'}
+            {submitting ? '등록 중…' : '등록하기'}
           </button>
         </form>
       </div>
@@ -503,7 +503,7 @@ function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; 
             className="w-full py-4 rounded-full bg-primary text-on-primary font-headline font-bold text-lg shadow-xl active:scale-95 transition-transform duration-200 flex items-center justify-center gap-3 disabled:opacity-50"
           >
             <span aria-hidden="true" className="material-symbols-outlined">save</span>
-            {submitting ? '저장 중...' : '저장하기'}
+            {submitting ? '저장 중…' : '저장하기'}
           </button>
         </form>
       </div>

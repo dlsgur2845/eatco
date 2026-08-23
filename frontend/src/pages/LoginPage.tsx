@@ -170,7 +170,7 @@ export default function LoginPage() {
                   disabled={loading}
                   className="w-full bg-gradient-to-r from-primary to-primary-container text-on-primary font-headline font-bold py-5 rounded-full text-lg shadow-lg active:scale-95 transition-all duration-200 disabled:opacity-50"
                 >
-                  {loading ? '로그인 중...' : '로그인'}
+                  {loading ? '로그인 중…' : '로그인'}
                 </button>
               </div>
             </form>

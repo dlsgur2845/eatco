@@ -137,7 +137,7 @@ function AddMealModal({
             disabled={!title.trim() || saving}
             className="flex-1 min-h-[48px] flex items-center justify-center rounded-full bg-primary text-on-primary font-bold active:scale-95 transition-transform disabled:opacity-40"
           >
-            {saving ? '올리는 중...' : '올리기'}
+            {saving ? '올리는 중…' : '올리기'}
           </button>
         </div>
       </form>

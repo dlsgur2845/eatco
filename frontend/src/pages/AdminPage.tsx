@@ -66,7 +66,7 @@ function ConfirmDialog({
             disabled={busy}
             className="flex-1 min-h-[48px] inline-flex items-center justify-center rounded-full bg-error text-on-error font-bold active:scale-95 transition-transform disabled:opacity-40"
           >
-            {busy ? '처리 중...' : confirmLabel}
+            {busy ? '처리 중…' : confirmLabel}
           </button>
         </div>
       </div>

@@ -101,7 +101,7 @@ export default function SettingsPage() {
           )}
 
           {pushLoading && (
-            <p className="mt-3 text-xs text-on-surface-variant px-2 animate-pulse">처리 중...</p>
+            <p className="mt-3 text-xs text-on-surface-variant px-2 animate-pulse">처리 중…</p>
           )}
 
           {subscribed && (

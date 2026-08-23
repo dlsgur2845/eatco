@@ -80,7 +80,7 @@ function AuthGuard() {
       <div className="min-h-screen flex items-center justify-center bg-surface">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 rounded-full border-4 border-surface-container-high border-t-primary animate-spin" />
-          <p className="text-on-surface-variant text-sm">불러오는 중...</p>
+          <p className="text-on-surface-variant text-sm">불러오는 중…</p>
         </div>
       </div>
     )

@@ -260,7 +260,7 @@ export default function ResultsModal({ items: initialItems, storeName, error, on
               disabled={submitting}
               onClick={async () => { setSubmitting(true); try { await onConfirm(items) } finally { setSubmitting(false) } }}
             >
-              {submitting ? '등록 중...' : '냉장고에 추가하기'}
+              {submitting ? '등록 중…' : '냉장고에 추가하기'}
             </button>
             <p className="text-center text-xs mt-2" style={{ color: 'var(--color-outline)' }}>
               이름을 눌러서 수정할 수 있어요

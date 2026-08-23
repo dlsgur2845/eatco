@@ -5,7 +5,7 @@ import { MAX_SCAN_IMAGES, analyzeReceipts, registerItems, type ScannedItem } fro
 import { downscaleImage } from '../lib/image'
 import ResultsModal from '../components/scan/ResultsModal'
 
-const PROGRESS_STEPS = ['사진을 읽고 있어요...', '식재료를 찾고 있어요...', '소비기한을 계산하고 있어요...']
+const PROGRESS_STEPS = ['사진을 읽고 있어요…', '식재료를 찾고 있어요…', '소비기한을 계산하고 있어요…']
 
 interface Props {
   onRegistered: () => void
