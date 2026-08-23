@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { ApiError } from '../lib/errors'
 import { requireFamily } from '../lib/identity'
 import { scoreRecipe } from '../lib/recipe-match'
-import { fetchCatalog, findInCatalog, type CatalogRecipe } from '../lib/recipe-catalog'
+import { fetchCatalog, fetchCatalogFull, findFullRecipe } from '../lib/recipe-catalog'
 import { MAX_QUERY_CHARS, MAX_SEARCH_OFFSET, SEARCH_PAGE_SIZE, rankAll } from '../lib/recipe-search'
 import { findSharedForViewer, publicRecipe, searchShared } from '../lib/shared-recipe-scope'
 import { loadFridge } from '../lib/fridge'
@@ -35,7 +35,10 @@ app.get('/recommend', async (c) => {
   const { fridge, urgent } = await loadFridge(c.env.DB, familyId)
   if (!fridge.length) return c.json([])
 
-  const recipes = await fetchCatalog(c.env)
+  /* 추천은 **전체**를 읽는다. 추천 카드가 상세(조리 순서·사진·팁)를 인라인으로
+     그리기 때문이다 — 색인만 주면 사진과 조리법이 화면에서 사라진다.
+     대시보드가 10분 캐시하므로 호출이 잦지 않다. 검색은 색인만 본다. */
+  const recipes = await fetchCatalogFull(c.env)
   if (!recipes.length) return c.json([])
 
   const scored = recipes.map((rec) => ({
@@ -150,9 +153,8 @@ app.get('/one', async (c) => {
   }
 
   if (source === 'foodsafety') {
-    const catalog = await fetchCatalog(c.env)
-    if (!catalog.length) throw new ApiError(503, '레시피를 불러오지 못했어요. 잠시 후 다시 시도해주세요.')
-    const hit: CatalogRecipe | null = findInCatalog(catalog, id)
+    /* 여기서만 전체 파일(1.66MB)을 읽는다. 검색 경로는 색인(303KB)만 본다. */
+    const hit = await findFullRecipe(c.env, id)
     if (!hit) {
       console.warn('식품안전나라 레시피를 카탈로그에서 못 찾음:', id)
       throw new ApiError(404, '레시피를 찾을 수 없어요.')
