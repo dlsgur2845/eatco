@@ -222,28 +222,37 @@ function AddMealModal({
         ref={panelRef as unknown as React.RefObject<HTMLFormElement>}
         tabIndex={-1}
         onSubmit={submit}
-        className="w-full max-w-md bg-surface-container-lowest rounded-t-[2rem] sm:rounded-[2rem] p-6 outline-none max-h-[88vh] overflow-y-auto modal-scroll"
+        className="w-full max-w-md bg-surface-container-lowest rounded-t-[2rem] sm:rounded-[2rem] px-6 pb-6 outline-none max-h-[88vh] overflow-y-auto modal-scroll"
       >
-        <p className="text-xs text-on-surface-variant mb-1">
+        {/* form 의 pt 를 여기로 옮겼다. sticky 요소는 컨테이닝 블록의 content box
+            위로 못 올라가므로, form 에 pt-6 이 있으면 입력창이 24px 아래에서
+            멈추고 그 띠로 결과 행이 비쳐 보인다. */}
+        <p className="text-xs text-on-surface-variant mb-1 pt-6">
           {date} · {MEAL_SLOT_LABEL[slot]}
         </p>
         <h3 className="font-headline font-bold text-xl text-on-surface mb-5">뭘 먹을까요?</h3>
 
         {/* 라벨은 placeholder 로 대신할 수 없다. 글자를 치는 순간 사라져서
             스크린리더가 읽을 이름이 없어진다 (DESIGN.md §6). */}
-        <label htmlFor="meal-title" className="block text-xs font-semibold text-on-surface-variant mb-1">
-          메뉴
-        </label>
-        <input
-          id="meal-title"
-          autoFocus
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="예: 김치찌개"
-          maxLength={100}
-          autoComplete="off"
-          className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-on-surface placeholder:text-outline outline-none focus:ring-2 focus:ring-primary"
-        />
+        {/* 입력창만 위에 고정한다. 결과가 쌓이면(3페이지 = 2,000px 넘음)
+            «너무 많네, 좁히자» 싶을 때 입력창이 화면 밖 1,000px 위에 있었다.
+            목록이 길수록 좁히기가 어려워지는 건 정확히 거꾸로다.
+            날짜·제목은 같이 고정하지 않는다 — 목록 창을 190px 씩 먹는다. */}
+        <div className="sticky top-0 z-10 -mx-6 px-6 pt-1 pb-2 bg-surface-container-lowest">
+          <label htmlFor="meal-title" className="block text-xs font-semibold text-on-surface-variant mb-1">
+            메뉴
+          </label>
+          <input
+            id="meal-title"
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="예: 김치찌개"
+            maxLength={100}
+            autoComplete="off"
+            className="w-full bg-surface-container-low rounded-xl px-4 py-3 text-on-surface placeholder:text-outline outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
 
         {picked ? (
           <RecipeAttached recipe={picked} onDetach={() => setPicked(null)} />
@@ -253,10 +262,18 @@ function AddMealModal({
               레시피를 고르면 지금 부족한 재료를 알려드려요.
             </p>
 
-            {search === 'searching' && (
-              <p role="status" className="text-xs text-on-surface-variant mt-3">
-                레시피를 찾는 중…
-              </p>
+            {/* DESIGN.md §5 는 로딩을 «스켈레톤 + aria-busy» 로 규정한다. 이 앱의
+                다른 화면은 지키는데 여기만 12px 회색 글자 한 줄이었다.
+                결과 행과 같은 높이로 그려서 기다리는 동안 «여기에 목록이 온다» 를
+                보여준다. 첫 검색(목록이 비어 있을 때)에만 나온다 — 재검색 때는
+                이전 결과가 그대로 떠 있어서 빈 구간이 없다. */}
+            {search === 'searching' && results.length === 0 && (
+              <div aria-busy="true" className="mt-3 space-y-2">
+                <p role="status" className="sr-only">레시피를 찾는 중…</p>
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="h-[53px] rounded-xl bg-surface-container-high animate-pulse" />
+                ))}
+              </div>
             )}
 
             {search === 'error' && (

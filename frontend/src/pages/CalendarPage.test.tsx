@@ -541,3 +541,31 @@ describe('식단 추가 — 검색 페이지네이션', () => {
     expect(screen.getByText('요리0')).toBeTruthy()
   })
 })
+
+
+describe('식단 추가 — 로딩 상태', () => {
+  /* DESIGN.md §5 는 로딩을 «스켈레톤 + aria-busy» 로 규정한다. 예전에는 12px
+     회색 글자 한 줄이었고, 검색이 8초 걸리던 시절에 그건 «멈췄나?» 로 읽혔다.
+     지금은 검색이 11ms 라 브라우저로 이 창을 잡을 수 없다 — 그래서 테스트로 못박는다. */
+  it('첫 검색 중에는 스켈레톤을 그린다', async () => {
+    vi.mocked(searchRecipes).mockReturnValue(new Promise(() => {})) // 영원히 안 끝난다
+    const input = await openAddModal()
+    type(input, '김치')
+    const busy = await waitFor(() => {
+      const el = document.querySelector('[aria-busy="true"]')
+      if (!el) throw new Error('스켈레톤이 안 떴다')
+      return el
+    })
+    expect(busy.children.length).toBeGreaterThan(1)
+    expect(screen.getByText('레시피를 찾는 중…')).toBeTruthy()
+  })
+
+  /* 재검색 때는 이전 결과가 떠 있으므로 스켈레톤으로 갈아치우면 화면이 깜빡인다. */
+  /* 뺀 테스트: «재검색 중에는 이전 결과를 남기고 스켈레톤을 안 그린다».
+     동작 자체는 코드에 있다 — 스켈레톤 조건이 `search === 'searching' &&
+     results.length === 0` 이라 이전 결과가 있으면 안 그린다.
+     테스트는 네 번 고쳐 써도 이 파일의 하네스에서 결과 행을 못 잡았다
+     (같은 패턴이 위 describe 에서는 통과한다). 통과하는 척하는 테스트를
+     남기느니 빼고 적어둔다. 다시 시도할 사람을 위해: DOM 은 실제로
+     렌더됐고(textContent 로 확인), 실패는 `form ul li` 가 0건인 지점이다. */
+})
