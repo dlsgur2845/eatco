@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import RecipeCard from './RecipeCard'
 import { deleteSharedRecipe, type SharedRecipe } from '../../api/sharedRecipes'
+import { josa } from '../../lib/korean'
 
 interface Props {
   recipe: SharedRecipe
@@ -30,7 +31,9 @@ export default function SharedRecipeCard({ recipe, onDeleted }: Props) {
 
   async function remove() {
     // window.confirm 은 이 저장소가 이미 쓰는 방식이다 (일관성).
-    if (!window.confirm(`«${recipe.name}» 을(를) 지울까요?`)) return
+    // withJosa 를 쓴다. 이 세션 초반에 앱 5곳의 "을(를)" 을 걷어냈는데,
+    // 이 파일을 나중에 만들면서 같은 걸 다시 넣었다.
+    if (!window.confirm(`«${recipe.name}»${josa(recipe.name, '을')} 지울까요?`)) return
     setBusy(true)
     try {
       await deleteSharedRecipe(recipe.id)

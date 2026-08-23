@@ -39,23 +39,6 @@ D1 HTTP API 를 직접 부르거나 GitHub Actions 로 빼야 한다.
 **Priority:** P2
 **Depends on:** None
 
-### 다크 모드가 없다 (iOS·Android 둘 다)
-
-**What:** `prefers-color-scheme` 선언이 프론트에 **0곳**이다. 기기를 다크로
-써도 앱은 항상 흰 화면이다.
-
-**Why:** 냉장고 앱은 밤에 많이 열린다. iOS/Android 둘 다 다크가 기본인
-사용자가 흔하고, 어두운 데서 흰 화면은 눈이 부시다. PWA 라 시스템 설정을
-그대로 따라가면 되는데 지금은 무시한다.
-
-**Context:** 색이 이미 전부 `--color-*` 토큰이라(index.css) 토큰만 다크값으로
-갈아끼우면 된다. 주의할 곳: 초록 브랜드 면(가족 화면 초대 카드)은 다크에서
-그대로 쓰면 너무 튄다. DESIGN.md 에 다크 팔레트를 먼저 정의하는 게 순서다.
-
-**Effort:** M
-**Priority:** P3
-**Depends on:** DESIGN.md 다크 팔레트 정의
-
 ### 빈 상태 아이콘이 거의 안 보인다
 
 **What:** `notifications_off`(1.62:1), `photo_camera`(1.68:1),
@@ -335,36 +318,18 @@ vitest 로도 된다. 그러면 "송인혁님이 8월 21일 아침에 계란후�
 **Priority:** P4
 **Depends on:** None
 
-### 테스트 계정 2개가 관리자 목록에 남아 있다
+### 가족 구성원 둘 다 관리자다
 
-**What:** `nt-a-1787234799@example.com`, `nt-b-1787234799@example.com` (닉네임 엄마/아빠).
+**What:** 프로덕션 계정 2개(송인혁, 손보경)가 모두 `role='admin'` 이다.
 
-**Why:** 관리자 화면에 실제 가족이 아닌 계정이 섞여 보인다.
+**Why:** 관리자는 **모든 가족의 데이터**를 보고 사용자를 지울 수 있다.
+가족 구성원이라고 그 권한이 필요한 건 아니다. 손보경님이 의도적으로
+관리자인지, 첫 설정 때 그렇게 된 건지 확인이 필요하다.
 
-**Context:** 이전 세션에서 가족 합류 기능을 검증하느라 만든 계정이다. 관리자 화면의
-사용자 삭제로 지우거나 D1 에서 직접 지운다. 같은 가족에 묶여 있는지 먼저 확인할 것.
+**Context:** 예전 TODO 는 이 둘을 "테스트 계정" 이라고 적어뒀는데 틀렸다 —
+실제 사용 중인 계정이다. 관리자 화면에서 역할만 바꾸면 된다(1클릭).
 
 **Effort:** S
-**Priority:** P4
-**Depends on:** None
+**Priority:** P3
+**Depends on:** 사용자 확인
 
-## Completed
-
-### 캘린더 날짜 헬퍼 테스트 없음
-
-**What:** `weekStart` / `shiftMonth` / `daysInMonth` / `gridIndex` / `monthStart` 가
-`CalendarPage.tsx` 안에 export 없이 있어 테스트가 불가능했다.
-
-**Context:** `frontend/src/components/calendar/dates.ts` 로 추출하고 22건의 테스트를
-붙였다. 말일 넘침(`1월 31일 + 1개월`), 일요일→직전 월요일, 연 경계를 포함한다.
-
-**Completed:** v1.6.0 (2026-08-21)
-
-### 한국어 조사가 `을(를)` 로 화면에 노출
-
-**What:** 알림에 "계란후라이을(를) 올렸어요" 로 나왔다. 5곳에서 같은 패턴.
-
-**Context:** `lib/korean.ts` 에 받침 판정(`(code - 0xAC00) % 28`)과 조사 선택을 넣고
-5곳에 적용했다. 프론트/워커 두 사본에 같은 테스트를 돌려 드리프트를 막는다.
-
-**Completed:** v1.6.0 (2026-08-21)
