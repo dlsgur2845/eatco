@@ -637,7 +637,7 @@ export default function ScanPage({ onRegistered }: Props) {
         </div>
 
         <p className="mt-3 text-xs" style={{ color: 'var(--color-outline)' }}>
-          한 번에 {MAX_SCAN_IMAGES}장까지 · 마트 영수증과 쿠팡·마켓컬리 같은 주문내역 화면도 읽어요
+          한 번에 {MAX_SCAN_IMAGES}장까지 · 쿠팡·마켓컬리 주문내역도 읽어요
         </p>
         </>
       )}
