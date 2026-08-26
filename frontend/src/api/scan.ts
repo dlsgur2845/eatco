@@ -49,11 +49,14 @@ export interface DashboardItem {
  * 티어 예산 초과" 였는데, downscaleImage 가 1600px/q0.75 로 줄여서 150~400KB
  * 로 보낸다.
  */
-export async function analyzeReceipt(file: File): Promise<ScanResponse> {
+export async function analyzeReceipt(file: File, signal?: AbortSignal): Promise<ScanResponse> {
   const formData = new FormData()
   formData.append('file', file)
   const resp = await api.post<ScanResponse>('/scan/analyze', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    // signal 이 없던 동안 «취소» 버튼은 화면만 멈췄다. 요청은 끝까지 갔고,
+    // 응답이 도착하면 취소한 뒤에 결과 모달이 튀어나왔다. Gemini 쿼터도 생으로 나갔다.
+    signal,
   })
   return resp.data
 }
@@ -111,13 +114,14 @@ function dedupeKey(it: ScannedItem): string {
 export async function analyzeReceipts(
   files: File[],
   onProgress?: (done: number, total: number) => void,
+  signal?: AbortSignal,
 ): Promise<MultiScanResult> {
   const list = files.slice(0, MAX_SCAN_IMAGES)
   let done = 0
 
   const settled = await Promise.allSettled(
     list.map((f) =>
-      analyzeReceipt(f).finally(() => {
+      analyzeReceipt(f, signal).finally(() => {
         done += 1
         onProgress?.(done, list.length)
       }),
