@@ -2,6 +2,68 @@
 
 ## Infrastructure
 
+### 웹푸시가 구독만 받고 실제로 발송되지 않는다 (2026-08-26)
+
+**What:** `frontend/public/sw.js` 에 `push` 핸들러가 있고
+`POST /api/notifications/push-subscription` 으로 구독도 저장한다. 그런데 **그 구독으로
+푸시를 보내는 코드가 어디에도 없다.** `worker/src/index.ts` 의 `scheduled` 핸들러는
+`notification_logs` 행만 INSERT 한다 — 앱을 열어야만 보이는 인앱 알림이다.
+
+**Why:** 소비기한 알림은 이 앱이 사용자가 **앱을 열지 않아도** 값을 주는 유일한 기능이다.
+지금은 열어야만 알려주는 목록이다. `sw.js` 주석 자체가 "소비기한 알림이 이 앱의 존재
+이유라 여기서 조용히 실패하면 안 된다" 고 적고 있다.
+
+**Context:** VAPID 키 3종은 이미 `worker/src/lib/types.ts:8-10` 에 선언돼 있고
+`GET /api/notifications/vapid-public-key` 도 있다. 빠진 건 발송뿐이다. Workers 에는
+`web-push` npm 패키지를 그대로 못 쓰므로 VAPID JWT 서명을 `crypto.subtle` 로 직접 해야 한다.
+`scheduled` 안에서 `notification_logs` INSERT 직후가 자연스러운 자리다.
+
+**Effort:** L (사람) → M (CC)
+**Priority:** P2
+**Depends on:** VAPID 키를 wrangler secret 으로 실제 설정
+
+### README 가 존재하지 않는 스택을 안내한다 (2026-08-26)
+
+**What:** `README.md` 22·24·34행이 `FastAPI, SQLAlchemy 2.0`, `PostgreSQL 18`,
+`docker compose up -d --build` 라고 적혀 있다. 백엔드는 Cloudflare Workers + D1 로 옮겨졌다.
+
+**Why:** 공개 저장소(`dlsgur2845/eatco`)의 정문이 죽은 안내를 한다. CLAUDE.md 는 v1.7.0 에서
+고쳤는데 README 는 같이 안 고쳐졌다.
+
+**Context:** CLAUDE.md 의 현재 서술을 그대로 옮기면 된다. 10분.
+
+**Effort:** S / S
+**Priority:** P3
+**Depends on:** None
+
+### Web Share Target — 공유 시트에서 바로 스캔
+
+**What:** `manifest.webmanifest` 에 `share_target` 을 넣어 사진첩·쿠팡 앱의
+«공유 → Eatco» 가 곧바로 영수증 스캔으로 이어지게 한다.
+
+**Why:** 앱 전환이 0회다. 클립보드 붙여넣기보다 단계가 더 적고, DESIGN.md 177행
+"이 앱은 사실상 전부 휴대폰에서" 와 가장 잘 맞는 해법이다.
+
+**Cons:** **iOS Safari 는 Web Share Target 을 지원하지 않는다.** 안드로이드 반쪽짜리다.
+서비스워커에서 POST 를 받아 라우팅하는 코드도 필요하다.
+
+**Effort:** M / S
+**Priority:** P3
+**Depends on:** None
+
+### 「식재료 등록」 탭에 직접 입력 경로가 없다
+
+**What:** `RegisterForm` 은 `InventoryPage.tsx:52` 안에만 있고 재고 탭의 등록 버튼으로만 닿는다.
+「식재료 등록」이라는 이름의 탭(ScanPage)에는 손으로 하나 넣는 방법이 없다.
+
+**Why:** 영수증이 없는 물건 하나를 넣으려면 탭을 잘못 찾아가야 한다.
+`RegisterForm` 에는 이미 자동완성과 보관기한 가이드(`/storage-guide/suggest`)가 붙어 있어서
+새 로직이 0줄이다. ScanPage 하단에 「직접 입력할게요」 를 놓고 띄우면 된다.
+
+**Effort:** S / S
+**Priority:** P3
+**Depends on:** None
+
 ### D1 백업 — 스크립트는 생겼고, 자동화는 아직 (2026-08-21)
 
 **What:** `scripts/backup-d1.sh` 가 원격 D1 을 `backups/` 에 SQL 로 덤프한다.
