@@ -590,44 +590,53 @@ export default function ScanPage({ onRegistered }: Props) {
         onChange={handleFileChange('gallery')}
       />
 
-      <button
-        className="w-full mt-6 py-4 rounded-full text-base font-semibold text-white disabled:opacity-50"
-        style={{ backgroundColor: 'var(--color-primary)' }}
-        onClick={() => fileInputRef.current?.click()}
-        disabled={scanning}
-      >
-        영수증 촬영하기
-      </button>
+      {/* 확인 중에는 감춘다. 확인 패널이 드롭존보다 124px 크기 때문에 그냥 두면
+          하단 네비가 이 버튼을 덮고 아래 2단 행은 통째로 가려진다(실측 142px 넘침).
+          그리고 초록 주버튼이 「읽을게요」와 둘이 동시에 뜨면 위계가 무너진다. */}
+      {!pending && (
+        <button
+          className="w-full mt-6 py-4 rounded-full text-base font-semibold text-white disabled:opacity-50"
+          style={{ backgroundColor: 'var(--color-primary)' }}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={scanning}
+        >
+          영수증 촬영하기
+        </button>
+      )}
 
       {/* 2차 동작 두 개는 같은 종류다 — 둘 다 **이미 있는 이미지**를 고른다.
           세로로 쌓으면 설치형 PWA 의 좁은 세로 예산(390×844 에서 콘텐츠 614px)을
           넘긴다. 가로로 묶으면 한 줄로 끝난다.
           문자열 조합으로 클래스를 만들지 않는다 — Tailwind v4 는 소스에 리터럴로
           존재하는 클래스만 생성한다. */}
-      <div className={pasteSupported ? 'w-full mt-3 grid grid-cols-2 gap-3' : 'w-full mt-3 grid grid-cols-1'}>
-        <button
-          className="min-w-0 min-h-[48px] rounded-full text-sm font-medium disabled:opacity-50"
-          style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface)' }}
-          onClick={() => galleryInputRef.current?.click()}
-          disabled={scanning}
-        >
-          앨범에서 선택
-        </button>
-        {pasteSupported && (
+      {!pending && (
+        <>
+        <div className={pasteSupported ? 'w-full mt-3 grid grid-cols-2 gap-3' : 'w-full mt-3 grid grid-cols-1'}>
           <button
             className="min-w-0 min-h-[48px] rounded-full text-sm font-medium disabled:opacity-50"
             style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface)' }}
-            onClick={handlePasteButton}
+            onClick={() => galleryInputRef.current?.click()}
             disabled={scanning}
           >
-            붙여넣기
+            앨범에서 선택
           </button>
-        )}
-      </div>
+          {pasteSupported && (
+            <button
+              className="min-w-0 min-h-[48px] rounded-full text-sm font-medium disabled:opacity-50"
+              style={{ backgroundColor: 'var(--color-surface-container-low)', color: 'var(--color-on-surface)' }}
+              onClick={handlePasteButton}
+              disabled={scanning}
+            >
+              붙여넣기
+            </button>
+          )}
+        </div>
 
-      <p className="mt-3 text-xs" style={{ color: 'var(--color-outline)' }}>
-        한 번에 {MAX_SCAN_IMAGES}장까지 · 마트 영수증과 쿠팡·마켓컬리 같은 주문내역 화면도 읽어요
-      </p>
+        <p className="mt-3 text-xs" style={{ color: 'var(--color-outline)' }}>
+          한 번에 {MAX_SCAN_IMAGES}장까지 · 마트 영수증과 쿠팡·마켓컬리 같은 주문내역 화면도 읽어요
+        </p>
+        </>
+      )}
 
       {showResults && (
         <ResultsModal
