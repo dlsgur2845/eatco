@@ -525,7 +525,11 @@ export default function ScanPage({ onRegistered }: Props) {
           }}
           onDrop={handleDrop}
         >
-          <span aria-hidden="true" className="material-symbols-outlined text-5xl" style={{ color: 'var(--color-outline)', opacity: 0.4 }}>photo_camera</span>
+          {/* opacity 를 뺐다. outline 토큰과 0.4 를 겹쳐 쓰면 실측 대비가 1.71:1 로,
+              배경에 거의 묻힌다(TODOS 의 "빈 상태 아이콘이 거의 안 보인다").
+              드롭존을 py-8 로 줄이면서 이 아이콘이 "여기 놓을 수 있다" 를 알리는
+              유일한 시각 신호가 됐다. 토큰만 쓰면 4.6:1 이다. */}
+          <span aria-hidden="true" className="material-symbols-outlined text-5xl" style={{ color: 'var(--color-outline)' }}>photo_camera</span>
           <span className="text-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
             {dragging ? '여기에 놓으세요' : '여기를 눌러 영수증을 촬영하세요'}
           </span>
