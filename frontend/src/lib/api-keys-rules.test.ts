@@ -47,10 +47,10 @@ describe('교대로 (least_used)', () => {
   })
 
   it('나중에 추가된 키가 따라잡는다 — 이게 라운드로빈과의 차이다', () => {
-    // 손보경이 11월에 키를 넣으면 0회부터 시작한다. 라운드로빈은 "이제부터 반반"이라
-    // 송인혁이 200회 앞선 채로 굳지만, least_used 는 따라잡을 때까지 몰아준다.
-    const picked = pickKey([k({ id: '송인혁', calls: 200 }), k({ id: '손보경', calls: 0 })], 'least_used', NOW)
-    expect(picked?.id).toBe('손보경')
+    // 두 번째 사람이 11월에 키를 넣으면 0회부터 시작한다. 라운드로빈은 "이제부터 반반"이라
+    // 먼저 등록한 키가 200회 앞선 채로 굳지만, least_used 는 따라잡을 때까지 몰아준다.
+    const picked = pickKey([k({ id: '먼저등록', calls: 200 }), k({ id: '나중등록', calls: 0 })], 'least_used', NOW)
+    expect(picked?.id).toBe('나중등록')
   })
 
   it('동점이면 항상 같은 답을 준다 (id 로 깬다)', () => {

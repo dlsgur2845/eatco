@@ -191,7 +191,7 @@ export default function ApiKeyPanel() {
             type="text"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="이름 (선택) — 예: 송인혁의 Gemini"
+            placeholder="이름 (선택) — 예: 우리집 Gemini"
             aria-label="키 이름"
             className="w-full text-base px-3 py-2 rounded-lg outline-none mb-2"
             style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-on-surface)' }}

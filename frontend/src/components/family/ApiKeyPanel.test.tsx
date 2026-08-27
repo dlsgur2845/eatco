@@ -23,7 +23,7 @@ vi.mock('../../api/familyKeys', async () => {
 
 function key(over: Partial<FamilyKey> & { id: string }): FamilyKey {
   return {
-    provider: 'gemini', provider_label: 'Gemini', label: '송인혁의 Gemini',
+    provider: 'gemini', provider_label: 'Gemini', label: '우리집 Gemini',
     key_hint: '••••4f2a', added_by: 'u1', created_at: '2026-08-27T00:00:00Z',
     priority: null, calls: 0, last_used_at: null, cooldown_until: null,
     disabled: 0, last_error: null, ...over,
@@ -61,7 +61,7 @@ describe('AI 키 패널 — 네 상태', () => {
 
   it('정상: 키와 사용량을 보여준다', async () => {
     mount({ keys: [key({ id: 'k1', calls: 62 })], strategy: 'least_used' })
-    expect(await screen.findByText(/송인혁의 Gemini/)).toBeTruthy()
+    expect(await screen.findByText(/우리집 Gemini/)).toBeTruthy()
     expect(screen.getByText(/62회 사용/)).toBeTruthy()
   })
 })
@@ -87,18 +87,18 @@ describe('AI 키 패널 — 키 상태', () => {
 
   it('멀쩡한 키에는 「다시 켜기」가 없다', async () => {
     mount({ keys: [key({ id: 'k1' })], strategy: 'least_used' })
-    await screen.findByText(/송인혁의 Gemini/)
+    await screen.findByText(/우리집 Gemini/)
     expect(screen.queryByText('다시 켜기')).toBeNull()
   })
 
   it('키가 하나면 전략 선택을 안 보여준다 — 고를 게 없다', async () => {
     mount({ keys: [key({ id: 'k1' })], strategy: 'least_used' })
-    await screen.findByText(/송인혁의 Gemini/)
+    await screen.findByText(/우리집 Gemini/)
     expect(screen.queryByText('교대로')).toBeNull()
   })
 
   it('키가 둘이면 전략을 고를 수 있다', async () => {
-    mount({ keys: [key({ id: 'k1' }), key({ id: 'k2', label: '손보경의 Gemini' })], strategy: 'least_used' })
+    mount({ keys: [key({ id: 'k1' }), key({ id: 'k2', label: '두 번째 Gemini' })], strategy: 'least_used' })
     expect(await screen.findByText('교대로')).toBeTruthy()
     expect(screen.getByText('순서대로')).toBeTruthy()
   })

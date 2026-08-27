@@ -14,7 +14,7 @@ CREATE TABLE family_api_keys (
   id             TEXT PRIMARY KEY,
   family_id      TEXT NOT NULL REFERENCES families(id) ON DELETE CASCADE,
   provider       TEXT NOT NULL CHECK (provider IN ('gemini','anthropic','openai')),
-  -- '송인혁의 Gemini' 처럼 누구 것인지 알아볼 라벨.
+  -- '우리집 Gemini' 처럼 누구 것인지 알아볼 라벨.
   label          TEXT NOT NULL,
   -- base64(iv ‖ ciphertext). 평문 금지.
   key_cipher     TEXT NOT NULL,
