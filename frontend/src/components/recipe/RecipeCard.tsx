@@ -6,6 +6,15 @@ interface Props {
   recipe: Recipe
   /** 상세 모달 아래에 붙일 것. SharedRecipeCard 가 검토 패널을 넘긴다. */
   detailExtra?: React.ReactNode
+  /**
+   * 출처 줄을 숨긴다.
+   *
+   * 공유 레시피는 서버가 전부 `source: 'custom'` 으로 보내고(`shared-recipe-scope.ts`),
+   * 그 라벨이 「나의 레시피」다. 그래서 **남이 올린 레시피에도 「나의 레시피」가 찍혔다.**
+   * 공유 카드에는 작성자 배지가 이미 있으니 출처 줄은 정보가 아니라 거짓말이다.
+   * 추천 레일은 식품안전나라/AI 를 구분해야 하므로 그대로 둔다.
+   */
+  hideSource?: boolean
 }
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -22,13 +31,19 @@ const SOURCE_ICON: Record<string, string> = {
   fallback: 'public',
 }
 
-export default function RecipeCard({ recipe, detailExtra }: Props) {
+export default function RecipeCard({ recipe, detailExtra, hideSource }: Props) {
   const [showDetail, setShowDetail] = useState(false)
   const pct = Math.round(recipe.match_ratio * 100)
+  /* 「78%」는 옆의 「320kcal」와 나란히 놓이면 **평점**처럼 읽힌다. 무엇의 78% 인지
+     말하지 않기 때문이다. 상세 모달은 이미 「재료 3/5개 보유」라고 제대로 말한다 —
+     카드만 다르게 말하고 있었다. 같은 말로 맞춘다. 픽셀 비용 0.
+     매칭이 0건이면 알약을 아예 안 그린다. 모두의 메뉴는 0건도 남겨두는데,
+     빨간 「재료 0/6」이 줄줄이 뜨면 "이 커뮤니티는 나에게 쓸모없다"고 말하는 셈이다. */
+  const showMatch = recipe.match_count > 0
   /* `source` 는 서버가 실제로 안 보낸다 (응답 키 실측 확인). 타입을 optional 로
      바꾸자 여기가 타입 에러로 드러났다 — manual_images 를 흰 화면으로 만든 것과
      같은 종류의 거짓말이 두 곳 더 있었던 것이다. 없으면 출처 줄을 안 그린다. */
-  const sourceLabel = recipe.source ? SOURCE_LABEL[recipe.source] || recipe.source : ''
+  const sourceLabel = hideSource ? '' : recipe.source ? SOURCE_LABEL[recipe.source] || recipe.source : ''
   const sourceIcon = (recipe.source && SOURCE_ICON[recipe.source]) || 'public'
 
   return (
@@ -69,15 +84,17 @@ export default function RecipeCard({ recipe, detailExtra }: Props) {
                   사용자가 올린 레시피는 Gemini 가 추정에 실패하면 빈 값이다. */}
               {recipe.calories ? `${recipe.cooking_method} · ${recipe.calories}kcal` : recipe.cooking_method}
             </span>
-            <span
-              className="text-xs font-semibold px-2 py-0.5 rounded-full"
-              style={{
-                backgroundColor: pct >= 80 ? 'color-mix(in srgb, var(--color-primary) 10%, white)' : pct >= 50 ? 'color-mix(in srgb, var(--color-secondary-container) 15%, white)' : 'color-mix(in srgb, var(--color-tertiary-container) 10%, white)',
-                color: pct >= 80 ? 'var(--color-primary)' : pct >= 50 ? 'var(--color-secondary)' : 'var(--color-tertiary)',
-              }}
-            >
-              {pct}%
-            </span>
+            {showMatch && (
+              <span
+                className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                style={{
+                  backgroundColor: pct >= 80 ? 'color-mix(in srgb, var(--color-primary) 10%, white)' : pct >= 50 ? 'color-mix(in srgb, var(--color-secondary-container) 15%, white)' : 'color-mix(in srgb, var(--color-tertiary-container) 10%, white)',
+                  color: pct >= 80 ? 'var(--color-primary)' : pct >= 50 ? 'var(--color-secondary)' : 'var(--color-tertiary)',
+                }}
+              >
+                재료 {recipe.match_count}/{recipe.total_ingredients}
+              </span>
+            )}
           </div>
 
           {/* 아이콘이 10px 이었고 옆 라벨은 비어 있었다. 실기기 캡처에서는

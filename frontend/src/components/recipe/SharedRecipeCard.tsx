@@ -67,6 +67,7 @@ export default function SharedRecipeCard({ recipe, onDeleted }: Props) {
     <div className="relative flex-shrink-0 w-56">
       <RecipeCard
         recipe={recipe}
+        hideSource
         detailExtra={
           recipe.is_mine ? (
             <RecipeReviewPanel
