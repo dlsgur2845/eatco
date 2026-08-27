@@ -23,6 +23,7 @@ import ScanPage from './pages/ScanPage'
 // 냉장고를 확인하러 여는 앱인데 첫 로딩에 차트 라이브러리를 들고 갈 이유가 없다.
 const ExpensesPage = lazy(() => import('./pages/ExpensesPage'))
 import SettingsPage from './pages/SettingsPage'
+import MyRecipesPage from './pages/MyRecipesPage'
 import CalendarPage from './pages/CalendarPage'
 import AdminPage from './pages/AdminPage'
 import LazyBoundary from './components/LazyBoundary'
@@ -169,6 +170,7 @@ export default function App() {
             />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/my-recipes" element={<MyRecipesPage />} />
             <Route path="/me" element={<MyPage />} />
             <Route path="/family" element={<FamilyPage />} />
             {/* 진짜 게이트는 서버(/api/admin/*)다. 이 라우트는 숨기지 않고,

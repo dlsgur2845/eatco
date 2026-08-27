@@ -129,7 +129,15 @@ app.get('/', async (c) => {
   return c.json((results ?? []).map((r) => publicRecipe(r, user.id, fridge, urgent)))
 })
 
-/** 내가 쓴 것만. 검토 중·거절도 보인다. */
+/**
+ * 내가 쓴 것만. 가족이 바뀐 뒤에도 내 것이 보인다
+ * (`shared_recipes.family_id` 는 ON DELETE SET NULL).
+ *
+ * 예전 주석은 "검토 중·거절도 보인다" 였다. **`pending` 상태는 존재하지 않는다** —
+ * `status` 는 `'none' | 'approved' | 'rejected'` 다(0008 의 CHECK 제약). 그리고
+ * 거절된 것은 `VISIBLE_WHERE` 의 `family_id = ?` 가지에 걸려 공개 목록에도 이미 보인다.
+ * 이 낡은 주석 하나 때문에 없는 상태를 위한 화면을 설계할 뻔했다.
+ */
 app.get('/mine', async (c) => {
   const user = c.get('user')
   const { fridge, urgent } = user.family_id

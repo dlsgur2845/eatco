@@ -142,6 +142,18 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+          {/* 「나의 요리」. 가족 관리 위에 둔다 — 계정 설정보다 자주 볼 것이고,
+              모두의 메뉴에 섞여 있는 내 글을 모아 보는 유일한 통로다. */}
+          <Link
+            to="/my-recipes"
+            className="flex items-center justify-between p-5 hover:bg-primary/5 transition-colors"
+          >
+            <div className="flex items-center gap-4">
+              <span aria-hidden="true" className="material-symbols-outlined text-outline">menu_book</span>
+              <span className="font-medium">나의 요리</span>
+            </div>
+            <span aria-hidden="true" className="material-symbols-outlined text-outline text-sm">chevron_right</span>
+          </Link>
           <Link
             to="/family"
             className="flex items-center justify-between p-5 hover:bg-primary/5 transition-colors"
