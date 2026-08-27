@@ -21,6 +21,11 @@ const BADGE: Record<string, { label: string; color: string; bg: string }> = {
     color: 'var(--color-on-surface-variant)',
     bg: 'color-mix(in srgb, var(--color-surface-container-low) 92%, black)',
   },
+  needsReview: {
+    label: '검토 필요',
+    color: 'var(--color-tertiary)',
+    bg: 'color-mix(in srgb, var(--color-tertiary-container) 30%, white)',
+  },
   rejected: {
     label: '공개 안 됨',
     color: 'var(--color-tertiary)',
@@ -33,12 +38,19 @@ export default function SharedRecipeCard({ recipe, onDeleted }: Props) {
   const [editing, setEditing] = useState<SharedRecipeDetail | null>(null)
   /* 내 글에만 범위 배지를 단다. 남의 글은 어차피 공개된 것만 보이므로
      «가족만» 이 뜰 일이 없고, 뜬다면 그건 우리 가족 글이라 이미 안다. */
+  /* 공개했다가 내용을 고치면 승인 해시가 어긋나 서버가 가족 밖에 안 보여준다.
+     그런데 `visibility` 는 'public' 인 채로 남는다. 그것만 보던 이 배지는
+     **아무 배지도 안 달아서** "잘 공개돼 있다" 로 읽혔다 — 검토 패널이 같은
+     이유로 "모두가 볼 수 있어요" 라고 거짓말하던 것과 같은 버그다.
+     그쪽만 고치고 여기를 두면 한 화면에서 두 말이 계속 어긋난다. */
   const badge = recipe.is_mine
     ? recipe.status === 'rejected'
       ? BADGE.rejected
       : recipe.visibility === 'family'
         ? BADGE.family
-        : null
+        : recipe.approval_valid
+          ? null
+          : BADGE.needsReview
     : null
 
   async function remove() {
