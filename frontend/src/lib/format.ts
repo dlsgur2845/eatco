@@ -78,3 +78,24 @@ export function formatDate(iso: string, todayKst?: string): string {
   const nowYear = (todayKst ?? new Date(Date.now() + 9 * 3600_000).toISOString()).slice(0, 4)
   return String(y) === nowYear ? `${m}월 ${d}일` : `${y}년 ${m}월 ${d}일`
 }
+
+
+/**
+ * 이 수량 문자열이 「다 썼다」는 뜻인가.
+ *
+ * 수량은 자유 입력이다("1모", "600g", "0.5모", "약간"). 서버가 이걸 해석해서
+ * 냉장고에서 빼는 건 위험하다 — `0.5모` 를 0 으로 오판하면 멀쩡한 재료가 사라진다.
+ * 그래서 **화면에서 한 번 물어보기 위한 판정만** 한다.
+ *
+ * 숫자로 읽히고 그 값이 정확히 0 일 때만 참이다:
+ *   '0' → 참 · '0개' → 참 · '0.5모' → 거짓 · '약간' → 거짓
+ *
+ * **빈 값은 거짓이다.** 수량을 지우는 건 "라벨을 없앤다"는 뜻이지 "다 썼다"가 아니고,
+ * 게다가 「일부 사용」 버튼 자체가 `item.quantity` 가 있을 때만 뜬다 —
+ * 빈 값을 소진으로 치면 무관한 편집이 삭제를 제안하게 된다.
+ */
+export function meansUsedUp(raw: string): boolean {
+  if (!raw.trim()) return false
+  const n = parseFloat(raw.replace(/[\s,]/g, ''))
+  return Number.isFinite(n) && n === 0
+}
