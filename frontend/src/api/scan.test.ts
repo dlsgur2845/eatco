@@ -1,6 +1,15 @@
-import { describe, expect, it } from 'vitest'
-import { mergeScans } from './scan'
-import type { ScanResponse, ScannedItem } from './scan'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+// vi.mock 은 파일 맨 위로 끌어올려지므로 vi.hoisted 로 같이 끌어올린다.
+// mergeScans 는 순수 함수라 이 목에 영향받지 않는다.
+const { post } = vi.hoisted(() => ({ post: vi.fn() }))
+vi.mock('./client', () => ({
+  default: { post },
+  registerFridgeChangeHandler: vi.fn(),
+}))
+
+import { mergeScans, restoreItem } from './scan'
+import type { DashboardItem, ScanResponse, ScannedItem } from './scan'
 
 /**
  * 여러 장 스캔의 병합 규칙. 여기가 틀리면 냉장고에 같은 게 두 번 들어가거나
@@ -94,5 +103,66 @@ describe('mergeScans', () => {
     const r = mergeScans([shot([a]), shot([b])])
     expect(r.items).toHaveLength(1)
     expect(r.items[0].duplicate_count).toBe(2)
+  })
+})
+
+
+/**
+ * 되돌리기는 **재등록**이다. 그래서 보내는 필드가 곧 되돌려지는 재료다.
+ *
+ * 예전 되돌리기는 삭제를 3초 미루는 방식이라 보낼 필드가 없었다. 즉시 삭제로
+ * 바꾸면서 이 함수가 생겼고, 여기서 필드를 하나 빠뜨리면 **되돌린 재료가
+ * 되돌리기 전과 달라진다.** 화면에는 이름이 같게 보이므로 눈으로는 안 잡힌다.
+ */
+const restorable = {
+  id: 'old-id',
+  name: '대파',
+  normalized_name: '대파',
+  category_id: 3,
+  storage_method: 'fridge',
+  quantity: '1단',
+  amount_value: 1,
+  unit: '단',
+  price: 3000,
+  // 오래된 행에는 시각이 붙어 있다.
+  expiry_date: '2026-09-01T00:00:00.000Z',
+  image_url: null,
+  store_name: '이마트',
+  registered_by: 'me',
+  days_left: 5,
+} as unknown as DashboardItem
+
+describe('되돌리기 — 재등록', () => {
+  beforeEach(() => {
+    post.mockReset()
+    post.mockResolvedValue({ data: { ...restorable, id: 'new-id' } })
+  })
+
+  it('expiry_date 를 10자로 자른다', async () => {
+    await restoreItem(restorable)
+    // 서버가 ^\d{4}-\d{2}-\d{2}$ 로 검증한다. 시각이 붙어 가면 422 가 나고
+    // 되돌리기가 실패해 재료가 영영 사라진다.
+    expect(post.mock.calls[0][1].expiry_date).toBe('2026-09-01')
+  })
+
+  it('normalized_name 을 함께 보낸다', async () => {
+    await restoreItem(restorable)
+    // 워커의 loadFridge 가 `normalized_name || name` 으로 레시피를 매칭한다.
+    // 이걸 잃으면 되돌린 뒤 추천이 되돌리기 전과 달라진다.
+    expect(post.mock.calls[0][1].normalized_name).toBe('대파')
+  })
+
+  it('수량·단위·가격을 그대로 되돌린다', async () => {
+    await restoreItem(restorable)
+    expect(post.mock.calls[0][1]).toMatchObject({
+      name: '대파', quantity: '1단', amount_value: 1, unit: '단',
+      price: 3000, storage_method: 'fridge', category_id: 3, store_name: '이마트',
+    })
+  })
+
+  it('서버가 준 새 행을 돌려준다 (옛 id 를 재사용하지 않는다)', async () => {
+    const restored = await restoreItem(restorable)
+    // 옛 id 를 쓰면 되돌린 행의 삭제·수정 버튼이 없는 id 를 때려 404 가 난다.
+    expect(restored.id).toBe('new-id')
   })
 })

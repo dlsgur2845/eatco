@@ -67,4 +67,38 @@ describe('레시피 추천 캐시', () => {
     expect(out).toEqual(payload)
     expect(get).toHaveBeenCalledTimes(2)
   })
+
+  /**
+   * 세대 카운터. `inFlight = null` 만으로는 **이미 나간 요청이 안 멈춘다.**
+   *
+   * 재료를 지우면 무효화가 일어나는데, 그 직전에 나간 조회는 여전히 살아 있다.
+   * 그 응답이 뒤늦게 도착해 캐시를 채우면 **지우기 전 추천이 되살아난다.**
+   * 삭제와 되돌리기가 몇백 ms 사이로 두 번 무효화하는 지금 구조에서는
+   * 드문 일이 아니다.
+   */
+  it('무효화 뒤에 도착한 옛 응답은 캐시에 앉지 않는다', async () => {
+    let resolveOld!: (v: unknown) => void
+    get.mockReturnValueOnce(new Promise((r) => { resolveOld = r }))
+
+    const stale = getRecommendations()      // 옛 세대로 출발
+    invalidateRecommendations()             // 그 사이 재료가 바뀐다
+    resolveOld({ data: [{ name: '옛날추천' }] })
+    await stale
+
+    // 캐시가 옛 응답으로 채워졌다면 여기서 요청이 안 나간다.
+    get.mockResolvedValue({ data: [{ name: '새추천' }] })
+    const fresh = await getRecommendations()
+    expect(fresh).toEqual([{ name: '새추천' }])
+    expect(get).toHaveBeenCalledTimes(2)
+  })
+
+  it('무효화가 없으면 진행 중이던 응답은 정상적으로 캐시된다', async () => {
+    let resolve!: (v: unknown) => void
+    get.mockReturnValueOnce(new Promise((r) => { resolve = r }))
+    const p = getRecommendations()
+    resolve({ data: payload })
+    await p
+    await getRecommendations()
+    expect(get).toHaveBeenCalledTimes(1)   // 두 번째는 캐시
+  })
 })
