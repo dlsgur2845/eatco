@@ -33,7 +33,7 @@ function FamilyManageView({
      로컬·프리뷰·프로덕션이 서로 다른 주소를 뱉는다. */
   const inviteUrl = `${window.location.origin}/invite/${localFamily.invite_code}`
 
-  // 새 링크 만들기는 방장만. 서버도 403 으로 막지만 버튼부터 안 보인다.
+  // 새 링크 만들기는 대표만. 서버도 403 으로 막지만 버튼부터 안 보인다.
   const isMaster = localFamily.master_id === currentUser.id
 
   const copyCode = () => {
@@ -52,7 +52,7 @@ function FamilyManageView({
       const r = await api.post<{ invite_code: string }>('/auth/family/invite/rotate')
       setLocalFamily({ ...localFamily, invite_code: r.data.invite_code })
     } catch {
-      /* 방장이 아니면 403. 버튼 자체를 방장에게만 보여주므로 조용히 넘긴다. */
+      /* 대표가 아니면 403. 버튼 자체를 대표에게만 보여주므로 조용히 넘긴다. */
     } finally {
       setRotating(false)
     }
@@ -151,12 +151,13 @@ function FamilyManageView({
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {/* "MASTER" 였다. 바로 옆줄에 이미 "관리자 ·" 가 있어서
-                          영어인 것과 별개로 같은 말을 두 번 하고 있었다.
-                          tracking-widest 도 뺀다 — 한글은 자간을 벌리면 음절이 흩어진다. */}
+                      {/* "MASTER" → "방장" → "대표".
+                          "방장" 은 채팅방·게임 로비의 말이라 가족에 안 어울린다.
+                          영어였을 때 뺀 tracking-widest 는 그대로 둔다 —
+                          한글은 자간을 벌리면 음절이 흩어진다. */}
                       {isAdmin && (
                         <span className="text-xs text-primary font-bold bg-primary/5 px-2 py-1 rounded">
-                          방장
+                          대표
                         </span>
                       )}
                       {!isAdmin && !isMe && currentUser.id === localFamily.master_id && (
