@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import type { Family, User } from '../types'
 import ResetPanel from '../components/family/ResetPanel'
+import ApiKeyPanel from '../components/family/ApiKeyPanel'
 
 /* ──────────────────────────────────────────────
    가족 관리 뷰 (메인)
@@ -183,6 +184,10 @@ function FamilyManageView({
               })}
             </div>
           </section>
+
+          {/* AI 키. 초기화보다 위에 둔다 — 일상적으로 쓰는 설정이고,
+              초기화는 되돌릴 수 없는 동작이라 아래쪽이 맞다. */}
+          <ApiKeyPanel />
 
           {/* 데이터 초기화. 탈퇴 **위**에 둔다 — 탈퇴는 나 하나가 나가는 일이고
               초기화는 가족 전체의 일이라, 구성원 목록 바로 다음이 맞는 자리다. */}
