@@ -1,25 +1,29 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import CountUp from '../components/motion/CountUp'
 import { freshnessColor, daysLabel as fmtDays } from '../lib/freshness'
 import api from '../api/client'
 import { logEvent } from '../api/events'
 import { getRecommendations, type Recipe } from '../api/recipes'
-import { deleteItem, getItems, updateItem, type DashboardItem } from '../api/scan'
+import { deleteItem, getItems, restoreItem, updateItem, type DashboardItem } from '../api/scan'
 import RecipeCard from '../components/recipe/RecipeCard'
 import AddRecipeSheet from '../components/recipe/AddRecipeSheet'
 import SharedRecipeCard from '../components/recipe/SharedRecipeCard'
 import { getSharedRecipes, type SharedRecipe } from '../api/sharedRecipes'
 import { josa } from '../lib/korean'
-import { formatDate } from '../lib/format'
+import { formatDate, meansUsedUp } from '../lib/format'
 
 interface InflationAlert { name: string; current_price: number; old_price: number; change_pct: number }
 interface BudgetInfo { monthly_budget: number | null; spent_this_month: number }
 
 export default function MvpDashboardPage() {
   const [items, setItems] = useState<DashboardItem[]>([])
+  // 되돌리기가 네트워크 요청이 되면서 연타·실패를 처리해야 한다.
+  const undoBusyRef = useRef(false)
+  const [undoError, setUndoError] = useState<string | null>(null)
+  const [restoredName, setRestoredName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [undoItem, setUndoItem] = useState<{ item: DashboardItem; timeout: ReturnType<typeof setTimeout> } | null>(null)
+  const [undoItem, setUndoItem] = useState<{ item: DashboardItem } | null>(null)
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [recipesLoading, setRecipesLoading] = useState(true)
   const [shared, setShared] = useState<SharedRecipe[]>([])
@@ -52,40 +56,71 @@ export default function MvpDashboardPage() {
     api.get<BudgetInfo>('/expenses/budget').then(r => setBudget(r.data)).catch(() => {})
   }, [fetchItems])
 
+  /**
+   * 「다 썼어요」 — **즉시 삭제한다.**
+   *
+   * 예전에는 3초 뒤에 삭제했다. 그 3초 안에 새로고침하면 타이머가 죽어서 삭제가
+   * 아예 안 나갔고(재현 확인: 8개 → 클릭 → 새로고침 → 여전히 8개), 추천도
+   * 3.4초 동안 옛 목록 그대로였다. 두 문제가 같은 원인이었다.
+   * 이제 즉시 지우고, 되돌리기가 다시 넣는다.
+   */
   const handleDelete = async (item: DashboardItem) => {
-    // 이전 undo가 있으면 즉시 확정
-    if (undoItem) {
-      clearTimeout(undoItem.timeout)
-      deleteItem(undoItem.item.id).catch(() => {
-        setItems(prev => [...prev, undoItem.item].sort((a, b) => a.days_left - b.days_left))
-      })
-    }
-
-    // 일단 UI에서 제거 (optimistic)
     setItems(prev => prev.filter(i => i.id !== item.id))
+    setUndoError(null)
+    try {
+      await deleteItem(item.id)
+      logEvent('use_item', { item_name: item.name })
+      getRecommendations().then(setRecipes).catch(() => {})
+      getSharedRecipes().then(setShared).catch(() => {})
+      setUndoItem({ item })
+    } catch {
+      // 실패했으면 화면을 되돌린다. 조용히 사라지게 두면 안 된다.
+      setItems(prev => [...prev, item].sort((a, b) => a.days_left - b.days_left))
+      setUndoError('지우지 못했어요. 다시 시도해주세요.')
+    }
+  }
 
-    // 3초 undo 스냅바
-    const timeout = setTimeout(async () => {
-      try {
-        await deleteItem(item.id)
-        logEvent('use_item', { item_name: item.name })
-        // 삭제 확정 후 추천 갱신
-        getRecommendations().then(setRecipes).catch(() => {})
-      } catch {
-        setItems(prev => [...prev, item].sort((a, b) => a.days_left - b.days_left))
-      }
+  /**
+   * 되돌리기 — 서버에 **다시 등록**한다. 더 이상 로컬 취소가 아니다.
+   *
+   * 그래서 실패할 수 있고, 새 id 를 받는다. 둘 다 처리해야 한다.
+   */
+  const handleUndo = async () => {
+    if (!undoItem || undoBusyRef.current) return
+    undoBusyRef.current = true          // 동기 ref — state 로는 연타를 못 막는다
+    setUndoError(null)
+    try {
+      const restored = await restoreItem(undoItem.item)
+      // **응답의 새 id 로 교체한다.** 옛 id 를 넣으면 그 행의 버튼이 404 를 때린다.
+      setItems(prev => [...prev, restored].sort((a, b) => a.days_left - b.days_left))
       setUndoItem(null)
-    }, 3000)
-
-    setUndoItem({ item, timeout })
+      setRestoredName(undoItem.item.name)
+      // 무효화만으로는 화면이 안 바뀐다. 지울 때와 똑같이 다시 받아야 한다.
+      getRecommendations().then(setRecipes).catch(() => {})
+      getSharedRecipes().then(setShared).catch(() => {})
+    } catch {
+      // 재료가 이미 서버에서 사라졌으므로 조용히 끝내면 영영 못 되돌린다.
+      setUndoError('다시 넣지 못했어요.')
+    } finally {
+      undoBusyRef.current = false
+    }
   }
 
-  const handleUndo = () => {
+  /* 스낵바를 치우는 타이머. 예전에는 「3초 뒤 삭제」 타이머가 이 일까지 겸했는데,
+     즉시 삭제로 바꾸면서 그 타이머가 사라졌다. 없으면 스낵바가 영영 안 없어진다.
+     5초다 — 3초는 삭제 지연 시간이었지 읽는 시간이 아니었고, 한글 이름을 읽고
+     되돌릴지 정하기엔 짧다. */
+  useEffect(() => {
     if (!undoItem) return
-    clearTimeout(undoItem.timeout)
-    setItems(prev => [...prev, undoItem.item].sort((a, b) => a.days_left - b.days_left))
-    setUndoItem(null)
-  }
+    const t = setTimeout(() => setUndoItem(null), 5000)
+    return () => clearTimeout(t)
+  }, [undoItem])
+
+  useEffect(() => {
+    if (!restoredName) return
+    const t = setTimeout(() => setRestoredName(null), 3000)
+    return () => clearTimeout(t)
+  }, [restoredName])
 
   const handleUpdateQty = async (item: DashboardItem, newQty: string) => {
     try {
@@ -211,6 +246,22 @@ export default function MvpDashboardPage() {
       )}
 
       {/* 오늘의 추천 */}
+      {/* 섹션 순서에 이유가 있다.
+          예전 순서는 요약 → 추천 → 모두의 메뉴 → 오늘 써야 할 식재료였다.
+          그래서 「다 썼어요」 버튼이 959px, 추천 캐러셀이 250px 에 있었고,
+          설치형 PWA 화면이 614px 이라 **둘이 같은 화면에 절대 못 왔다.**
+          재료를 소비해도 추천이 바뀌는 걸 볼 수 없으니, 지연을 없애도 체감이 그대로였다.
+          오늘 써야 할 식재료를 추천 바로 위로 올려 둘을 한 화면에 넣는다. */}
+      {/* 오늘 써야 할 식재료 */}
+      {urgent.length > 0 && (
+        <Section title="오늘 써야 할 식재료">
+          {urgent.map(item => (
+            <ItemRow key={item.id} item={item} daysColor={daysColor} daysLabel={daysLabel} onDelete={handleDelete} onUpdate={handleUpdateQty} />
+          ))}
+        </Section>
+      )}
+
+      {/* 곧 써야 할 식재료 */}
       {recipesLoading ? (
         <div className="flex gap-3 mb-6 overflow-x-auto">
           {[1, 2].map(i => (
@@ -218,36 +269,38 @@ export default function MvpDashboardPage() {
           ))}
         </div>
       ) : recipes.length > 0 ? (
-        <>
-          {/* 재료 기반 추천 */}
-          {recipes.filter(r => r.match_count > 0).length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-base font-semibold tracking-wide mb-3" style={{ color: 'var(--color-on-surface-variant)' }}>
-                냉장고 재료로 만들 수 있어요
-              </h3>
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
-                {recipes.filter(r => r.match_count > 0).map((r, i) => (
-                  <RecipeCard key={i} recipe={r} />
-                ))}
-              </div>
-            </div>
-          )}
-          {/* 추가 추천 (매칭 무관) */}
-          {recipes.filter(r => r.match_count === 0).length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-base font-semibold tracking-wide mb-3" style={{ color: 'var(--color-on-surface-variant)' }}>
-                이런 요리는 어때요?
-              </h3>
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
-                {recipes.filter(r => r.match_count === 0).map((r, i) => (
-                  <RecipeCard key={i} recipe={r} />
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      ) : null}
-
+        /* 한 줄만 남는다. 서버(`/recipes/recommend`)가 이미 `match_count > 0` 만
+           보내므로, 예전의 「이런 요리는 어때요?」(매칭 0건) 블록은 **항상 비어 있었다.**
+           브라우저에서도 렌더되지 않는 것을 확인하고 지웠다. */
+        <div className="mb-6">
+          <h3 className="text-base font-semibold tracking-wide mb-3" style={{ color: 'var(--color-on-surface-variant)' }}>
+            냉장고 재료로 만들 수 있어요
+          </h3>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
+            {recipes.map((r, i) => (
+              <RecipeCard key={i} recipe={r} />
+            ))}
+          </div>
+        </div>
+      ) : (
+        /* 냉장고가 비면 서버가 `[]` 를 준다. 예전에는 여기서 아무것도 안 그려서
+           신규 가족에게 추천 자리가 통째로 사라졌다 — 고장으로 읽힌다.
+           비어 있음과 오류를 구분해서 말한다 (DESIGN.md 5절). */
+        <div className="mb-6">
+          <h3 className="text-base font-semibold tracking-wide mb-3" style={{ color: 'var(--color-on-surface-variant)' }}>
+            냉장고 재료로 만들 수 있어요
+          </h3>
+          <p
+            className="w-full py-6 rounded-2xl text-sm text-center"
+            style={{
+              backgroundColor: 'var(--color-surface-container-low)',
+              color: 'var(--color-on-surface-variant)',
+            }}
+          >
+            재료를 등록하면 만들 수 있는 요리를 찾아드려요.
+          </p>
+        </div>
+      )}
 
       {/* 모두의 메뉴 — 이 앱에서 유일하게 가족 경계를 넘는 화면 */}
       <div className="mb-6">
@@ -269,8 +322,10 @@ export default function MvpDashboardPage() {
         </div>
 
         {shared.length > 0 ? (
+          /* 매칭 높은 순. 0건도 숨기지 않는다 — 이 화면이 비면 커뮤니티가 죽는다.
+             sort 는 안정 정렬이라 동점은 서버가 준 최신순을 유지한다. */
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-5 px-5">
-            {shared.map(r => (
+            {[...shared].sort((a, b) => b.match_count - a.match_count).map(r => (
               <SharedRecipeCard key={r.id} recipe={r} onDeleted={() => getSharedRecipes().then(setShared).catch(() => {})} />
             ))}
           </div>
@@ -290,16 +345,6 @@ export default function MvpDashboardPage() {
         )}
       </div>
 
-      {/* 오늘 써야 할 식재료 */}
-      {urgent.length > 0 && (
-        <Section title="오늘 써야 할 식재료">
-          {urgent.map(item => (
-            <ItemRow key={item.id} item={item} daysColor={daysColor} daysLabel={daysLabel} onDelete={handleDelete} onUpdate={handleUpdateQty} />
-          ))}
-        </Section>
-      )}
-
-      {/* 곧 써야 할 식재료 */}
       {soon.length > 0 && (
         <Section title="곧 써야 할 식재료">
           {soon.map(item => (
@@ -317,22 +362,55 @@ export default function MvpDashboardPage() {
         </Section>
       )}
 
-      {/* 스냅바 undo */}
+      {/* 스낵바 — 「지웠어요」는 과거형이다. 실제로 이미 지웠기 때문이다.
+          예전 문구 「삭제됨」은 아직 안 지운 상태에서 지웠다고 말하는 거짓말이었다. */}
       {undoItem && (
         <div
+          role="status"
           className="fixed bottom-28 left-4 right-4 mx-auto max-w-md flex items-center justify-between px-4 py-3 rounded-xl shadow-lg z-50"
           style={{ backgroundColor: 'var(--color-on-surface)', color: 'var(--color-surface)' }}
         >
-          <span className="text-sm">
-            {undoItem.item.name} 삭제됨
+          <span className="text-sm min-w-0 truncate">
+            {undoItem.item.name} 지웠어요
           </span>
           <button
-            className="text-sm font-semibold ml-4"
+            className="text-sm font-semibold ml-4 shrink-0 min-h-[48px] px-2"
             style={{ color: 'var(--color-primary)' }}
             onClick={handleUndo}
           >
             되돌리기
           </button>
+        </div>
+      )}
+
+      {/* 되돌린 뒤. 「되돌렸어요」가 아니라 「다시 넣었어요」다 — 실제로 재등록이다. */}
+      {restoredName && (
+        <div
+          role="status"
+          className="fixed bottom-28 left-4 right-4 mx-auto max-w-md px-4 py-3 rounded-xl shadow-lg z-50 text-sm"
+          style={{ backgroundColor: 'var(--color-on-surface)', color: 'var(--color-surface)' }}
+        >
+          {restoredName} 다시 넣었어요
+        </div>
+      )}
+
+      {/* 삭제·되돌리기 실패. 재료가 서버에서 사라진 뒤라 조용히 넘기면 안 된다. */}
+      {undoError && (
+        <div
+          role="alert"
+          className="fixed bottom-28 left-4 right-4 mx-auto max-w-md flex items-center justify-between px-4 py-3 rounded-xl shadow-lg z-50"
+          style={{ backgroundColor: 'var(--color-error-container)', color: 'var(--color-error)' }}
+        >
+          <span className="text-sm min-w-0">{undoError}</span>
+          {undoItem && (
+            <button
+              className="text-sm font-semibold ml-4 shrink-0 min-h-[48px] px-2"
+              style={{ color: 'var(--color-error)' }}
+              onClick={handleUndo}
+            >
+              다시 시도
+            </button>
+          )}
         </div>
       )}
 
@@ -384,6 +462,18 @@ function ItemRow({
 }) {
   const [editing, setEditing] = useState(false)
   const [editQty, setEditQty] = useState(item.quantity || '')
+  /* 수량 0 을 저장하려 할 때 한 번 묻는다.
+     예전에는 그냥 저장됐고, 워커의 `loadFridge` 가 수량을 안 읽기 때문에
+     「0 개 남은 재료」가 냉장고에 그대로 있는 것으로 계산됐다 — 추천이 한 글자도
+     안 바뀌는 원인이었다. 모달이 아니라 이 행 안에서 묻는다. 걸린 데이터가
+     글자 하나뿐이라 오버레이가 결정보다 비싸다. */
+  const [confirmUsedUp, setConfirmUsedUp] = useState(false)
+
+  const commitQty = () => {
+    if (meansUsedUp(editQty)) { setConfirmUsedUp(true); return }
+    onUpdate(item, editQty)
+    setEditing(false)
+  }
   const storageLabel = item.storage_method === 'refrigerated' ? '냉장' : item.storage_method === 'frozen' ? '냉동' : '실온'
   /* 예전엔 화면에 "8. 21.일" 로 나왔다.
      toLocaleDateString('ko-KR', {month:'numeric', day:'numeric'}) 은 이미
@@ -415,8 +505,28 @@ function ItemRow({
         {daysLabel(item.days_left)}
       </span>
 
-      {/* 수량 수정 모드 */}
-      {editing ? (
+      {/* 「다 쓰셨나요?」 — 행 안에서 묻는다.
+          아니요는 **0 을 저장하지 않는다.** 저장하면 고치려던 버그를 그대로 재현한다
+          (수량 0 인 재료가 냉장고에 남아 추천을 계속 오염시킨다). 다시 입력으로 돌아간다. */}
+      {confirmUsedUp ? (
+        <div className="flex items-center gap-1 flex-shrink-0" role="group" aria-label={`${item.name} 다 썼는지 확인`}>
+          <span className="text-xs" style={{ color: 'var(--color-on-surface-variant)' }}>다 쓰셨나요?</span>
+          <button
+            className="text-xs font-semibold px-2 min-h-[48px]"
+            style={{ color: 'var(--color-primary)' }}
+            onClick={() => { setConfirmUsedUp(false); setEditing(false); onDelete(item) }}
+          >
+            네
+          </button>
+          <button
+            className="text-xs px-2 min-h-[48px]"
+            style={{ color: 'var(--color-on-surface-variant)' }}
+            onClick={() => { setConfirmUsedUp(false); setEditQty(item.quantity || '') }}
+          >
+            아니요
+          </button>
+        </div>
+      ) : editing ? (
         <div className="flex items-center gap-1 flex-shrink-0">
           <input
             className="w-16 text-xs px-2 py-1 rounded-md outline-none"
@@ -424,16 +534,16 @@ function ItemRow({
             value={editQty}
             onChange={e => setEditQty(e.target.value)}
             onKeyDown={e => {
-              if (e.key === 'Enter') { onUpdate(item, editQty); setEditing(false) }
-              if (e.key === 'Escape') setEditing(false)
+              if (e.key === 'Enter') commitQty()
+              if (e.key === 'Escape') { setEditing(false); setConfirmUsedUp(false) }
             }}
             autoFocus
             placeholder="수량"
           />
           <button
-            className="text-xs font-semibold px-1"
+            className="text-xs font-semibold px-1 min-h-[48px]"
             style={{ color: 'var(--color-primary)' }}
-            onClick={() => { onUpdate(item, editQty); setEditing(false) }}
+            onClick={commitQty}
           >
             확인
           </button>
