@@ -242,6 +242,30 @@ describe('ScanPage — 클립보드 붙여넣기', () => {
     expect(screen.queryByText('방금 붙여넣은 이미지예요.')).toBeNull()
   })
 
+  it('서버가 이유를 말하면 그 문구를 그대로 보여준다 (사진 탓으로 돌리지 않는다)', async () => {
+    /* 실제로 프로덕션에서 났다 (2026-08-27 06:57 UTC).
+       Smart Placement 가 Gemini 미지원 리전으로 옮겨가서 워커가
+       503 «AI 기능이 일시적으로 중단됐어요» 를 정확히 돌려줬는데,
+       allSettled 가 거절 사유를 버려서 화면에는 «사진을 읽지 못했어요» 가 떴다.
+       사진 탓이 아닌데 사진 탓을 하니 사용자는 다시 찍는다 — 아무리 찍어도 안 된다. */
+    routePost(() =>
+      Promise.reject({
+        response: { status: 503, data: { detail: 'AI 기능이 일시적으로 중단됐어요. 잠시 후 다시 시도해주세요.' } },
+      }),
+    )
+    render(<ScanPage onRegistered={() => {}} />)
+    await pasteAndRead([pngFile()])
+    expect(await screen.findByText('AI 기능이 일시적으로 중단됐어요. 잠시 후 다시 시도해주세요.')).toBeTruthy()
+    expect(screen.queryByText('사진을 읽지 못했어요. 다시 시도해주세요.')).toBeNull()
+  })
+
+  it('서버가 문구를 안 주면 기본 문구로 돌아간다 (네트워크 끊김 등)', async () => {
+    routePost(() => Promise.reject({ message: 'Network Error' }))
+    render(<ScanPage onRegistered={() => {}} />)
+    await pasteAndRead([pngFile()])
+    expect(await screen.findByText('사진을 읽지 못했어요. 다시 시도해주세요.')).toBeTruthy()
+  })
+
   it('알림과 오류는 다른 배너를 쓴다 (DESIGN.md 5절)', async () => {
     // 「비어 있음」은 role=status 중립 배너, 「오류」는 role=alert 빨간 배너.
     // 문자열이 다른 것만으로는 5절을 만족하지 않는다 — 표시가 달라야 한다.

@@ -137,6 +137,22 @@ export interface MultiScanResult extends ScanResponse {
   attempted: number
   succeeded: number
   failed: number
+  /**
+   * 전부 실패했을 때 **서버가 말한 이유**.
+   *
+   * allSettled 는 거절 사유를 통째로 버린다. 그래서 워커가
+   * "AI 기능이 일시적으로 중단됐어요"(지역차단 503) 라고 정확히 말해줘도
+   * 화면에는 "사진을 읽지 못했어요" 가 떴다 — **사진 탓이 아닌데 사진 탓을 하니
+   * 사용자는 다시 찍는다.** 아무리 다시 찍어도 안 된다.
+   * 실제로 프로덕션에서 났다(2026-08-27, Smart Placement 가 차단 리전으로 이동).
+   */
+  failureDetail: string | null
+}
+
+/** axios 오류에서 서버가 준 문구만 꺼낸다. 없으면 null. */
+function serverDetail(e: unknown): string | null {
+  const d = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+  return typeof d === 'string' && d.trim() ? d : null
 }
 
 /** 중복 판정 키. 이름의 공백·대소문자 차이는 같은 것으로 본다. */
@@ -173,7 +189,14 @@ export async function analyzeReceipts(
   )
 
   const ok = settled.map((r) => (r.status === 'fulfilled' ? r.value : null))
-  return mergeScans(ok)
+
+  // 거절 사유 중 **서버가 문구를 준 첫 번째**를 살린다. 네트워크 끊김처럼
+  // 서버 문구가 없는 실패는 null 로 두고 호출부의 기본 문구를 쓰게 한다.
+  const detail = settled
+    .map((r) => (r.status === 'rejected' ? serverDetail(r.reason) : null))
+    .find((d): d is string => d !== null) ?? null
+
+  return { ...mergeScans(ok), failureDetail: detail }
 }
 
 /**
@@ -222,5 +245,6 @@ export function mergeScans(results: (ScanResponse | null)[]): MultiScanResult {
     attempted: results.length,
     succeeded,
     failed: results.length - succeeded,
+    failureDetail: null,
   }
 }
