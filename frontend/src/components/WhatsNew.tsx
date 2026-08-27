@@ -1,10 +1,23 @@
 import { useEffect, useState } from 'react'
 import { useModal } from '../hooks/useModal'
 
-export const CURRENT_VERSION = '1.9.0'
+export const CURRENT_VERSION = '1.10.0'
 const STORAGE_KEY = 'eatco_changelog_seen'
 
 export const CHANGELOG = [
+  {
+    version: '1.10.0',
+    date: '2026-08-27',
+    features: [
+      { icon: 'restart_alt', text: '가족 데이터 초기화 — 구성원 모두가 동의해야 지워져요 (가족 화면)' },
+      { icon: 'history', text: '지운 뒤 7일 안에는 되돌릴 수 있어요' },
+    ],
+    improvements: [
+      '공개한 요리와 계정·가족 정보는 초기화해도 남아요',
+      '초기화 요청은 48시간 뒤 만료돼요',
+      '가족 구성원 목록의 「방장」을 「대표」로 바꿨어요',
+    ],
+  },
   {
     version: '1.9.0',
     date: '2026-08-27',
