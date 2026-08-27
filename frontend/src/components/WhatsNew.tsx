@@ -1,10 +1,23 @@
 import { useEffect, useState } from 'react'
 import { useModal } from '../hooks/useModal'
 
-export const CURRENT_VERSION = '1.10.0'
+export const CURRENT_VERSION = '1.11.0'
 const STORAGE_KEY = 'eatco_changelog_seen'
 
 export const CHANGELOG = [
+  {
+    version: '1.11.0',
+    date: '2026-08-27',
+    features: [
+      { icon: 'key', text: '가족 AI 키 — 한 사람만 등록해도 온 가족이 써요 (가족 화면)' },
+      { icon: 'swap_horiz', text: '키가 여러 개면 가장 적게 쓴 것부터 돌아가며 써요' },
+    ],
+    improvements: [
+      '키 하나가 막히면 다음 키로 넘어가요. 다 안 되면 앱 키로 돌아가요',
+      '키는 암호화해서 보관하고 뒤 4자리만 보여요',
+      '스캔이 실패했을 때 사진 탓을 하던 문구를 고쳤어요',
+    ],
+  },
   {
     version: '1.10.0',
     date: '2026-08-27',
