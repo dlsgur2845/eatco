@@ -1,4 +1,5 @@
 import api from './client'
+import type { Ingredient } from '../types'
 
 export interface ScannedItem {
   name: string
@@ -21,14 +22,21 @@ export interface ScanResponse {
   store_name: string | null
 }
 
-export interface DashboardItem {
-  id: string
-  name: string
+/**
+ * 대시보드가 다루는 재료.
+ *
+ * `Ingredient` 를 **그대로 확장한다.** 예전에는 9개 필드만 따로 선언했는데,
+ * 서버는 16개를 다 보낸다(`GET /scan/items` 는 `SELECT *` + `days_left`).
+ * 되돌리기가 재등록으로 바뀌면서 `normalized_name`·`amount_value`·`unit` 같은
+ * 필드를 그대로 되돌려줘야 하는데, 좁은 타입으로는 그게 컴파일에 안 잡힌다.
+ *
+ * `normalized_name` 이 특히 중요하다 — 워커의 `loadFridge` 가
+ * `normalized_name || name` 으로 레시피를 매칭한다. 되돌리며 이걸 잃으면
+ * 되돌린 뒤 추천이 되돌리기 전과 달라진다.
+ */
+export interface DashboardItem extends Omit<Ingredient, 'storage_method'> {
+  /** 서버가 소문자로 내려준다 (`scan.ts` 의 `shape()`). */
   storage_method: string
-  quantity: string | null
-  price: number | null
-  expiry_date: string
-  registered_at: string
   registered_by: string | null
   days_left: number
 }
@@ -77,6 +85,42 @@ export async function updateItem(itemId: string, data: { quantity?: string; name
 
 export async function deleteItem(itemId: string): Promise<void> {
   await api.delete(`/scan/items/${itemId}`)
+}
+
+/**
+ * 지운 재료를 다시 넣는다 — 「되돌리기」용.
+ *
+ * 예전 되돌리기는 삭제를 3초 **미루는** 방식이었다. 그 3초 안에 새로고침하거나
+ * 앱을 닫으면 타이머가 죽어서 삭제가 아예 안 나갔다. 화면에서만 사라지고 서버엔
+ * 남았다 — 다 썼다고 믿은 재료가 냉장고에 계속 있고 추천도 계속 틀렸다.
+ * 이제 삭제는 즉시 하고, 되돌리기가 **다시 등록**한다.
+ *
+ * `normalized_name` 을 반드시 같이 보낸다. 워커의 `loadFridge` 가
+ * `normalized_name || name` 으로 레시피를 매칭하므로, 이걸 잃으면 되돌린 뒤
+ * 추천 결과가 되돌리기 전과 달라진다.
+ *
+ * `expiry_date` 는 10자로 자른다. 서버가 `^\d{4}-\d{2}-\d{2}$` 로 검증하는데
+ * 오래된 행에 시각이 붙어 있으면 422 가 나고 재료가 영영 사라진다.
+ * (`InventoryPage` 도 같은 이유로 자른다.)
+ *
+ * **돌려주는 행은 새 id 를 가진다.** 호출부는 반드시 이 응답으로 교체해야 한다 —
+ * 옛 id 를 그대로 쓰면 그 행의 삭제·수정 버튼이 없는 id 를 때려 404 가 난다.
+ */
+export async function restoreItem(item: DashboardItem): Promise<DashboardItem> {
+  const resp = await api.post<DashboardItem>('/ingredients', {
+    name: item.name,
+    category_id: item.category_id,
+    storage_method: item.storage_method,
+    quantity: item.quantity,
+    amount_value: item.amount_value,
+    unit: item.unit,
+    price: item.price,
+    expiry_date: item.expiry_date.slice(0, 10),
+    image_url: item.image_url,
+    store_name: item.store_name,
+    normalized_name: item.normalized_name,
+  })
+  return resp.data
 }
 
 
