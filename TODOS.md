@@ -319,6 +319,25 @@ vitest 로도 된다. 그러면 "송인혁님이 8월 21일 아침에 계란후�
 **Priority:** P3
 **Depends on:** None
 
+### 재고 화면과 「나의 요리」 렌더 상태에 테스트가 없다 (2026-08-27)
+
+**What:** v1.9.0 커버리지 감사에서 남긴 구멍 세 곳이다.
+`InventoryPage.tsx` 는 **테스트 파일 자체가 없고**, `MyRecipesPage` 는 순수 함수
+(`groupRecipes`)만 테스트돼 있고 렌더 4상태(스켈레톤·빈·오류·묶음)와 검토 패널
+배선은 안 잡힌다. `getMyRecipes` 도 직접 테스트가 없다.
+
+**Why:** 이번 릴리스에서 고친 재고 수정 버그(`put` → `patch`)가 바로 그
+테스트 없는 파일에서 나왔다. 요청 방식 한 글자가 틀려서 저장이 **조용히**
+실패하고 있었고, 화면은 아무 말도 안 했다. 같은 자리에서 같은 종류가 또 난다.
+
+**Context:** `MvpDashboardPage.test.tsx` 가 이번에 생겼으니 목킹 패턴은 그대로
+가져다 쓰면 된다(`api/scan` 목 + `renderWithRouter`). 재고 쪽은 "수정 폼을 저장하면
+PATCH 가 나간다" 한 줄이면 이번 버그를 잡는다.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** None
+
 ## Calendar
 
 ### 월별 보기가 점만 보여준다
