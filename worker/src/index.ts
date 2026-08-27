@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { onError } from './lib/errors'
 import { requireUser } from './lib/identity'
+import { purgeExpiredResets } from './lib/family-reset'
 import { todayKst, hourKst, nowIso } from './lib/dates'
 import type { Env, Vars } from './lib/types'
 import { visionModels } from './lib/gemini'
@@ -96,6 +97,10 @@ export default {
    * 다음 실행이 같은 조건을 다시 만족시키고, 중복 생성은 아래 dedupe 로 막는다.
    */
   async scheduled(_event: ScheduledController, env: Env, _ctx: ExecutionContext) {
+    /* 초기화 복구 창(7일)이 지난 보관분을 진짜로 지운다.
+       알림 생성보다 **먼저** 돌린다 — 아래 루프가 던져도 정리는 되게. */
+    await purgeExpiredResets(env.DB)
+
     const today = todayKst()
     const hh = hourKst().slice(0, 2)
 

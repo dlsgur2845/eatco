@@ -7,6 +7,10 @@ import { createSession, sessionCookie, clearCookie } from '../lib/session'
 import { validateNickname } from '../lib/nickname'
 import { uniqueInviteCode, notificationSettingStatements, createSoloFamily, consumeInviteCode, rotateInviteCode } from '../lib/family'
 import { roleForNewUser, requireFamily } from '../lib/identity'
+import {
+  RESET_TABLES, countResettable, totalCount, buildResetStatements, buildRestoreStatements,
+  allConsented, membershipChanged, isExpired, expiryFrom, purgeFrom,
+} from '../lib/family-reset'
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>()
 
@@ -496,6 +500,234 @@ app.post('/family/kick/:id', async (c) => {
   await rotateInviteCode(c.env.DB, famId)
 
   return c.json({ kicked: true })
+})
+
+/* ──────────────────────────────────────────────
+   가족 데이터 초기화 — 전원 동의 + 7일 복구
+
+   **와일드카드 `/family/:id` 보다 위에 있어야 한다.** 아래에 두면 :id 가
+   'reset' 을 삼켜서 이 경로들이 영영 안 불린다. (파일 아래 주석 참조)
+   ────────────────────────────────────────────── */
+
+interface ResetRow {
+  id: string
+  requested_by: string
+  member_ids: string
+  status: string
+  created_at: string
+  expires_at: string
+  executed_at: string | null
+  purge_after: string | null
+}
+
+/** 지금 살아 있는 요청 하나. 읽는 김에 만료를 정리한다. */
+async function activeReset(db: D1Database, familyId: string): Promise<ResetRow | null> {
+  const row = await db
+    .prepare(
+      `SELECT id, requested_by, member_ids, status, created_at, expires_at, executed_at, purge_after
+         FROM family_reset_requests
+        WHERE family_id = ? AND status IN ('pending','done')
+        ORDER BY created_at DESC LIMIT 1`,
+    )
+    .bind(familyId)
+    .first<ResetRow>()
+  if (!row) return null
+
+  // 만료 정리를 여기서 한다. 별도 cron 을 붙이지 않는 이유: 이 화면을 아무도
+  // 열지 않는 동안 상태가 낡아 있어도 아무에게도 안 보인다.
+  if (row.status === 'pending' && isExpired(row.expires_at, new Date())) {
+    await db.prepare(`UPDATE family_reset_requests SET status='expired' WHERE id = ? AND status='pending'`)
+      .bind(row.id).run()
+    return null
+  }
+  return row
+}
+
+async function memberIdsOf(db: D1Database, familyId: string): Promise<string[]> {
+  const r = await db.prepare('SELECT id FROM users WHERE family_id = ? ORDER BY id').bind(familyId).all<{ id: string }>()
+  return (r.results ?? []).map((x) => x.id)
+}
+
+async function consentIdsOf(db: D1Database, requestId: string): Promise<string[]> {
+  const r = await db.prepare('SELECT user_id FROM family_reset_consents WHERE request_id = ?')
+    .bind(requestId).all<{ user_id: string }>()
+  return (r.results ?? []).map((x) => x.user_id)
+}
+
+/**
+ * 전원 동의됐으면 실행한다. **요청 생성과 동의 두 곳에서 부른다.**
+ *
+ * 1인 가족에서는 요청이 곧 전원 동의다. 실행이 동의 엔드포인트에만 있으면
+ * 혼자인 사람은 자기 요청에 다시 동의할 방법이 없어 영영 못 지운다.
+ *
+ * 상태 전이가 원자적인 게 핵심이다 — 두 사람이 동시에 마지막 동의를 누르면
+ * 둘 다 여기까지 온다. UPDATE 를 이긴 쪽만 실제 삭제를 돌린다.
+ */
+async function maybeExecute(
+  db: D1Database, famId: string, requestId: string, snapshot: string[], actorId: string,
+): Promise<boolean> {
+  const consents = await consentIdsOf(db, requestId)
+  if (!allConsented(snapshot, consents)) return false
+
+  const now = new Date()
+  const won = await db.prepare(
+    `UPDATE family_reset_requests SET status='done', executed_at=?, purge_after=?
+      WHERE id=? AND status='pending'`,
+  ).bind(nowIso(), purgeFrom(now), requestId).run()
+  if (!won.meta.changes) return true // 이미 남이 했다. 결과는 같다.
+
+  await db.batch([
+    ...buildResetStatements(db, famId, requestId),
+    db.prepare(
+      `INSERT INTO notification_logs (id, family_id, type, title, message, is_read, link, created_at, actor_id)
+       VALUES (?, ?, 'RESET_DONE', ?, ?, 0, '/family', ?, ?)`,
+    ).bind(
+      crypto.randomUUID(), famId,
+      '데이터를 초기화했어요',
+      '7일 안에는 되돌릴 수 있어요. 공개한 요리는 남겨뒀어요.',
+      nowIso(), actorId,
+    ),
+  ])
+  return true
+}
+
+app.get('/family/reset', async (c) => {
+  const user = c.get('user')
+  const famId = requireFamily(user)
+  const row = await activeReset(c.env.DB, famId)
+  const counts = await countResettable(c.env.DB, famId)
+  const members = await memberIdsOf(c.env.DB, famId)
+
+  if (!row) return c.json({ request: null, counts, total: totalCount(counts), members: members.length })
+
+  const consents = await consentIdsOf(c.env.DB, row.id)
+  return c.json({
+    request: {
+      id: row.id,
+      status: row.status,
+      requested_by: row.requested_by,
+      is_mine: row.requested_by === user.id,
+      i_agreed: consents.includes(user.id),
+      agreed: consents.length,
+      needed: JSON.parse(row.member_ids).length,
+      expires_at: row.expires_at,
+      executed_at: row.executed_at,
+      purge_after: row.purge_after,
+    },
+    counts,
+    total: totalCount(counts),
+    members: members.length,
+  })
+})
+
+app.post('/family/reset', async (c) => {
+  const user = c.get('user')
+  const famId = requireFamily(user)
+
+  const existing = await activeReset(c.env.DB, famId)
+  if (existing?.status === 'pending') throw new ApiError(409, '이미 진행 중인 초기화 요청이 있어요.')
+  if (existing?.status === 'done') throw new ApiError(409, '되돌릴 수 있는 초기화가 남아 있어요. 먼저 정리해주세요.')
+
+  const counts = await countResettable(c.env.DB, famId)
+  if (totalCount(counts) === 0) throw new ApiError(422, '지울 데이터가 없어요.')
+
+  const members = await memberIdsOf(c.env.DB, famId)
+  const now = new Date()
+  const id = crypto.randomUUID()
+
+  // 요청은 곧 동의다. 요청해놓고 따로 또 동의하게 만들 이유가 없다.
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      `INSERT INTO family_reset_requests (id, family_id, requested_by, member_ids, status, created_at, expires_at)
+       VALUES (?, ?, ?, ?, 'pending', ?, ?)`,
+    ).bind(id, famId, user.id, JSON.stringify(members), nowIso(), expiryFrom(now)),
+    c.env.DB.prepare('INSERT INTO family_reset_consents (request_id, user_id, agreed_at) VALUES (?, ?, ?)')
+      .bind(id, user.id, nowIso()),
+    // 인앱 알림이 유일한 통로다 — 푸시 발송 코드가 없다. type 은 VARCHAR(12).
+    c.env.DB.prepare(
+      `INSERT INTO notification_logs (id, family_id, type, title, message, is_read, link, created_at, actor_id)
+       VALUES (?, ?, 'RESET_REQ', ?, ?, 0, '/family', ?, ?)`,
+    ).bind(
+      crypto.randomUUID(), famId,
+      '데이터 초기화에 동의가 필요해요',
+      `${user.nickname ?? '가족'}님이 초기화를 요청했어요. 모두 동의하면 지워져요.`,
+      nowIso(), user.id,
+    ),
+  ])
+
+  // 1인 가족이면 여기서 이미 전원 동의다. 바로 실행한다.
+  const executed = await maybeExecute(c.env.DB, famId, id, members, user.id)
+  return c.json({ id, expires_at: expiryFrom(now), executed })
+})
+
+app.post('/family/reset/consent', async (c) => {
+  const user = c.get('user')
+  const famId = requireFamily(user)
+  const row = await activeReset(c.env.DB, famId)
+  if (!row || row.status !== 'pending') throw new ApiError(404, '진행 중인 초기화 요청이 없어요.')
+
+  const snapshot: string[] = JSON.parse(row.member_ids)
+  const current = await memberIdsOf(c.env.DB, famId)
+  if (membershipChanged(snapshot, current)) {
+    await c.env.DB.prepare(`UPDATE family_reset_requests SET status='stale' WHERE id=? AND status='pending'`)
+      .bind(row.id).run()
+    throw new ApiError(409, '그 사이 가족 구성원이 바뀌었어요. 다시 요청해주세요.')
+  }
+  if (!snapshot.includes(user.id)) throw new ApiError(403, '이 요청의 구성원이 아니에요.')
+
+  await c.env.DB.prepare('INSERT OR IGNORE INTO family_reset_consents (request_id, user_id, agreed_at) VALUES (?, ?, ?)')
+    .bind(row.id, user.id, nowIso()).run()
+
+  const executed = await maybeExecute(c.env.DB, famId, row.id, snapshot, user.id)
+  if (executed) return c.json({ executed: true })
+  const consents = await consentIdsOf(c.env.DB, row.id)
+  return c.json({ executed: false, agreed: consents.length, needed: snapshot.length })
+})
+
+app.delete('/family/reset/consent', async (c) => {
+  const user = c.get('user')
+  const famId = requireFamily(user)
+  const row = await activeReset(c.env.DB, famId)
+  if (!row || row.status !== 'pending') throw new ApiError(404, '진행 중인 초기화 요청이 없어요.')
+  await c.env.DB.prepare('DELETE FROM family_reset_consents WHERE request_id = ? AND user_id = ?')
+    .bind(row.id, user.id).run()
+  return c.json({ withdrawn: true })
+})
+
+app.post('/family/reset/cancel', async (c) => {
+  const user = c.get('user')
+  const famId = requireFamily(user)
+  const row = await activeReset(c.env.DB, famId)
+  if (!row || row.status !== 'pending') throw new ApiError(404, '진행 중인 초기화 요청이 없어요.')
+
+  const fam = await c.env.DB.prepare('SELECT master_id FROM families WHERE id = ?')
+    .bind(famId).first<{ master_id: string | null }>()
+  if (row.requested_by !== user.id && fam?.master_id !== user.id) {
+    throw new ApiError(403, '요청한 사람이나 대표만 취소할 수 있어요.')
+  }
+  await c.env.DB.prepare(`UPDATE family_reset_requests SET status='cancelled' WHERE id=? AND status='pending'`)
+    .bind(row.id).run()
+  return c.json({ cancelled: true })
+})
+
+/** 되돌리기. 7일 안에만. */
+app.post('/family/reset/restore', async (c) => {
+  const user = c.get('user')
+  const famId = requireFamily(user)
+  const row = await activeReset(c.env.DB, famId)
+  if (!row || row.status !== 'done') throw new ApiError(404, '되돌릴 초기화가 없어요.')
+  if (row.purge_after && isExpired(row.purge_after, new Date())) {
+    throw new ApiError(409, '되돌릴 수 있는 기간(7일)이 지났어요.')
+  }
+
+  // 여기도 원자적으로. 두 명이 동시에 되돌리면 행이 두 번 들어갈 수 있다.
+  const won = await c.env.DB.prepare(
+    `UPDATE family_reset_requests SET status='restored' WHERE id=? AND status='done'`,
+  ).bind(row.id).run()
+  if (!won.meta.changes) return c.json({ restored: true, already: true })
+
+  await c.env.DB.batch(buildRestoreStatements(c.env.DB, row.id))
+  return c.json({ restored: true })
 })
 
 // 와일드카드는 반드시 구체 경로들보다 뒤에 둔다.
