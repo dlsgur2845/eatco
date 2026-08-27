@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getMyRecipes, type SharedRecipe } from '../api/sharedRecipes'
+import { getMyRecipes, type SharedRecipe, type SharedRecipeDetail } from '../api/sharedRecipes'
 import RecipeDetailModal from '../components/recipe/RecipeDetailModal'
+import RecipeReviewPanel from '../components/recipe/RecipeReviewPanel'
 import AddRecipeSheet from '../components/recipe/AddRecipeSheet'
 
 /**
@@ -43,6 +44,7 @@ export default function MyRecipesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [detail, setDetail] = useState<SharedRecipe | null>(null)
+  const [editing, setEditing] = useState<SharedRecipeDetail | null>(null)
   const [composing, setComposing] = useState(false)
 
   const load = useCallback(() => {
@@ -142,7 +144,33 @@ export default function MyRecipesPage() {
         ))
       )}
 
-      {detail && <RecipeDetailModal recipe={detail} onClose={() => setDetail(null)} />}
+      {/* 검토 패널을 반드시 끼운다. 이게 없으면 이 화면은 **읽기 전용**이다 —
+          「공개가 안 됐어요」의 안내가 "고친 뒤 다시 공개하거나, 사유를 확인해보세요"
+          라고 말하는데 정작 공개 버튼도 거절 사유도 여기서 닿을 수 없었다.
+          모두의 메뉴 카드는 진작 이걸 넘기고 있었다(SharedRecipeCard). 내 요리를
+          관리하라고 만든 화면만 빠져 있었다. */}
+      {detail && (
+        <RecipeDetailModal
+          recipe={detail}
+          onClose={() => setDetail(null)}
+          extra={
+            <RecipeReviewPanel
+              recipeId={detail.id}
+              // 고치기 시트를 열면서 상세를 닫는다. 겹쳐 두면 시트를 닫았을 때
+              // 방금 고치기 전 내용이 그대로인 상세가 남아 되돌아간 것처럼 보인다.
+              onEdit={(d) => { setDetail(null); setEditing(d) }}
+              onChanged={load}
+            />
+          }
+        />
+      )}
+      {editing && (
+        <AddRecipeSheet
+          editing={editing}
+          onClose={() => setEditing(null)}
+          onCreated={() => { setEditing(null); load() }}
+        />
+      )}
       {composing && (
         <AddRecipeSheet
           onClose={() => setComposing(false)}

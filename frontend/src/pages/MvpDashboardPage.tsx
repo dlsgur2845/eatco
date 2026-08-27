@@ -512,14 +512,14 @@ function ItemRow({
         <div className="flex items-center gap-1 flex-shrink-0" role="group" aria-label={`${item.name} 다 썼는지 확인`}>
           <span className="text-xs" style={{ color: 'var(--color-on-surface-variant)' }}>다 쓰셨나요?</span>
           <button
-            className="text-xs font-semibold px-2 min-h-[48px]"
+            className="text-xs font-semibold px-2 min-w-[48px] min-h-[48px]"
             style={{ color: 'var(--color-primary)' }}
             onClick={() => { setConfirmUsedUp(false); setEditing(false); onDelete(item) }}
           >
             네
           </button>
           <button
-            className="text-xs px-2 min-h-[48px]"
+            className="text-xs px-2 min-w-[48px] min-h-[48px]"
             style={{ color: 'var(--color-on-surface-variant)' }}
             onClick={() => { setConfirmUsedUp(false); setEditQty(item.quantity || '') }}
           >

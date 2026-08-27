@@ -102,6 +102,16 @@ export default function RecipeReviewPanel({ recipeId, onEdit, onChanged }: Props
   if (!detail || !detail.is_mine) return null
 
   const isPublic = detail.visibility === 'public'
+  /**
+   * **지금 실제로 가족 밖에서 보이는가.** `visibility` 만으로는 알 수 없다.
+   *
+   * 공개한 뒤 내용을 고치면 `content_hash` 가 승인 해시와 어긋나고, 서버의
+   * `VISIBLE_WHERE` 가 `approvalStillValid` 로 걸러내서 남에게 안 보인다.
+   * 그런데 `visibility` 는 'public' 인 채로 남는다. 그것만 읽던 이 패널은
+   * 아무도 못 보는 레시피에 "모두가 볼 수 있어요" 라고 말하고 있었다.
+   * (「나의 요리」에서 같은 레시피가 "공개가 안 됐어요" 묶음에 있는 채로.)
+   */
+  const liveToAll = isPublic && detail.approval_valid
   const notes = detail.improvements
   const latest: Improvement | undefined = notes[0]
   const older = notes.slice(1)
@@ -116,18 +126,20 @@ export default function RecipeReviewPanel({ recipeId, onEdit, onChanged }: Props
         <span
           aria-hidden="true"
           className="material-symbols-outlined"
-          style={{ fontSize: '18px', color: isPublic ? 'var(--color-primary)' : 'var(--color-on-surface-variant)' }}
+          style={{ fontSize: '18px', color: liveToAll ? 'var(--color-primary)' : 'var(--color-on-surface-variant)' }}
         >
-          {isPublic ? 'public' : 'home'}
+          {liveToAll ? 'public' : 'home'}
         </span>
         <p className="text-sm font-semibold" style={{ color: 'var(--color-on-surface)' }}>
-          {isPublic ? '모두가 볼 수 있어요' : '우리 가족만 볼 수 있어요'}
+          {liveToAll ? '모두가 볼 수 있어요' : '우리 가족만 볼 수 있어요'}
         </p>
       </div>
       <p className="text-xs mb-4" style={{ color: 'var(--color-on-surface-variant)' }}>
-        {isPublic
+        {liveToAll
           ? '내용을 고치면 다시 검토를 받아야 해요.'
-          : '공개 검토를 통과하면 가족 밖에서도 볼 수 있어요.'}
+          : isPublic
+            ? '내용을 고친 뒤라 지금은 가족 밖에서 안 보여요. 공개 검토를 다시 받아주세요.'
+            : '공개 검토를 통과하면 가족 밖에서도 볼 수 있어요.'}
       </p>
 
       {detail.status === 'rejected' && detail.status_reason && (
@@ -152,7 +164,7 @@ export default function RecipeReviewPanel({ recipeId, onEdit, onChanged }: Props
         >
           {busy === 'improve' ? '검토 중…' : '개선 검토'}
         </button>
-        {isPublic ? (
+        {liveToAll ? (
           <button
             type="button"
             onClick={unpublish}
