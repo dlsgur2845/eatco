@@ -11,6 +11,7 @@ import {
   RESET_TABLES, countResettable, totalCount, buildResetStatements, buildRestoreStatements,
   allConsented, membershipChanged, isExpired, isPurgeDue, expiryFrom, purgeFrom,
 } from '../lib/family-reset'
+import { addKey, providerLabel } from '../lib/api-keys'
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>()
 
@@ -500,6 +501,101 @@ app.post('/family/kick/:id', async (c) => {
   await rotateInviteCode(c.env.DB, famId)
 
   return c.json({ kicked: true })
+})
+
+/* ──────────────────────────────────────────────
+   가족 API 키 (BYOK)
+
+   **와일드카드 `/family/:id` 보다 위에 있어야 한다.** 아래면 :id 가 'keys' 를
+   삼켜서 이 경로들이 영영 안 불린다.
+
+   푸는 문제: 비용·할당량을 가족끼리 나눈다.
+   **안 푸는 문제: Gemini 지역차단.** 그건 워커 위치 문제라 키로 안 고쳐진다.
+   ────────────────────────────────────────────── */
+
+const PROVIDERS = new Set(['gemini', 'anthropic', 'openai'])
+
+app.get('/family/keys', async (c) => {
+  const user = c.get('user')
+  const famId = requireFamily(user)
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, provider, label, key_hint, added_by, created_at, priority,
+            calls, last_used_at, cooldown_until, disabled, last_error
+       FROM family_api_keys WHERE family_id = ? ORDER BY provider, created_at`,
+  )
+    .bind(famId)
+    .all()
+  const fam = await c.env.DB.prepare('SELECT key_strategy FROM families WHERE id = ?')
+    .bind(famId)
+    .first<{ key_strategy: string }>()
+  return c.json({
+    keys: (results ?? []).map((r) => ({ ...r, provider_label: providerLabel(String(r.provider)) })),
+    strategy: fam?.key_strategy ?? 'least_used',
+  })
+})
+
+app.post('/family/keys', async (c) => {
+  const user = c.get('user')
+  const famId = requireFamily(user)
+  const b = await readJson<{ provider?: string; label?: string; key?: string }>(c.req)
+
+  const provider = String(b.provider ?? '').trim()
+  if (!PROVIDERS.has(provider)) throw new ApiError(422, '지원하지 않는 제공자예요.')
+
+  const key = String(b.key ?? '').trim()
+  // 키 형식은 제공자마다 다르고 바뀐다. 길이만 최소한으로 본다 —
+  // 정규식으로 조이면 제공자가 형식을 바꾼 날 멀쩡한 키가 거절된다.
+  if (key.length < 20) throw new ApiError(422, '키가 너무 짧아요. 다시 확인해주세요.')
+
+  const label = String(b.label ?? '').trim().slice(0, 40) || `${user.nickname ?? '가족'}의 ${providerLabel(provider)}`
+
+  const { id, key_hint } = await addKey(c.env, famId, user.id, provider, label, key)
+  return c.json({ id, label, key_hint, provider })
+})
+
+app.delete('/family/keys/:id', async (c) => {
+  const user = c.get('user')
+  const famId = requireFamily(user)
+  const res = await c.env.DB.prepare('DELETE FROM family_api_keys WHERE id = ? AND family_id = ?')
+    .bind(c.req.param('id'), famId)
+    .run()
+  if (!res.meta.changes) throw new ApiError(404, '그 키를 찾을 수 없어요.')
+  return c.json({ deleted: true })
+})
+
+/** 꺼진 키를 다시 켠다 (키를 고쳐 넣은 뒤). */
+app.post('/family/keys/:id/enable', async (c) => {
+  const user = c.get('user')
+  const famId = requireFamily(user)
+  const res = await c.env.DB.prepare(
+    'UPDATE family_api_keys SET disabled = 0, cooldown_until = NULL, last_error = NULL WHERE id = ? AND family_id = ?',
+  )
+    .bind(c.req.param('id'), famId)
+    .run()
+  if (!res.meta.changes) throw new ApiError(404, '그 키를 찾을 수 없어요.')
+  return c.json({ enabled: true })
+})
+
+app.patch('/family/key-strategy', async (c) => {
+  const user = c.get('user')
+  const famId = requireFamily(user)
+  const b = await readJson<{ strategy?: string; order?: string[] }>(c.req)
+  const strategy = b.strategy === 'priority' ? 'priority' : 'least_used'
+
+  const stmts = [
+    c.env.DB.prepare('UPDATE families SET key_strategy = ? WHERE id = ?').bind(strategy, famId),
+  ]
+  // 순서 지정 모드면 순위도 같이 받는다. 한 번에 저장해야 화면과 어긋나지 않는다.
+  if (Array.isArray(b.order)) {
+    b.order.forEach((id, i) => {
+      stmts.push(
+        c.env.DB.prepare('UPDATE family_api_keys SET priority = ? WHERE id = ? AND family_id = ?')
+          .bind(i, id, famId),
+      )
+    })
+  }
+  await c.env.DB.batch(stmts)
+  return c.json({ strategy })
 })
 
 /* ──────────────────────────────────────────────

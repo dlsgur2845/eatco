@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { ApiError, readJson } from '../lib/errors'
 import { requireFamily } from '../lib/identity'
 import { generateJson, visionModels, type InlineImage } from '../lib/gemini'
+import { leaseKeys, reportKeyUse } from '../lib/api-keys'
 import { RECEIPT_PROMPT } from '../data/receipt-prompt'
 import { todayKst, addDays, nowIso, daysBetween } from '../lib/dates'
 import type { Env, Vars } from '../lib/types'
@@ -32,7 +33,7 @@ interface GeminiResult {
 }
 
 app.post('/analyze', async (c) => {
-  requireFamily(c.get('user'))
+  const famId = requireFamily(c.get('user'))
 
   const form = await c.req.formData().catch(() => null)
   const file = form?.get('file')
@@ -48,11 +49,41 @@ app.post('/analyze', async (c) => {
     mimeType: file.type,
   }
 
-  const parsed = await generateJson<GeminiResult | GeminiItem[]>(c.env, [image, RECEIPT_PROMPT], {
-    models: visionModels(c.env),
-    temperature: 0.1,
-    timeoutMs: 60_000,
-  })
+  /* 가족이 등록한 키를 **순서대로 전부** 시도하고, 다 실패하면 앱 공용 키로 간다.
+     키 하나만 빌리면 그게 고장났을 때 스캔이 통째로 죽는다 — 실측으로 잡았다.
+
+     **지역차단은 예외다.** 그건 워커 위치 문제라 다른 키로 다시 걸어봐야
+     똑같이 막힌다. 키를 끄지도 않고(멀쩡한 키다), 남은 키를 돌지도 않는다. */
+  const leased = await leaseKeys(c.env, famId, 'gemini')
+  const attempts: (typeof leased[number] | null)[] = [...leased, null] // 마지막 null = 앱 공용 키
+
+  let parsed: GeminiResult | GeminiItem[] | undefined
+  let lastErr: unknown
+
+  for (const k of attempts) {
+    try {
+      parsed = await generateJson<GeminiResult | GeminiItem[]>(c.env, [image, RECEIPT_PROMPT], {
+        models: visionModels(c.env),
+        temperature: 0.1,
+        timeoutMs: 60_000,
+        apiKey: k?.apiKey,
+      })
+      if (k) await reportKeyUse(c.env.DB, k.id, true)
+      break
+    } catch (e) {
+      lastErr = e
+      if ((e as { geoBlocked?: boolean })?.geoBlocked) throw e
+      if (k) {
+        await reportKeyUse(
+          c.env.DB, k.id, false,
+          (e as { providerStatus?: number })?.providerStatus,
+          (e as { providerDetail?: string })?.providerDetail,
+        )
+      }
+    }
+  }
+
+  if (parsed === undefined) throw lastErr
 
   let storeName: string | null = null
   let entries: GeminiItem[] = []
