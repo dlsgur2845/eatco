@@ -14,11 +14,18 @@ const api = axios.create({
    스캔 결과 저장, 대시보드의 "다 썼어요" 세 군데에서 일어난다.
    여기 한 곳에 두면 새 경로가 생겨도 저절로 걸린다. */
 const MUTATES_FRIDGE = /^\/?(ingredients|scan)\b/
-let onFridgeChange: (() => void) | null = null
+/**
+ * **배열이다. 슬롯 하나가 아니다.**
+ *
+ * 예전에는 `let onFridgeChange = fn` 이었다. 등록하는 곳이 하나뿐이라 굴러갔지만,
+ * 두 번째 소비자(모두의 메뉴 캐시)를 붙이는 순간 먼저 등록한 추천 캐시 무효화가
+ * **조용히 죽는다.** 게다가 테스트가 이 모듈을 통째로 목킹해서 안 잡힌다.
+ */
+const fridgeChangeHandlers: (() => void)[] = []
 
-/** 순환 import 를 피하려고 api/recipes.ts 가 자기 무효화 함수를 등록한다. */
+/** 순환 import 를 피하려고 각 API 모듈이 자기 무효화 함수를 등록한다. */
 export function registerFridgeChangeHandler(fn: () => void): void {
-  onFridgeChange = fn
+  fridgeChangeHandlers.push(fn)
 }
 
 // 401 응답 시 저장된 신원만 비우고 호출부가 처리하게 둔다.
@@ -31,7 +38,7 @@ api.interceptors.response.use(
   (response) => {
     const method = (response.config.method ?? 'get').toLowerCase()
     if (method !== 'get' && MUTATES_FRIDGE.test(response.config.url ?? '')) {
-      onFridgeChange?.()
+      fridgeChangeHandlers.forEach((fn) => fn())
     }
     return response
   },

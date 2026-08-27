@@ -41,11 +41,17 @@ export interface Recipe {
 const TTL_MS = 10 * 60 * 1000
 let cache: { at: number; data: Recipe[] } | null = null
 let inFlight: Promise<Recipe[]> | null = null
+/* 세대 번호. `inFlight = null` 만으로는 **이미 나간 요청이 멈추지 않는다** —
+   늦게 도착한 응답이 무효화 뒤에 캐시를 덮어쓴다. 삭제와 되돌리기가 몇백 ms 사이로
+   두 번 무효화하는 지금 구조에서는 자주 일어난다. 응답이 자기 세대가 아직 유효할
+   때만 캐시에 쓰게 한다. */
+let generation = 0
 
 /** 재료가 바뀌면 호출한다. 다음 조회에서 새로 받는다. */
 export function invalidateRecommendations(): void {
   cache = null
   inFlight = null
+  generation += 1
 }
 
 // /ingredients 나 /scan 에 쓰기가 성공하면 client.ts 가 이걸 불러준다.
@@ -56,10 +62,12 @@ export async function getRecommendations(): Promise<Recipe[]> {
   // 같은 순간에 두 곳에서 부르면 요청은 하나만 나간다.
   if (inFlight) return inFlight
 
+  const myGen = generation
   inFlight = api
     .get<Recipe[]>('/recipes/recommend')
     .then((resp) => {
-      cache = { at: Date.now(), data: resp.data }
+      // 내가 나간 뒤 냉장고가 또 바뀌었으면 이 응답은 이미 낡았다. 캐시에 쓰지 않는다.
+      if (myGen === generation) cache = { at: Date.now(), data: resp.data }
       return resp.data
     })
     .finally(() => {
