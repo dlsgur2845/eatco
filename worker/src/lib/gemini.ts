@@ -53,10 +53,19 @@ interface GenerateOpts {
   temperature?: number
   jsonMode?: boolean
   timeoutMs?: number
+  /**
+   * 가족이 등록한 개인 키. 있으면 앱 공용 키 대신 쓴다.
+   *
+   * **지역차단과는 무관하다.** 차단은 워커가 어디서 실행되느냐의 문제라
+   * 키를 바꿔도 안 풀린다 (2026-08-27 HKG 실측: 세 제공자 모두 막힘).
+   * 이건 비용·할당량을 가족끼리 나누기 위한 것이다.
+   */
+  apiKey?: string
 }
 
 export async function generate(env: Env, parts: Part[], opts: GenerateOpts): Promise<string> {
-  if (!env.GEMINI_API_KEY) {
+  const apiKey = opts.apiKey || env.GEMINI_API_KEY
+  if (!apiKey) {
     throw new ApiError(503, 'AI 기능이 설정되지 않았습니다. 관리자에게 문의해주세요.')
   }
   const { models, temperature = 0, jsonMode = false, timeoutMs = 30_000 } = opts
@@ -70,7 +79,7 @@ export async function generate(env: Env, parts: Part[], opts: GenerateOpts): Pro
     generationConfig,
   })
   const headers = {
-    'x-goog-api-key': env.GEMINI_API_KEY,
+    'x-goog-api-key': apiKey,
     'Content-Type': 'application/json',
   }
 
@@ -127,11 +136,19 @@ export async function generate(env: Env, parts: Part[], opts: GenerateOpts): Pro
           `Gemini 지역차단 (${model}). Worker 가 지원되지 않는 리전에서 실행 중이다. ` +
             `wrangler.jsonc 의 placement 설정을 확인할 것. 원문: ${detail}`,
         )
-        throw new ApiError(503, 'AI 기능이 일시적으로 중단됐어요. 잠시 후 다시 시도해주세요.')
+        // 위치 문제지 키 문제가 아니다. 호출부가 이걸 보고 키를 끄지 않게 표시한다.
+        throw Object.assign(
+          new ApiError(503, 'AI 기능이 일시적으로 중단됐어요. 잠시 후 다시 시도해주세요.'),
+          { geoBlocked: true },
+        )
       }
 
       console.error(`Gemini 호출 실패 (${model}, HTTP ${res.status}): ${detail}`)
-      throw new ApiError(503, `AI 요청이 거부되었습니다 (HTTP ${res.status}).`)
+      throw Object.assign(new ApiError(503, `AI 요청이 거부되었습니다 (HTTP ${res.status}).`), {
+        providerStatus: res.status,
+        // 본문이 있어야 400 이 「잘못된 키」인지 「잘못된 요청」인지 가른다.
+        providerDetail: detail,
+      })
     }
   }
 
