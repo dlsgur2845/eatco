@@ -366,7 +366,9 @@ function EditForm({ ingredient, onClose, onSuccess }: { ingredient: Ingredient; 
     setError('')
     setSubmitting(true)
     try {
-      await api.put(`/ingredients/${ingredient.id}`, form)
+      // PATCH 다. 워커에 `put` 핸들러가 없어서 이 폼은 저장할 때마다 404 였다
+      // (실증: PUT → 404, PATCH → 200). 재고 화면 수정이 조용히 실패하고 있었다.
+      await api.patch(`/ingredients/${ingredient.id}`, form)
       onSuccess()
     } catch {
       setError('수정에 실패했습니다.')
