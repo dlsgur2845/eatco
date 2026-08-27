@@ -26,6 +26,11 @@ export interface ResetTable {
   label: string | null
 }
 
+/**
+ * **`name` 과 `where` 는 SQL 에 그대로 끼워넣는다.** 아래 상수 배열이 유일한
+ * 출처이고 전부 하드코딩된 문자열이라 안전하다. 사용자 입력이나 요청 파라미터로
+ * 이 값을 만들면 그 순간 SQL 인젝션이 된다 — family_id 처럼 바인딩(`?`)을 쓸 것.
+ */
 export const RESET_TABLES: ResetTable[] = [
   // 지워질 레시피의 개선 이력. 부모(shared_recipes)보다 **먼저** 보관/삭제해야 한다.
   // CASCADE 가 걸려 있어서, 부모를 먼저 지우면 이건 보관되지 못하고 사라진다.

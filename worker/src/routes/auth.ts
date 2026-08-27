@@ -9,7 +9,7 @@ import { uniqueInviteCode, notificationSettingStatements, createSoloFamily, cons
 import { roleForNewUser, requireFamily } from '../lib/identity'
 import {
   RESET_TABLES, countResettable, totalCount, buildResetStatements, buildRestoreStatements,
-  allConsented, membershipChanged, isExpired, expiryFrom, purgeFrom,
+  allConsented, membershipChanged, isExpired, isPurgeDue, expiryFrom, purgeFrom,
 } from '../lib/family-reset'
 
 const app = new Hono<{ Bindings: Env; Variables: Vars }>()
@@ -664,7 +664,13 @@ app.post('/family/reset/consent', async (c) => {
   const user = c.get('user')
   const famId = requireFamily(user)
   const row = await activeReset(c.env.DB, famId)
-  if (!row || row.status !== 'pending') throw new ApiError(404, '진행 중인 초기화 요청이 없어요.')
+  if (!row) throw new ApiError(404, '진행 중인 초기화 요청이 없어요.')
+  /* 이미 끝났으면 성공으로 답한다.
+     동시에 마지막 동의를 누르면 진 쪽이 여기 온다. 그 사람의 의도(초기화)는
+     이미 이뤄졌는데 404 를 주면 **초기화는 됐는데 화면엔 오류가 뜬다.**
+     실측으로 잡았다 — 동시 요청 2발에서 한 쪽이 이 문구를 받았다. */
+  if (row.status === 'done') return c.json({ executed: true, already: true })
+  if (row.status !== 'pending') throw new ApiError(404, '진행 중인 초기화 요청이 없어요.')
 
   const snapshot: string[] = JSON.parse(row.member_ids)
   const current = await memberIdsOf(c.env.DB, famId)
@@ -716,7 +722,9 @@ app.post('/family/reset/restore', async (c) => {
   const famId = requireFamily(user)
   const row = await activeReset(c.env.DB, famId)
   if (!row || row.status !== 'done') throw new ApiError(404, '되돌릴 초기화가 없어요.')
-  if (row.purge_after && isExpired(row.purge_after, new Date())) {
+  // isExpired 가 아니라 isPurgeDue 다. 둘은 다른 기한을 본다 —
+  // isExpired 는 동의 마감(48h), 이건 복구 창(7일)이다. null 가드도 안에 있다.
+  if (isPurgeDue(row.purge_after, new Date())) {
     throw new ApiError(409, '되돌릴 수 있는 기간(7일)이 지났어요.')
   }
 
