@@ -1,10 +1,53 @@
 import { useEffect, useState } from 'react'
 import { useModal } from '../hooks/useModal'
 
-const CURRENT_VERSION = '1.6.0'
+export const CURRENT_VERSION = '1.9.0'
 const STORAGE_KEY = 'eatco_changelog_seen'
 
-const CHANGELOG = [
+export const CHANGELOG = [
+  {
+    version: '1.9.0',
+    date: '2026-08-27',
+    features: [
+      { icon: 'menu_book', text: '나의 요리 — 내가 올린 요리를 공개 범위별로 모아서 봐요 (설정 안)' },
+    ],
+    improvements: [
+      '재료를 다 쓰면 추천이 바로 바뀌어요 — 예전에는 3초 뒤에 지워져서, 그 사이 새로고침하면 삭제가 아예 안 나갔어요',
+      '「일부 사용」에서 수량을 0 으로 두면 다 썼는지 물어봐요',
+      '되돌리기가 재료를 실제로 다시 넣어줘요 (새로고침해도 어긋나지 않아요)',
+      '레시피 카드가 「78%」 대신 「재료 3/5」 로 말해요',
+      '남이 올린 레시피에 「나의 레시피」가 찍히던 표시를 고쳤어요',
+      '공개한 뒤 고쳐서 검토가 필요해진 요리를 알려줘요',
+      '재고 화면에서 재료 수정이 저장되지 않던 문제를 고쳤어요',
+    ],
+  },
+  {
+    version: '1.8.0',
+    date: '2026-08-26',
+    features: [
+      { icon: 'content_paste', text: '영수증·주문내역을 클립보드에서 바로 붙여넣기 (⌘V)' },
+      { icon: 'drag_pan', text: '이미지를 끌어다 놓아도 스캔돼요' },
+    ],
+    improvements: [
+      '보내기 전에 무엇을 보낼지 확인하는 단계가 생겼어요',
+      '「취소」가 실제로 요청을 멈춰요',
+      '여러 장 중 한 장이 잘못돼도 나머지는 살려요',
+    ],
+  },
+  {
+    version: '1.7.0',
+    date: '2026-08-23',
+    features: [
+      { icon: 'restaurant', text: '식단에 레시피 붙이기 — 부족한 재료를 그때의 냉장고로 계산해서 알려줘요' },
+      { icon: 'rate_review', text: '개선 검토 / 공개 검토 — 올린 요리는 기본적으로 가족만 봐요' },
+      { icon: 'link', text: '가족 초대 링크 (한 번 쓰면 만료)' },
+      { icon: 'person', text: '마이페이지 — 닉네임·비밀번호 변경' },
+    ],
+    improvements: [
+      '「로그인 유지」를 켰을 때만 유지돼요',
+      '닉네임 규칙 — 한글 7자까지, 비속어·중복 거름',
+    ],
+  },
   {
     version: '1.6.0',
     date: '2026-08-21',
