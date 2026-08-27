@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 import type { Family, User } from '../types'
+import ResetPanel from '../components/family/ResetPanel'
 
 /* ──────────────────────────────────────────────
    가족 관리 뷰 (메인)
@@ -182,6 +183,10 @@ function FamilyManageView({
               })}
             </div>
           </section>
+
+          {/* 데이터 초기화. 탈퇴 **위**에 둔다 — 탈퇴는 나 하나가 나가는 일이고
+              초기화는 가족 전체의 일이라, 구성원 목록 바로 다음이 맞는 자리다. */}
+          <ResetPanel />
 
           {/* 가족 탈퇴 (2인 이상일 때만 표시) */}
           {localFamily.members.length > 1 && (
