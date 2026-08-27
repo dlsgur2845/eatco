@@ -124,8 +124,11 @@ export async function leaseKeys(
     const next = pickKey(pool, strategy, now)
     if (!next) break
     pool.splice(pool.findIndex((k) => k.id === next.id), 1)
-    const row = await env.DB.prepare('SELECT key_cipher FROM family_api_keys WHERE id = ?')
-      .bind(next.id)
+    /* family_id 를 **한 번 더** 건다. 지금은 id 가 위의 가족 스코프 조회에서만
+       오므로 악용 경로가 없지만, 이 줄이 혼자 남았을 때 다른 가족 키를 꺼낼 수
+       있는 모양이면 언젠가 그렇게 쓰인다. 비밀값 조회는 스코프를 두 번 건다. */
+    const row = await env.DB.prepare('SELECT key_cipher FROM family_api_keys WHERE id = ? AND family_id = ?')
+      .bind(next.id, familyId)
       .first<{ key_cipher: string }>()
     if (row) out.push({ id: next.id, provider: next.provider, apiKey: await decryptKey(env, row.key_cipher) })
   }
